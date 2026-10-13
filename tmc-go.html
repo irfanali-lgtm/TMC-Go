@@ -544,6 +544,29 @@ section.enter{animation:viewin .22s ease both}
 .line:has(.ord){padding-left:52px!important}
 .ordhint{margin:-2px 0 10px;padding:8px 12px;border-radius:10px;background:#EEF1FF;color:#1E2867;font-size:12.5px}
 @media (max-width:760px){.line .ord{top:12px}.line:has(.ord){padding-left:50px!important}}
+/* sign-in */
+.signin{min-height:calc(100dvh - 140px);display:flex;align-items:flex-start;justify-content:center;padding:28px 0}
+.si-card{width:min(440px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow-lg);padding:22px}
+.si-brand{display:flex;align-items:center;gap:10px;font-weight:800;color:#1E2867;margin-bottom:14px}
+.si-card h2{font-size:20px;margin:6px 0 4px}
+.si-card>input,.si-card input#siQ{width:100%;height:46px;margin:12px 0 6px;font-size:16px}
+.si-list{display:grid;gap:6px;max-height:min(52vh,420px);overflow:auto;margin-top:6px}
+.si-who{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:#fff;text-align:left;cursor:pointer}
+.si-who:hover{border-color:#A5B4FC;background:#FBFCFF}
+.si-who span:nth-child(2){flex:1;display:flex;flex-direction:column}
+.si-who small{color:var(--muted);font-size:12px}
+.si-who i{font-style:normal;color:#94A3B8;font-size:20px}
+.si-back{border:none;background:none;color:#4252E8;font-weight:600;padding:0;margin-bottom:10px;cursor:pointer}
+.si-me{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.si-me b{display:block;font-size:17px}.si-me small{color:var(--muted)}
+.si-big{width:100%;min-height:52px;margin-top:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.si-big small{font-weight:500;opacity:.85;font-size:12px}
+.si-link{display:block;margin:14px auto 0;border:none;background:none;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:13px}
+.si-code{text-align:center;letter-spacing:.5em;font-size:26px!important;font-weight:800;height:60px!important}
+body.signed-out #tabbar,body.signed-out #nav,body.signed-out .aifab,body.signed-out #btnSettings,body.signed-out .hright select,body.signed-out #hav{display:none!important}
+.hright select.locked{opacity:1;cursor:default;-webkit-appearance:none;appearance:none;background-image:none;padding-right:12px}
+.signedas{height:42px;display:flex;align-items:center;gap:8px;font-weight:700}
+td.acc{white-space:nowrap}td.acc .btn.sm{padding:0 8px;margin-right:4px}
 /* day sheet */
 .dsheet table{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px}
 .dsheet thead th{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#64748B;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);background:transparent}
@@ -834,7 +857,7 @@ tr.aerow.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-13 07:03 · production';
+const BUILD = '2026-10-13 07:41 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -915,10 +938,11 @@ const splitAccts = s => String(s||'').split(';').map(t=>t.trim()).filter(Boolean
 const shortName = n => { const p=String(n).trim().split(/\s+/); return p.length>1 ? p[0]+' '+p[1][0]+'.' : p[0]; };
 const uid = p => p + Math.random().toString(36).slice(2,10);
 const AV_COLORS = ['#1E2867','#3B4FD8','#0E9F6E','#7C3AED','#B45309','#0F766E','#BE185D','#4338CA'];
+const safePhoto = p => /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(String(p||'')) ? p : '';
 function initials(n){ const p = String(n||'').trim().split(/\s+/); return ((p[0]||'')[0]||'') + ((p[1]||'')[0]||''); }
 function avatar(name, size=28){
   const a = aeByName(name) || {}; const col = AV_COLORS[[...String(name)].reduce((s,c)=>s+c.charCodeAt(0),0) % AV_COLORS.length];
-  return a.photo ? `<img class="av" src="${a.photo}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px">` : `<span class="av" style="width:${size}px;height:${size}px;background:${col};font-size:${Math.round(size*0.4)}px">${esc(initials(name).toUpperCase())}</span>`;
+  return safePhoto(a.photo) ? `<img class="av" src="${safePhoto(a.photo)}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px">` : `<span class="av" style="width:${size}px;height:${size}px;background:${col};font-size:${Math.round(size*0.4)}px">${esc(initials(name).toUpperCase())}</span>`;
 }
 const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 // Fuzzy name matching: AEs type "Dawn bread", "Parco", "M&P" — find the account they mean.
@@ -972,9 +996,13 @@ const hasGs = () => !!(window.google && google.script && google.script.run);
 (() => { try { const u = new URL(location.href); const c = u.searchParams.get('connect'); if (c && /^https:\/\/script\.google\.com\/(a\/[^\/]+\/)?macros\/s\/[^\/]+\/exec/.test(c)) { localStorage.setItem('vi.api', c); u.searchParams.delete('connect'); history.replaceState(null, '', u.pathname + (u.search || '') + u.hash); } } catch(e){} })();
 const apiUrl = () => { if (API_URL) return API_URL; const site = String(window.TMC_BACKEND || ''); if (/^https:\/\/script\.google\.com\/(a\/[^\/]+\/)?macros\/s\/[^\/]+\/exec/.test(site)) return site; try { return localStorage.getItem('vi.api') || ''; } catch(e){ return ''; } };
 const setApiUrl = u => { try { if (u) localStorage.setItem('vi.api', u); else localStorage.removeItem('vi.api'); } catch(e){} };
+const getTok = () => { try { return localStorage.getItem('vi.tok') || ''; } catch(e){ return ''; } };
+const setTok = t => { try { if (t) localStorage.setItem('vi.tok', t); else localStorage.removeItem('vi.tok'); } catch(e){} };
+const isMgr = () => !!(ui.session && ui.session.role === 'manager');
 const getAdminPin = () => { try { return sessionStorage.getItem('vi.adminPin') || ''; } catch(e){ return ''; } };
 const setAdminPin = p => { try { if (p) sessionStorage.setItem('vi.adminPin', p); else sessionStorage.removeItem('vi.adminPin'); } catch(e){} };
 async function ensureAdmin(){
+  if (isMgr()) return true;
   let pin = getAdminPin();
   for (let i=0;i<3;i++) {
     if (!pin) { const p = await askModal({title: i ? 'Wrong admin PIN — try again' : 'Admin PIN', message:'Managers only. It is kept for this browser session.', input:'password', okLabel:'Unlock', placeholder:'Admin PIN'}); if (p===null) return false; pin = p; }
@@ -1010,6 +1038,13 @@ function friendly(err){
   if (/APP_PAGE/.test(m)) return 'This link points at an older setup. Ask your manager to update the backend and deploy a new version.';
   if (/NOT_JSON|Unexpected token|JSON/i.test(m)) return 'The sheet replied with something unexpected. Try again in a moment; if it keeps happening, tell your manager.';
   if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return 'Could not reach the sheet. Check your connection and try again.';
+  if (/BUSY|lock timeout|another process was holding the lock/i.test(m)) return 'The sheet was busy saving for someone else. Please try again in a moment.';
+  if (/^SIGNIN/.test(m)) return 'Please sign in.';
+  if (/WEAKPIN/.test(m)) return 'The admin PIN is still the default or too simple. A manager must set a stronger one (at least 6 digits) in the sheet’s Settings tab first.';
+  if (/photo could not be saved|photo is too large/i.test(m)) return m.replace(/^Error:\s*/,'');
+  if (/NOTYOU/.test(m)) return 'You can only change your own visits.';
+  if (/MANAGER_ONLY/.test(m)) return 'Only managers can do that.';
+  if (/No email on file|code was sent less than|not right or has expired|Too many tries|not on the team list|wait 15 minutes/i.test(m)) return m.replace(/^Error:\s*/,'');
   if (/admin pin/i.test(m)) return 'Wrong admin PIN.';
   if (/wrong pin|pin required/i.test(m)) return 'The backend is on an older version. Ask your manager to paste the latest Code.gs into Apps Script and deploy a new version.';
   if (/unknown action/i.test(m)) return 'The backend is on an older version and does not understand this request. Ask your manager to update Code.gs and deploy a new version.';
@@ -1026,28 +1061,39 @@ async function parseApi(resp){
   if (/<!DOCTYPE|<html/i.test(text)) throw new Error('APP_PAGE');
   throw new Error('NOT_JSON');
 }
-async function callApi(body){
+async function callApi(body, attempt){
+  attempt = attempt || 0;
+  try { return await callApiOnce(body); }
+  catch (e) {
+    if (attempt < 3 && /busy saving for someone else/i.test(e.message)) { await new Promise(r => setTimeout(r, 1200 * (attempt + 1) + Math.random() * 600)); return callApi(body, attempt + 1); }
+    throw e;
+  }
+}
+async function callApiOnce(body){
   if (ui.demo) return demoApi(body);
+  body = Object.assign({}, body, {token: getTok()});
   let res;
   try {
     if (hasGs()) {
       res = await new Promise((ok, no) => google.script.run.withSuccessHandler(ok).withFailureHandler(no).api(body));
     } else if (body.action === 'all') {
-      res = await parseApi(await fetch(apiUrl() + (apiUrl().includes('?')?'&':'?') + 'action=all&t=' + Date.now(), {cache:'no-store'}));
+      res = await parseApi(await fetch(apiUrl() + (apiUrl().includes('?')?'&':'?') + 'action=all&token=' + encodeURIComponent(getTok()) + '&t=' + Date.now(), {cache:'no-store'}));
     } else {
       res = await parseApi(await fetch(apiUrl(), {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body)}));
     }
   } catch (e) { const err = new Error(friendly(e)); err.friendly = true; throw err; }
   if (res && res.status === 'ok') return res;
+  if (res && /^SIGNIN/.test(res.message || '') && !/^(sendCode|verifyCode|managerSignIn|roster)$/.test(body.action)) { setTok(''); ui.session = null; ui.me = ''; setTimeout(() => signInScreen(), 0); }
   const err2 = new Error(friendly((res && res.message) || 'Request failed')); err2.friendly = true; throw err2;
 }
 // Demo mode: in-memory writes, so the app can be explored before the sheet is connected.
+const DEMO_PINS = ['0000', '482913'];   // demo only — the live app checks the PIN in the sheet
 function demoApi(b){
   const tabs = {upsertVisit:'visits', deleteVisit:'visits', upsertAccount:'accounts', deleteAccount:'accounts', upsertOpportunity:'opportunities', deleteOpportunity:'opportunities'};
   if (b.action === 'all') return {status:'ok', data: JSON.parse(JSON.stringify(data))};
-  if (b.action === 'upsertAE') { const i=data.aes.findIndex(a=>a.name===b.row.name); if (i<0 && String(b.adminPin||'')!=='0000') throw new Error('Wrong admin PIN'); if (i>=0 && b.row.notes !== undefined && String(b.row.notes||'') !== String(data.aes[i].notes||'') && String(b.adminPin||'')!=='0000') throw new Error('Wrong admin PIN'); const row={...b.row, active: i<0 ? 'Y' : data.aes[i].active}; if(i<0) data.aes.push(row); else data.aes[i]=row; return {status:'ok', row}; }
+  if (b.action === 'upsertAE') { const i=data.aes.findIndex(a=>a.name===b.row.name); if (i<0 && !DEMO_PINS.includes(String(b.adminPin||''))) throw new Error('Wrong admin PIN'); if (i>=0 && b.row.notes !== undefined && String(b.row.notes||'') !== String(data.aes[i].notes||'') && !DEMO_PINS.includes(String(b.adminPin||''))) throw new Error('Wrong admin PIN'); const row={...b.row, active: i<0 ? 'Y' : data.aes[i].active}; if(i<0) data.aes.push(row); else data.aes[i]=row; return {status:'ok', row}; }
   if (['checkAdmin','removeAE','restoreAE','setSettings'].includes(b.action)) {
-    if (String(b.adminPin||'') !== '0000') throw new Error('Wrong admin PIN');
+    if (!DEMO_PINS.includes(String(b.adminPin||''))) throw new Error('Wrong admin PIN');
     if (b.action === 'checkAdmin') return {status:'ok'};
     if (b.action === 'setSettings') { Object.keys(b.settings||{}).forEach(k => { if (k==='autoKm') data.settings.autoKm=b.settings[k]; else if (k==='purposes') data.settings.purposes=b.settings[k]; else if (k.startsWith('office.')) { data.settings.offices[k.slice(7)] = {address:b.settings[k], latlng:''}; } }); return {status:'ok', offices:{}, settings: data.settings}; }
     const a = data.aes.find(x=>x.name===b.name); if (!a) throw new Error('AE not found'); a.active = b.action==='removeAE' ? 'N' : 'Y'; return {status:'ok', row:a};
@@ -1121,7 +1167,10 @@ async function load(first){
     showBanner('Running on demo data (September 2026 import). Nothing is saved to a sheet yet — set API_URL in the file, or open the app from your Apps Script URL, to go live.');
   } else if (!ui.demo) {
     try {
+      if (!getTok()) { loadingWatch(false); ui.loading = false; return signInScreen(); }
       const res = await callApi({action:'all'});
+      ui.session = res.session || null;
+      if (ui.session) { ui.me = ui.session.ae; try { localStorage.setItem('vi.me', ui.me); } catch(e){} }
       const d = res.data || {};
       const sig = JSON.stringify([d.visits, d.accounts, d.aes, d.aliases]).length + ':' + (d.visits||[]).length + ':' + (d.accounts||[]).length + ':' + (d.aes||[]).length;
       const changed = sig !== ui.dataSig; ui.dataSig = sig;
@@ -1131,6 +1180,7 @@ async function load(first){
       if (!first && !changed && ui.tab==='dash') { const l = $('.live'); if (l) { l.classList.add('on'); l.innerHTML = `<i></i>Live · ${ui.lastSync.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`; } const rb = $('#dRefresh'); if (rb) rb.disabled = false; return; }
       if (!first) initMeSelect();
     } catch (e) {
+      if (!getTok()) { loadingWatch(false); ui.loading = false; return signInScreen(); }
       setConn('err', 'Not synced');
       showBanner(esc(friendly(e)) + ' <button type="button" class="btn sm" id="retryLoad" style="margin-left:8px">Retry</button>' + (lastTechnical ? ` <details style="margin-left:auto;font-size:12px"><summary style="cursor:pointer">Details for your manager</summary><code style="font-size:11px">${esc(lastTechnical.slice(0,160))}</code><div class="hint">Link: ${esc(apiUrl() || 'served by Apps Script')}</div></details>` : ''), true);
       $('#retryLoad').onclick = () => { hideBanner(); load(first); };
@@ -1298,6 +1348,65 @@ function addAeDialog(){
       const r = await callApi({action:'upsertAE', row, adminPin:getAdminPin()}); data.aes.push(r.row || row);
       initMeSelect(); toast(`${shortName(name)} added`); render(); setTimeout(adminDialog, 0); // reopen after this dialog closes
     }, 'Add AE');
+}
+// ---- Sign in: pick yourself, prove it (email code / manager's code / admin PIN), stay signed in for 60 days ----
+let signin = { roster: [], step: 'pick', who: null, sentTo: '', busy: false, q: '' };
+async function signInScreen(msg){
+  ['log','dash'].forEach(x => { const s = $('#v-'+x); if (s) s.style.display = x === 'log' ? '' : 'none'; });
+  $('#loading').style.display = 'none'; const sk = $('#skeleton'); if (sk) sk.remove(); hideBanner();
+  document.body.classList.add('signed-out'); setConn('', 'Sign in');
+  if (!signin.roster.length) { try { const r = await callApi({action:'roster'}); signin.roster = r.roster || []; } catch(e) { msg = e.message; } }
+  drawSignIn(msg);
+}
+function drawSignIn(msg){
+  const el = $('#v-log'), s = signin, who = s.who;
+  const logo = (document.querySelector('.brand .logo img')||{}).src || '';
+  const card = inner => `<div class="signin"><div class="si-card"><div class="si-brand">${logo?`<img src="${logo}" alt="TMC" height="28">`:''}<span>TMC Go</span></div>${msg?`<div class="banner err" style="margin-bottom:12px">${esc(msg)}</div>`:''}${inner}</div></div>`;
+  if (s.step === 'pick') {
+    const list = s.roster.filter(a => !s.q || norm(a.name).includes(norm(s.q)));
+    el.innerHTML = card(`<h2>Who are you?</h2><p class="hint">Sign in once on this device — you stay signed in for 60 days.</p>
+      <input id="siQ" placeholder="Search your name" value="${esc(s.q)}" autocomplete="off">
+      <div class="si-list">${list.map(a => `<button type="button" class="si-who" data-who="${esc(a.name)}">${safePhoto(a.photo)?`<img class="av" src="${safePhoto(a.photo)}" width="40" height="40" alt="">`:`<span class="av" style="width:40px;height:40px;background:${AV_COLORS[[...a.name].reduce((x,c)=>x+c.charCodeAt(0),0)%AV_COLORS.length]};font-size:15px">${esc(initials(a.name).toUpperCase())}</span>`}<span><b>${esc(a.name)}</b><small>${esc(a.city||'')}${a.manager?' · Manager':''}</small></span><i>›</i></button>`).join('') || '<p class="hint">No one matches that name.</p>'}</div>
+      <p class="hint" style="margin-top:10px">Not on the list? Ask your manager to add you.</p>`);
+    $('#siQ').oninput = e => { s.q = e.target.value; const pos = e.target.selectionStart; drawSignIn(); const q = $('#siQ'); q.focus(); q.setSelectionRange(pos,pos); };
+    $$('button[data-who]').forEach(b => b.onclick = () => { s.who = s.roster.find(a => a.name === b.dataset.who); s.step = 'how'; drawSignIn(); });
+    return;
+  }
+  const head = `<button type="button" class="si-back" id="siBack">‹ Not ${esc(who.name.split(' ')[0])}?</button><div class="si-me"><span class="av" style="width:56px;height:56px;background:${AV_COLORS[[...who.name].reduce((x,c)=>x+c.charCodeAt(0),0)%AV_COLORS.length]};font-size:20px">${esc(initials(who.name).toUpperCase())}</span><div><b>${esc(who.name)}</b><small>${esc(who.city||'')}</small></div></div>`;
+  if (s.step === 'how') {
+    el.innerHTML = card(`${head}
+      ${who.email ? `<button type="button" class="btn primary si-big" id="siEmail">✉️ Email me a code<small>to ${esc(who.email)}</small></button>` : `<div class="hint" style="margin:6px 0 10px">There’s no email on file for you yet, so use a code from your manager.</div>`}
+      <button type="button" class="btn si-big" id="siInvite">🔑 I have a code from my manager</button>
+      <button type="button" class="si-link" id="siMgr">I’m a manager — sign in with the admin PIN</button>`);
+    if ($('#siEmail')) $('#siEmail').onclick = async () => { const b = $('#siEmail'); b.disabled = true; b.firstChild.textContent = 'Sending…'; try { const r = await callApi({action:'sendCode', name: who.name}); s.sentTo = r.to; s.step = 'code'; drawSignIn(); } catch(e) { if (/less than a minute/.test(e.message)) { s.sentTo = who.email; s.step = 'code'; return drawSignIn('A code was emailed less than a minute ago — use that one.'); } drawSignIn(e.message); } };
+    $('#siInvite').onclick = () => { s.sentTo = ''; s.step = 'code'; drawSignIn(); };
+    $('#siMgr').onclick = () => { s.step = 'pin'; drawSignIn(); };
+  } else if (s.step === 'code') {
+    el.innerHTML = card(`${head}<h2>Enter your 6-digit code</h2><p class="hint">${s.sentTo ? `We emailed it to ${esc(s.sentTo)} — it works for 10 minutes. Check spam if it’s not there.` : 'Your manager can create one in Settings → Team. It works once, for 24 hours.'}</p>
+      <input id="siCode" class="si-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••">
+      <button type="button" class="btn primary si-big" id="siGo">Sign in</button>`);
+    const go = async () => { const c = $('#siCode').value.replace(/\D/g,''); if (c.length !== 6) return; $('#siGo').disabled = true; try { const r = await callApi({action:'verifyCode', name: who.name, code: c, device: navigator.userAgent}); signedIn(r.session); } catch(e) { drawSignIn(e.message); } };
+    $('#siCode').oninput = e => { e.target.value = e.target.value.replace(/\D/g,'').slice(0,6); if (e.target.value.length === 6) go(); };
+    $('#siGo').onclick = go; setTimeout(() => $('#siCode') && $('#siCode').focus(), 50);
+  } else if (s.step === 'pin') {
+    el.innerHTML = card(`${head}<h2>Manager sign-in</h2><p class="hint">The admin PIN from the sheet’s Settings tab (at least 6 digits — the default 0000 is not accepted).</p>
+      <input id="siPin" type="password" inputmode="numeric" placeholder="Admin PIN" autocomplete="current-password">
+      <button type="button" class="btn primary si-big" id="siGo">Sign in as manager</button>`);
+    const go = async () => { const p = $('#siPin').value.trim(); if (!p) return; $('#siGo').disabled = true; try { const r = await callApi({action:'managerSignIn', name: who.name, adminPin: p, device: navigator.userAgent}); signedIn(r.session); } catch(e) { drawSignIn(e.message); } };
+    $('#siGo').onclick = go; $('#siPin').onkeydown = e => { if (e.key === 'Enter') go(); }; setTimeout(() => $('#siPin') && $('#siPin').focus(), 50);
+  }
+  $('#siBack').onclick = () => { s.step = 'pick'; s.who = null; drawSignIn(); };
+}
+function signedIn(sess){
+  setTok(sess.token); ui.session = {ae: sess.ae, role: sess.role}; ui.me = sess.ae; try { localStorage.setItem('vi.me', ui.me); } catch(e){}
+  document.body.classList.remove('signed-out'); signin = { roster: signin.roster, step: 'pick', who: null, sentTo: '', busy: false, q: '' };
+  toast(`Welcome, ${sess.ae.split(' ')[0]}${sess.role === 'manager' ? ' — manager tools are unlocked' : ''}`);
+  $('#loading').style.display = ''; load(true);
+}
+async function signOut(){
+  try { await callApi({action:'signOut'}); } catch(e){}
+  setTok(''); ui.session = null; ui.me = ''; form = null; try { localStorage.removeItem('vi.me'); } catch(e){}
+  signInScreen();
 }
 function renderLog(){
   const el = $('#v-log');
@@ -2070,7 +2179,7 @@ function drawCharts(rows, total, mv, x){
 /* ---------- Settings ---------- */
 function officeCities(){ const fromAEs = activeAEs().flatMap(a=>String(a.city).split('/').map(s=>s.trim())).filter(Boolean); return [...new Set([...fromAEs, ...Object.keys(data.settings.offices||{})])].sort(); }
 let pendingPhoto;
-const mgrUnlocked = () => !!getAdminPin();
+const mgrUnlocked = () => isMgr() || !!getAdminPin();
 // One Settings dialog for everyone. AEs see their profile and device options; the Manager area is locked behind
 // the admin PIN and holds the team, kilometres & maps, Go, and the data connection — nothing technical is shown to AEs.
 function settingsDialog(tab){
@@ -2088,25 +2197,25 @@ function settingsDialog(tab){
           <div class="form" style="margin-top:8px">
             <div class="f c6"><label>Title</label><input id="pTitle" value="${esc(me.title||'')}" placeholder="e.g. Account Executive"></div>
             <div class="f c6"><label>Phone</label><input id="pPhone" type="tel" value="${esc(me.phone||'')}" placeholder="03xx-xxxxxxx"></div>
-            <div class="f c12"><label>Email</label><input id="pEmail" type="email" value="${esc(me.email||'')}" placeholder="name@tmcltd.com"></div>
+            <div class="f c12"><label>Email <span class="hint">(sign-in codes go here)</span></label>${ui.demo || isMgr() ? `<input id="pEmail" type="email" value="${esc(me.email||'')}" placeholder="name@tmcltd.com">` : `<div class="hint" style="padding:10px 0">${me.email ? esc(me.email) : 'Not set'} · ask your manager to change it</div><input id="pEmail" type="hidden" value="${esc(me.email||'')}">`}</div>
             ${me.notes ? `<div class="f c12"><label>Note from your manager</label><div class="hint">${esc(me.notes)}</div></div>` : ''}
           </div>
         </div>
       </div>` : '<div class="f c12 hint">Pick your name on the Log visit tab to set up your profile.</div>'}
       <div class="f c12 sect"><label>This device</label>
         <div class="form">
-          <div class="f c6"><label>Logging as</label><select id="mMe"><option value="">—</option>${activeAEs().map(a=>`<option ${a.name===ui.me?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>
-          <div class="f c6"><label>&nbsp;</label><button type="button" class="btn" id="mForgetMe" title="Clears your name, drafts and the saved link on this device">Sign out of this device</button></div>
+          ${ui.demo ? `<div class="f c6"><label>Logging as</label><select id="mMe"><option value="">—</option>${activeAEs().map(a=>`<option ${a.name===ui.me?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>` : `<div class="f c6"><label>Signed in as</label><div class="signedas">${esc(ui.me)}${isMgr() ? ' <span class="badge B" style="height:18px">Manager</span>' : ''}</div></div>`}
+          <div class="f c6"><label>&nbsp;</label><button type="button" class="btn" id="mForgetMe" title="Signs you out and clears drafts on this device">Sign out</button></div>
           <div class="f c12"><div class="appinstall"><img src="${$('link[rel=apple-touch-icon]').href}" alt="" width="40" height="40"><div><b>${isStandalone() ? 'TMC Go is installed' : 'Install TMC Go as an app'}</b><div class="hint">${isStandalone() ? 'You’re using the home-screen app.' : 'Home-screen icon, full screen, opens instantly.'}</div></div>${isStandalone() ? '' : '<button type="button" class="btn sm primary" id="mInstall">Install</button>'}</div></div>
           <div class="f c12 hint">Voice works best in Chrome or Edge. Tap 🎙 in the Go panel or “Log by voice” on the form.</div>
         </div></div>
       ${ui.demo ? '' : `<div class="f c12 sect"><label>Manager area</label>
-        ${mgr ? `<div class="tabs" id="mTabs">${tabs.map(([k,l]) => `<button type="button" class="${k===mgr?'on':''}" data-mt="${k}">${l}</button>`).join('')}<span class="spacer"></span><button type="button" class="btn sm" id="mLock">🔒 Lock</button></div>
+        ${mgr ? `<div class="tabs" id="mTabs">${tabs.map(([k,l]) => `<button type="button" class="${k===mgr?'on':''}" data-mt="${k}">${l}</button>`).join('')}<span class="spacer"></span>${isMgr() ? '' : '<button type="button" class="btn sm" id="mLock">🔒 Lock</button>'}</div>
           <div id="mPane">${mgrPane(mgr)}</div>`
         : `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="btn sm" id="mUnlock">🔒 Unlock with admin PIN</button><span class="hint">Team, kilometres &amp; maps, Go, and the data connection.</span></div>`}
       </div>`}
     </div>`, async () => {
-      const sel = $('#mMe').value; if (sel !== ui.me) { ui.me = sel; localStorage.setItem('vi.me', ui.me); $('#me').value = ui.me; form = null; }
+      if ($('#mMe')) { const sel = $('#mMe').value; if (sel !== ui.me) { ui.me = sel; localStorage.setItem('vi.me', ui.me); $('#me').value = ui.me; form = null; } }
       if (me) {
         const email = $('#pEmail').value.trim(); if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('That email address does not look right.');
         const prof = {title: $('#pTitle').value.trim().slice(0,60), phone: $('#pPhone').value.trim().slice(0,30), email, photo: pendingPhoto === undefined ? (me.photo||'') : pendingPhoto};
@@ -2118,7 +2227,7 @@ function settingsDialog(tab){
     }, 'Save');
   wireProfile(me);
   if ($('#mInstall')) $('#mInstall').onclick = () => { $('#modal').classList.remove('open'); installApp(); };
-  if ($('#mForgetMe')) $('#mForgetMe').onclick = async () => { if (!(await confirmModal('Sign out of this device?', 'Your name, unsaved drafts and the saved connection are removed from this phone or computer. Nothing in the sheet changes.', 'Sign out'))) return; try { Object.keys(localStorage).filter(k=>k.startsWith('vi.')).forEach(k=>localStorage.removeItem(k)); sessionStorage.clear(); } catch(e){} location.reload(); };
+  if ($('#mForgetMe')) $('#mForgetMe').onclick = async () => { if (!(await confirmModal('Sign out?', 'You’ll need a code to sign in again on this device. Unsaved drafts here are cleared; everything saved stays in the sheet.', 'Sign out'))) return; $('#modal').classList.remove('open'); try { Object.keys(localStorage).filter(k=>k.startsWith('vi.draft')).forEach(k=>localStorage.removeItem(k)); sessionStorage.clear(); } catch(e){} if (ui.demo) return location.reload(); signOut(); };
   if ($('#mUnlock')) $('#mUnlock').onclick = async () => { $('#modal').classList.remove('open'); if (await ensureAdmin()) settingsDialog('team'); else settingsDialog(); };
   if ($('#mLock')) $('#mLock').onclick = () => { setAdminPin(''); ui.mgrTab = null; settingsDialog(); };
   $$('#mTabs button[data-mt]').forEach(b => b.onclick = () => { ui.mgrTab = b.dataset.mt; $$('#mTabs button[data-mt]').forEach(x => x.classList.toggle('on', x===b)); $('#mPane').innerHTML = mgrPane(b.dataset.mt); wireMgrPane(b.dataset.mt); });
@@ -2134,7 +2243,7 @@ function mgrPane(tab){
     let sync = null; try { sync = JSON.parse(data.settings.categoriesSync||''); } catch(e){}
     return `${sync && sync.unknownAEs && sync.unknownAEs.length ? `<div class="banner" style="margin-bottom:10px">The Categories tab lists AEs who are not in the team yet: <b>${sync.unknownAEs.map(esc).join(', ')}</b>. Add them with the same spelling and their accounts attach automatically.</div>` : ''}
       <div class="tw"><table><thead><tr><th>Name</th><th>City</th><th>Book</th><th></th></tr></thead><tbody>
-        ${active.map(a => `<tr><td><span class="nm">${avatar(a.name, 24)}<b>${esc(a.name)}</b>${a.title?`<span class="hint"> · ${esc(a.title)}</span>`:''}</span></td><td>${esc(a.city||'')}</td><td class="hint">${a.coverageMeasured==='N'?'No fixed book':'A/B/C book'}</td><td><button type="button" class="dellink" data-rm="${esc(a.name)}">Remove…</button></td></tr>`).join('')}
+        ${active.map(a => `<tr><td><span class="nm">${avatar(a.name, 24)}<b>${esc(a.name)}</b>${String(a.role||'').toLowerCase()==='manager'?' <span class="badge B" style="height:18px">Manager</span>':''}</span><div class="hint">${a.email ? esc(a.email) : '<i>no email — use a code</i>'}</div></td><td>${esc(a.city||'')}</td><td class="hint">${a.coverageMeasured==='N'?'No fixed book':'A/B/C book'}</td><td class="acc"><button type="button" class="btn sm" data-inv="${esc(a.name)}" title="One-time sign-in code, valid 24 h">🔑 Code</button><button type="button" class="btn sm" data-mail="${esc(a.name)}" title="Set the email sign-in codes go to">✉️</button><button type="button" class="btn sm" data-role="${esc(a.name)}" title="${String(a.role||'').toLowerCase()==='manager'?'Make AE':'Make manager'}">${String(a.role||'').toLowerCase()==='manager'?'★':'☆'}</button><button type="button" class="btn sm" data-out="${esc(a.name)}" title="Sign out all their devices">⏏</button><button type="button" class="dellink" data-rm="${esc(a.name)}">Remove…</button></td></tr>`).join('')}
         ${inactive.map(a => `<tr><td class="hint">${esc(a.name)}</td><td class="hint">${esc(a.city||'')}</td><td class="hint">removed</td><td><button type="button" class="dellink" data-rs="${esc(a.name)}">Restore</button></td></tr>`).join('')}
       </tbody></table></div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn sm primary" id="mAddAe">+ Add AE</button><span class="hint">Removing hides an AE from logging and the dashboard; their visits stay and they can be restored. Accounts and categories are managed in the sheet’s Categories tab.</span></div>`;
@@ -2167,6 +2276,10 @@ function mgrPane(tab){
 function wireMgrPane(tab){
   if (tab === 'team') {
     if ($('#mAddAe')) $('#mAddAe').onclick = () => addAeDialog();
+    $$('button[data-inv]').forEach(b => b.onclick = async () => { const n = b.dataset.inv; try { const r = await callApi({action:'inviteCode', name:n, adminPin:getAdminPin()}); const text = `Your TMC Go sign-in code is ${r.code} (valid 24 hours). Open the app, pick your name → "I have a code from my manager".`; try { await navigator.clipboard.writeText(text); } catch(e){} await askModal({title:`Sign-in code for ${shortName(n)}`, message:`${r.code} — works once, for 24 hours. The message is copied; paste it into WhatsApp.`, okLabel:'Done', cancelLabel:'Close'}); settingsDialog('team'); } catch(e) { $('#mErr').textContent = e.message; } });
+    $$('button[data-mail]').forEach(b => b.onclick = async () => { const n = b.dataset.mail, a = aeByName(n) || {}; const v = await askModal({title:`Email for ${shortName(n)}`, message:'Sign-in codes are sent here.', input:'email', placeholder:'name@tmcltd.com', okLabel:'Save'}); if (v === null) return settingsDialog('team'); try { await callApi({action:'setEmail', name:n, email:v, adminPin:getAdminPin()}); a.email = v; toast('Email saved'); } catch(e) { toast(e.message); } settingsDialog('team'); });
+    $$('button[data-role]').forEach(b => b.onclick = async () => { const n = b.dataset.role, a = aeByName(n) || {}; const toMgr = String(a.role||'').toLowerCase() !== 'manager'; if (n === ui.me && !toMgr) return toast('You can’t remove your own manager role.'); if (!(await confirmModal(toMgr ? `Make ${shortName(n)} a manager?` : `Make ${shortName(n)} an AE?`, toMgr ? 'Managers can edit anyone’s visits, notes and settings, and manage sign-ins.' : 'They keep their visits but lose manager tools.', toMgr ? 'Make manager' : 'Make AE'))) return settingsDialog('team'); try { await callApi({action:'setRole', name:n, role: toMgr ? 'manager' : '', adminPin:getAdminPin()}); a.role = toMgr ? 'manager' : ''; toast('Role updated — they’ll sign in again'); } catch(e) { toast(e.message); } settingsDialog('team'); });
+    $$('button[data-out]').forEach(b => b.onclick = async () => { const n = b.dataset.out; if (!(await confirmModal(`Sign ${shortName(n)} out everywhere?`, 'Every phone and computer they use will need a new code.', 'Sign out devices'))) return settingsDialog('team'); try { const r = await callApi({action:'revokeSessions', name:n, adminPin:getAdminPin()}); toast(`${r.revoked} device${r.revoked===1?'':'s'} signed out`); } catch(e) { toast(e.message); } settingsDialog('team'); });
     $$('button[data-rm]').forEach(b => b.onclick = async () => {
       const name = b.dataset.rm;
       if (b.dataset.armed !== '1') { b.dataset.armed='1'; b.textContent='Click again to remove'; b.classList.add('arm'); setTimeout(()=>{ if (b.isConnected) { b.dataset.armed=''; b.textContent='Remove…'; b.classList.remove('arm'); } }, 5000); return; }
@@ -2180,7 +2293,7 @@ function wireMgrPane(tab){
     const out = $('#selfCheckOut'), btn = $('#mSelfCheck'); btn.disabled = true; out.innerHTML = '<span class="hint">Checking…</span>';
     try { const r = await callApi({action:'selfCheck', adminPin:getAdminPin()}); const c = r.check || {};
       const row = (name, x) => `<div class="banner${x.ok?'':' err'}" style="margin-top:6px"><b>${name}:</b> ${x.ok ? (name==='Go' ? `working — model ${esc(x.model||'')}` : `working — ${esc(x.engine||'')} engine, office pinned at ${esc(x.pinned||'')}`) : esc(x.error||'failed')}</div>`;
-      out.innerHTML = row('Go', c.gemini||{}) + row('Maps', c.maps||{});
+      out.innerHTML = row('Go', c.gemini||{}) + row('Maps', c.maps||{}) + `<div class="banner${(c.mail||{}).ok?'':' err'}" style="margin-top:6px"><b>Sign-in emails:</b> ${(c.mail||{}).ok ? `working — ${c.mail.remainingToday} left today` : esc((c.mail||{}).error||'not checked')}</div><div class="banner${(c.adminPin||{}).ok?'':' err'}" style="margin-top:6px"><b>Admin PIN:</b> ${(c.adminPin||{}).ok ? 'strong enough' : esc((c.adminPin||{}).error||'')}</div>`;
     } catch(e) { out.innerHTML = `<div class="banner err">${esc(e.message)}</div>`; }
     btn.disabled = false;
   };
@@ -2446,6 +2559,7 @@ function toast(msg, actLabel, act){
 function initMeSelect(){
   setHeaderAvatar();
   const meSel = $('#me');
+  if (!ui.demo && ui.session) { meSel.innerHTML = `<option>${esc(ui.me)}</option>`; meSel.disabled = true; meSel.title = 'Signed in as ' + ui.me + (isMgr() ? ' (manager)' : ''); meSel.classList.add('locked'); return; }
   if (!activeAEs().some(a=>a.name===ui.me)) ui.me='';
   meSel.innerHTML = '<option value="">Select AE…</option>' + activeAEs().map(a=>`<option ${a.name===ui.me?'selected':''}>${esc(a.name)}</option>`).join('');
 }

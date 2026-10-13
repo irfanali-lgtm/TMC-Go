@@ -32,6 +32,8 @@
  * office → … → office, and stores the total km plus the leg-by-leg route on the visit row.
  * This uses Apps Script's built-in Maps service — no API key needed (daily quota applies).
  *
+ * SIGN-IN: every person signs in as themselves (email code, a manager's one-time code, or manager + admin PIN).
+ *   Sessions live in the Sessions tab; the role column on the AEs tab marks managers. Set a strong adminPin first.
  * SETUP:
  *   1. Google Sheets → File → Import → upload the seed .xlsx → "Replace spreadsheet".
  *   2. Extensions → Apps Script → paste this file over Code.gs. Save. (No HTML files needed.)
@@ -41,10 +43,11 @@
  */
 
 var TZ = 'Asia/Karachi'; // "today" for the team, whatever the script's own time zone is
-var SETUP_VERSION = '7';  // bump when tabs/columns/settings change; setup runs itself on the next request
+var SETUP_VERSION = '8';  // bump when tabs/columns/settings change; setup runs itself on the next request
 
 var TABS = {
-  AEs:           ['name','city','active','coverageMeasured','notes','title','phone','email','photo'],
+  AEs:           ['name','city','active','coverageMeasured','notes','title','phone','email','photo','role'],
+  Sessions:      ['token','ae','role','created','lastSeen','device','method'],
   Accounts:      ['id','ae','account','tier','city','netNew','addedOn','notes','address','lat','lng','located'],
   Visits:        ['id','date','ae','city','accounts','count','km','purpose','loggedBy','ts','route','kmMode','details','note'],
   Opportunities: ['id','ae','client','opportunity','stage','updated'],
@@ -133,10 +136,129 @@ function settings_() {
   return o;
 }
 function checkPin_(pin) { /* normal use needs no PIN; manager actions check adminPin below */ }
-function checkAdmin_(adminPin) {
+function checkAdmin_(adminPin, sess) {
+  if (sess && sess.role === 'manager') return;                     // signed-in managers need no PIN
+  if (weakAdminPin_()) throw new Error('WEAKPIN: the admin PIN is still the default or too simple');   // 0000 unlocks nothing
+  if (sess && !adminPin) throw new Error('MANAGER_ONLY: only managers can do that');
+  if (sess && tooMany_('pin:' + sess.ae)) throw new Error('Too many tries — wait 15 minutes.');
+  if (sess && String(adminPin || '') !== String(settings_().adminPin || '')) { failed_('pin:' + sess.ae); }
   var want = settings_().adminPin || '';
   if (!want) throw new Error('No adminPin set in the Settings tab');
   if (String(adminPin || '') !== want) throw new Error('Wrong admin PIN');
+}
+
+/* ---------- Sign-in: every person is themselves ----------
+ * Each device holds a session token, issued only after the person proves who they are:
+ *   • a 6-digit code emailed to the address on their AE row, or
+ *   • a one-time code a manager generated for them (Settings → Team), or
+ *   • for managers: their name + the admin PIN.
+ * Every write is then checked against the session's own name, so nobody can log visits as someone else.
+ */
+var SESSION_DAYS = 60;
+function aeRow_(name) {
+  var a = readTab_('AEs').filter(function (x) { return String(x.name) === String(name) && String(x.active || 'Y').toUpperCase() !== 'N'; })[0];
+  if (!a) throw new Error('That name is not on the team list.');
+  return a;
+}
+function roleOf_(a) { return String(a.role || '').toLowerCase() === 'manager' ? 'manager' : 'ae'; }
+function maskEmail_(e) { e = String(e || ''); var m = /^(.)([^@]*)@(.*)$/.exec(e); return m ? m[1] + m[2].replace(/./g, '•').slice(0, 6) + '@' + m[3] : ''; }
+function newToken_() { return Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 16); }
+function issueSession_(ae, role, device, method) {
+  try { purgeSessions_(); } catch (e) {}
+  var tok = newToken_(), now = new Date().toISOString();
+  var sh = sheet_('Sessions'), hdr = headers_(sh), row = { token: tok, ae: ae, role: role, created: now, lastSeen: now, device: String(device || '').slice(0, 120), method: method };
+  sh.appendRow(hdr.map(function (c) { return row[c] === undefined ? '' : row[c]; }));
+  CacheService.getScriptCache().put('sess:' + tok, JSON.stringify({ ae: ae, role: role }), 21600);
+  return { token: tok, ae: ae, role: role };
+}
+function session_(token) {
+  token = String(token || ''); if (token.length < 20) return null;
+  var cache = CacheService.getScriptCache(), hit = cache.get('sess:' + token);
+  if (hit) return JSON.parse(hit);
+  var rows = readTab_('Sessions').filter(function (r) { return r.token === token; });
+  if (!rows.length) return null;
+  var r = rows[0];
+  if (new Date().getTime() - new Date(r.created).getTime() > SESSION_DAYS * 864e5) return null;
+  var a; try { a = aeRow_(r.ae); } catch (e) { return null; }          // removed AEs lose access at once
+  var s = { ae: r.ae, role: roleOf_(a) };
+  cache.put('sess:' + token, JSON.stringify(s), 21600);
+  return s;
+}
+function requireSession_(b) {
+  var s = session_(b.token);
+  if (!s) throw new Error('SIGNIN: please sign in');
+  return s;
+}
+function purgeSessions_() {
+  var sh = sheet_('Sessions'), last = sh.getLastRow(); if (last < 2) return;
+  var hdr = headers_(sh), ci = hdr.indexOf('created'), vals = sh.getRange(2, ci + 1, last - 1, 1).getValues(), cut = new Date().getTime() - SESSION_DAYS * 864e5;
+  for (var i = vals.length - 1; i >= 0; i--) { var t = new Date(vals[i][0]).getTime(); if (t && t < cut) sh.deleteRow(i + 2); }
+}
+function revokeSessions_(ae, exceptToken) {
+  var sh = sheet_('Sessions'), last = sh.getLastRow(); if (last < 2) return 0;
+  var hdr = headers_(sh), ti = hdr.indexOf('token'), ai = hdr.indexOf('ae'), vals = sh.getRange(2, 1, last - 1, hdr.length).getValues(), n = 0, cache = CacheService.getScriptCache();
+  for (var i = vals.length - 1; i >= 0; i--) if (vals[i][ai] === ae && vals[i][ti] !== exceptToken) { cache.remove('sess:' + vals[i][ti]); sh.deleteRow(i + 2); n++; }
+  return n;
+}
+function authAction_(b) {
+  var cache = CacheService.getScriptCache(), props = PropertiesService.getScriptProperties();
+  switch (b.action) {
+    case 'roster':   // names for the sign-in screen; nothing private
+      return { status: 'ok', roster: readTab_('AEs').filter(function (a) { return String(a.active || 'Y').toUpperCase() !== 'N'; }).map(function (a) { return { name: a.name, city: a.city, email: maskEmail_(a.email), photo: a.photo || '', manager: roleOf_(a) === 'manager' }; }) };
+    case 'sendCode': {
+      var a = aeRow_(b.name);
+      if (!/@/.test(String(a.email || ''))) throw new Error('No email on file for ' + a.name + '. Ask your manager for a sign-in code.');
+      if (cache.get('sent:' + a.name)) throw new Error('A code was sent less than a minute ago — check your inbox (and spam).');
+      var code = String(Math.floor(100000 + Math.random() * 900000));
+      cache.put('code:' + a.name, JSON.stringify({ code: code, tries: 0 }), 600); cache.put('sent:' + a.name, '1', 60);
+      MailApp.sendEmail({ to: a.email, subject: 'Your TMC Go sign-in code: ' + code, htmlBody: '<div style="font:15px Arial">Hi ' + String(a.name).split(' ')[0] + ',<br><br>Your TMC Go sign-in code is<br><div style="font:700 30px Arial;letter-spacing:6px;margin:12px 0;color:#1E2867">' + code + '</div>It works for 10 minutes. If you didn\'t ask for it, ignore this email.<br><br>— TMC Go</div>' });
+      return { status: 'ok', to: maskEmail_(a.email) };
+    }
+    case 'verifyCode': {
+      var a2 = aeRow_(b.name), code2 = String(b.code || '').replace(/\D/g, '');
+      if (tooMany_('code:' + a2.name)) throw new Error('Too many tries — wait 15 minutes or ask your manager for a new code.');
+      var held = cache.get('code:' + a2.name), ok = false;
+      if (held) { var h = JSON.parse(held); if (h.tries >= 5) { cache.remove('code:' + a2.name); throw new Error('Too many tries — ask for a new code.'); } ok = h.code === code2; if (!ok) { h.tries++; cache.put('code:' + a2.name, JSON.stringify(h), 600); } }
+      if (!ok) {   // a one-time code from a manager also works here
+        var inv = props.getProperty('invite:' + code2);
+        if (inv) { var iv = JSON.parse(inv); if (iv.ae === a2.name && new Date().getTime() < iv.exp) { ok = true; props.deleteProperty('invite:' + code2); } }
+      }
+      if (!ok) { failed_('code:' + a2.name); throw new Error('That code is not right or has expired.'); }
+      cache.remove('code:' + a2.name); cleared_('code:' + a2.name);
+      lockedWrite_(function () {});
+      return { status: 'ok', session: issueSession_(a2.name, roleOf_(a2), b.device, held ? 'email' : 'invite') };
+    }
+    case 'managerSignIn': {
+      var a3 = aeRow_(b.name);
+      if (weakAdminPin_()) throw new Error('WEAKPIN: the admin PIN is still the default or too simple. Set a stronger one (at least 6 digits) in the Settings tab of the sheet first.');
+      if (tooMany_('pin:' + a3.name)) throw new Error('Too many tries — wait 15 minutes.');
+      try { checkAdmin_(b.adminPin); } catch (e) { failed_('pin:' + a3.name); throw e; }
+      cleared_('pin:' + a3.name);
+      // the first manager to sign in with the admin PIN becomes a manager on the team list
+      if (roleOf_(a3) !== 'manager') setAeField_(a3.name, 'role', 'manager');
+      return { status: 'ok', session: issueSession_(a3.name, 'manager', b.device, 'adminPin') };
+    }
+    case 'signOut': { var s = session_(b.token); if (s) { cache.remove('sess:' + b.token); var sh = sheet_('Sessions'), r = findRowBy_(sh, 'token', b.token); if (r !== -1) sh.deleteRow(r); } return { status: 'ok' }; }
+    case 'whoami':  { var s2 = session_(b.token); if (!s2) throw new Error('SIGNIN: please sign in'); return { status: 'ok', session: s2 }; }
+  }
+  return null;
+}
+function lockedWrite_(fn) { fn(); }
+// Slows down guessing: 8 wrong attempts per name (or per signed-in person) lock that door for 15 minutes.
+function tooMany_(key) { var c = CacheService.getScriptCache(); return Number(c.get('fail:' + key) || 0) >= 8; }
+function failed_(key) { var c = CacheService.getScriptCache(), n = Number(c.get('fail:' + key) || 0) + 1; c.put('fail:' + key, String(n), 900); }
+function cleared_(key) { CacheService.getScriptCache().remove('fail:' + key); }
+function weakAdminPin_() { var p = String(settings_().adminPin || ''); return !p || p.length < 6 || /^(\d)\1+$/.test(p) || /^(0123|1234|12345|123456|654321)$/.test(p); }
+function findRowBy_(sh, col, val) {
+  var hdr = headers_(sh), ci = hdr.indexOf(col), last = sh.getLastRow(); if (ci === -1 || last < 2) return -1;
+  var v = sh.getRange(2, ci + 1, last - 1, 1).getValues();
+  for (var i = 0; i < v.length; i++) if (String(v[i][0]) === String(val)) return i + 2;
+  return -1;
+}
+function setAeField_(name, field, value) {
+  var sh = sheet_('AEs'), hdr = headers_(sh), r = findRowBy_(sh, 'name', name), ci = hdr.indexOf(field);
+  if (r === -1 || ci === -1) throw new Error('AE not found');
+  sh.getRange(r, ci + 1).setValue(value);
 }
 function setAeActive_(name, active) {
   var sh = sheet_('AEs'), hdr = headers_(sh), last = sh.getLastRow();
@@ -201,7 +323,7 @@ function doGet(e) {
     return ContentService.createTextOutput(JSON.stringify({ status: 'ok', message: 'TMC Go backend is running. Open the app page and paste this link into it.' })).setMimeType(ContentService.MimeType.JSON);
   }
   try {
-    return json_(handle_({ action: p.action, pin: p.pin }));
+    return json_(handle_({ action: p.action, pin: p.pin, token: p.token }));
   } catch (err) {
     return json_({ status: 'error', message: String(err.message || err) });
   }
@@ -697,6 +819,8 @@ function selfCheck_() {
       out.gemini = { ok: false, error: /Authorization|permission|ScriptError/i.test(m) ? 'The script needs a one-time approval for internet access: open Apps Script, pick checkSetup in the function list, press Run, and click Allow. Then deploy a new version.' : /API key not valid|API_KEY_INVALID|403/i.test(m) ? 'Google says the key is not valid. Create one at aistudio.google.com/app/apikey and paste it in the Settings tab (aiKey).' : /not found|404|NOT_FOUND/i.test(m) ? 'The model "' + cfg.model + '" is not available on this key. Clear the aiModel cell (default) or set it to a current Gemini model.' : m };
     }
   }
+  try { out.mail = { ok: true, remainingToday: MailApp.getRemainingDailyQuota() }; } catch (e) { out.mail = { ok: false, error: 'Sign-in emails need a one-time approval: run checkSetup in Apps Script and click Allow.' }; }
+  out.adminPin = weakAdminPin_() ? { ok: false, error: 'The admin PIN is the default or too simple — change it in the Settings tab (at least 6 digits). Until then nobody can sign in as a manager with it.' } : { ok: true };
   try {
     var city = Object.keys(settings_()).filter(function (k) { return /^office\.[^.]+$/.test(k); }).map(function (k) { return k.slice(7); })[0] || 'Lahore';
     var o = office_(city); out.maps = { ok: true, engine: mapsKey_() ? 'platform' : 'builtin', office: city, pinned: o.lat.toFixed(4) + ',' + o.lng.toFixed(4) };
@@ -710,41 +834,52 @@ function selfCheck_() {
 /* ---------- dispatcher ---------- */
 function handle_(b) {
   checkPin_(b.pin);
-  var lock = LockService.getScriptLock();
-  lock.waitLock(20000);
+  var authRes = authAction_(b); if (authRes) return authRes;
+  var sess = requireSession_(b);
+  var isMgr = sess.role === 'manager';
+  // an AE can only act as themselves; managers (or the admin PIN) may act for others
+  var mine = function (ae) { if (!ae || ae === sess.ae || isMgr) return; try { checkAdmin_(b.adminPin); } catch (e) { throw new Error('NOTYOU: you can only change your own visits'); } };
+  // Only sheet WRITES are serialised, and only for the moment of writing. Reading, Gemini, Google Maps lookups and
+  // route calculations never hold the lock — they are what made other people wait until "Lock timeout".
+  var lock = null;
+  var acquire = function () { lock = LockService.getScriptLock(); if (!lock.tryLock(30000)) { lock = null; throw new Error('BUSY: the sheet is busy saving for someone else'); } };
+  var NOLOCK = { all: 1, ask: 1, selfCheck: 1, findPlaces: 1, findPlace: 1, computeRoute: 1, checkAdmin: 1, locateAccounts: 1, upsertVisit: 1, recalcKm: 1 };
+  if (!NOLOCK[b.action]) acquire();
   try {
     switch (b.action) {
       case 'all':
         try {
           var cache = CacheService.getScriptCache(), cat0 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CATEGORIES_TAB);
           var stamp = cat0 ? String(cat0.getLastRow()) + 'x' + String(cat0.getLastColumn()) + '@' + String(SpreadsheetApp.getActiveSpreadsheet().getLastUpdated ? '' : '') : '0';
-          if (cache.get('catsync') !== stamp) { syncCategories_(); cache.put('catsync', stamp, 3600); }
+          if (cache.get('catsync') !== stamp) { var sl = LockService.getScriptLock(); if (sl.tryLock(0)) { try { syncCategories_(); cache.put('catsync', stamp, 3600); } finally { sl.releaseLock(); } } }
         } catch (syncErr) { /* a bad Categories row must not block loading */ }
         return { status: 'ok', data: {
           aes: readTab_('AEs'), accounts: readTab_('Accounts'),
           visits: readTab_('Visits'), opportunities: readTab_('Opportunities'),
           aliases: readTab_('Aliases'), settings: publicSettings_()
-        } };
+        }, session: sess };
       case 'upsertAlias':       return { status: 'ok', row: upsertAlias_(b.alias, b.account, b.ae) };
-      case 'ask': {             lock.releaseLock(); lock = null; var ar = askSafe_(b); if (ar.error) throw new Error(ar.error); return { status: 'ok', reply: ar.reply }; }
+      case 'ask': {             b.me = sess.ae; var ar = askSafe_(b); if (ar.error) throw new Error(ar.error); return { status: 'ok', reply: ar.reply }; }
       case 'upsertVisit': {
         var vrow = b.row || {};
-        if (b.adminPin !== undefined) checkAdmin_(b.adminPin); // dashboard (manager) edits identify themselves
+        if (!vrow.ae) vrow.ae = sess.ae;
+        if (vrow.id) { var exV = readTab_('Visits').filter(function (x) { return x.id === vrow.id; })[0]; if (exV) mine(exV.ae); }
+        mine(vrow.ae);
+        if (b.adminPin !== undefined) checkAdmin_(b.adminPin, sess); // dashboard (manager) edits identify themselves
         if (vrow.note !== undefined && b.adminPin === undefined) { // only managers write the day note
           var old = findRow_(sheet_('Visits'), vrow.id); if (old !== -1) { var vh0 = headers_(sheet_('Visits')), ni = vh0.indexOf('note'); vrow.note = ni === -1 ? '' : sheet_('Visits').getRange(old, ni + 1).getValue(); } else vrow.note = '';
         }
         if (b.autoKm) {
           // Never lose a visit because Maps is down or over quota: save it as 'pending' and let the app retry.
-          try {
-            var rt = routeForVisit_(vrow, true);
-            vrow.km = rt.totalKm; vrow.route = rt.text; vrow.kmMode = 'auto';
-            return { status: 'ok', row: upsert_('Visits', vrow, 'V'), route: rt };
-          } catch (mapsErr) {
-            vrow.km = ''; vrow.route = ''; vrow.kmMode = 'pending';
-            return { status: 'ok', row: upsert_('Visits', vrow, 'V'), pending: String(mapsErr.message || mapsErr) };
-          }
+          var rt = null, mapsErr = null;
+          try { rt = routeForVisit_(vrow, true); } catch (e) { mapsErr = e; }      // slow part: no lock held
+          if (rt) { vrow.km = rt.totalKm; vrow.route = rt.text; vrow.kmMode = 'auto'; }
+          else { vrow.km = ''; vrow.route = ''; vrow.kmMode = 'pending'; }
+          acquire();                                                             // quick part: the write
+          return rt ? { status: 'ok', row: upsert_('Visits', vrow, 'V'), route: rt } : { status: 'ok', row: upsert_('Visits', vrow, 'V'), pending: String(mapsErr.message || mapsErr) };
         }
         if (!vrow.kmMode) vrow.kmMode = 'manual';
+        acquire();
         return { status: 'ok', row: upsert_('Visits', vrow, 'V') };
       }
       case 'recalcKm': {
@@ -752,25 +887,37 @@ function handle_(b) {
         if (vr === -1) throw new Error('Visit not found');
         var vals = vs.getRange(vr, 1, 1, vh.length).getValues()[0], cur = {};
         vh.forEach(function (c, i) { var v = vals[i]; if (v instanceof Date) v = Utilities.formatDate(v, TZ, 'yyyy-MM-dd'); cur[c] = v; });
-        var rt2 = routeForVisit_(cur, true);
+        mine(cur.ae);
+        var rt2 = routeForVisit_(cur, true);                                      // slow part: no lock held
         cur.km = rt2.totalKm; cur.route = rt2.text; cur.kmMode = 'auto';
+        acquire();
         return { status: 'ok', row: upsert_('Visits', cur, 'V'), route: rt2 };
       }
       case 'computeRoute':      return { status: 'ok', route: routeForVisit_(b.row || {}, true) };
       case 'locateAccounts':    return { status: 'ok', results: locateAccounts_(b.ids, b.limit) };
-      case 'pinAccount':        return { status: 'ok', row: pinAccount_(b.ae, b.account, b.lat, b.lng, b.city) };
+      case 'pinAccount':        mine(b.ae); return { status: 'ok', row: pinAccount_(b.ae || sess.ae, b.account, b.lat, b.lng, b.city) };
       case 'findPlaces':        return { status: 'ok', places: findPlaces_(b.query, b.city) };
       case 'findPlace': {       // look up an address or place name, so an AE can set a client's location by hand
         var hit = geocode_(String(b.query || '').trim(), String(b.city || '').trim());
         if (!hit) throw new Error('Google Maps could not find that. Try a fuller address, or paste a Google Maps link.');
         return { status: 'ok', place: hit };
       }
-      case 'removeAE':  checkAdmin_(b.adminPin); return { status: 'ok', row: setAeActive_(b.name, 'N') };
-      case 'restoreAE': checkAdmin_(b.adminPin); return { status: 'ok', row: setAeActive_(b.name, 'Y') };
-      case 'checkAdmin': checkAdmin_(b.adminPin); return { status: 'ok' };
-      case 'selfCheck':  checkAdmin_(b.adminPin); lock.releaseLock(); lock = null; return { status: 'ok', check: selfCheck_() };
+      case 'removeAE':  checkAdmin_(b.adminPin, sess); revokeSessions_(b.name); return { status: 'ok', row: setAeActive_(b.name, 'N') };
+      case 'inviteCode': {      // a one-time sign-in code for an AE, valid 24 h — share it by WhatsApp / in person
+        checkAdmin_(b.adminPin, sess); aeRow_(b.name);
+        var code = String(Math.floor(100000 + Math.random() * 900000));
+        PropertiesService.getScriptProperties().setProperty('invite:' + code, JSON.stringify({ ae: b.name, exp: new Date().getTime() + 864e5 }));
+        return { status: 'ok', code: code, expires: '24 hours' };
+      }
+      case 'revokeSessions': checkAdmin_(b.adminPin, sess); return { status: 'ok', revoked: revokeSessions_(b.name) };
+      case 'setRole':   checkAdmin_(b.adminPin, sess); setAeField_(b.name, 'role', b.role === 'manager' ? 'manager' : ''); revokeSessions_(b.name); return { status: 'ok' };
+      case 'setEmail':  checkAdmin_(b.adminPin, sess); setAeField_(b.name, 'email', String(b.email || '').trim()); return { status: 'ok' };
+      case 'sessions':  checkAdmin_(b.adminPin, sess); return { status: 'ok', sessions: readTab_('Sessions').map(function (r) { return { ae: r.ae, role: r.role, created: r.created, lastSeen: r.lastSeen, device: r.device, method: r.method }; }) };
+      case 'restoreAE': checkAdmin_(b.adminPin, sess); return { status: 'ok', row: setAeActive_(b.name, 'Y') };
+      case 'checkAdmin': checkAdmin_(b.adminPin, sess); return { status: 'ok' };
+      case 'selfCheck':  checkAdmin_(b.adminPin, sess); return { status: 'ok', check: selfCheck_() };
       case 'setSettings': {
-        checkAdmin_(b.adminPin);
+        checkAdmin_(b.adminPin, sess);
         if (b.settings && b.settings.adminPin !== undefined) delete b.settings.adminPin; // never set over the API
                 var out = {};
         Object.keys(b.settings || {}).forEach(function (k) { setSetting_(k, b.settings[k]); if (/^office\./.test(k)) setSetting_(k + '.latlng', ''); });
@@ -779,29 +926,36 @@ function handle_(b) {
         });
         return { status: 'ok', offices: out, settings: publicSettings_() };
       }
-      case 'deleteVisit':       return { status: 'ok', row: remove_('Visits', b.id) };
-      case 'upsertAccount':     return { status: 'ok', row: upsert_('Accounts', b.row, 'A') };
+      case 'deleteVisit':       { var dv = readTab_('Visits').filter(function (x) { return x.id === b.id; })[0]; if (dv) mine(dv.ae); return { status: 'ok', row: remove_('Visits', b.id) }; }
+      case 'upsertAccount':     mine((b.row || {}).ae); return { status: 'ok', row: upsert_('Accounts', b.row, 'A') };
       case 'deleteAccount':     return { status: 'ok', row: remove_('Accounts', b.id) };
-      case 'upsertOpportunity': return { status: 'ok', row: upsert_('Opportunities', b.row, 'O') };
+      case 'upsertOpportunity': mine((b.row || {}).ae); return { status: 'ok', row: upsert_('Opportunities', b.row, 'O') };
       case 'deleteOpportunity': return { status: 'ok', row: remove_('Opportunities', b.id) };
       case 'upsertAE': {
         var sh = sheet_('AEs'), cols = TABS.AEs, row = b.row || {};
         if (!row.name) throw new Error('AE name missing');
+        if (row.photo && !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+$/.test(String(row.photo))) throw new Error('That photo could not be saved — please choose a picture again.');
+        if (String(row.photo || '').length > 60000) throw new Error('That photo is too large — please choose a smaller picture.');
+        ['title', 'phone', 'notes'].forEach(function (k) { if (row[k] !== undefined) row[k] = String(row[k]).replace(/[<>]/g, '').slice(0, k === 'notes' ? 300 : 60); });
+        if (row.name !== sess.ae) checkAdmin_(b.adminPin, sess);           // your own profile, or a manager
         var last = sh.getLastRow(), r = -1, cur = null;
         if (last >= 2) {
           var rows = sh.getRange(2, 1, last - 1, cols.length).getValues();
           for (var i = 0; i < rows.length; i++) if (String(rows[i][0]) === String(row.name)) { r = i + 2; cur = rows[i]; }
         }
-        if (!cur) checkAdmin_(b.adminPin); // new AEs are added by managers only; existing rows (notes, city) use the team PIN
+        if (!cur) checkAdmin_(b.adminPin, sess); // new AEs are added by managers only; existing rows (notes, city) use the team PIN
         // the active flag is only changed through removeAE / restoreAE (admin PIN); dashboard notes are manager-only
         row.active = cur ? cur[cols.indexOf('active')] : 'Y';
-        if (cur && row.notes !== undefined && String(row.notes || '') !== String(cur[cols.indexOf('notes')] || '')) checkAdmin_(b.adminPin);
+        if (cur && row.role !== undefined && String(row.role || '') !== String(cur[cols.indexOf('role')] || '')) checkAdmin_(b.adminPin, sess);   // only managers change roles
+        if (cur && row.email !== undefined && String(row.email || '') !== String(cur[cols.indexOf('email')] || '')) checkAdmin_(b.adminPin, sess); // the sign-in email belongs to managers
+        if (cur && row.notes !== undefined && String(row.notes || '') !== String(cur[cols.indexOf('notes')] || '')) checkAdmin_(b.adminPin, sess);
         var vals = cols.map(function (c) { return row[c] === undefined ? (cur ? cur[cols.indexOf(c)] : '') : row[c]; });
         if (r === -1) sh.appendRow(vals); else sh.getRange(r, 1, 1, cols.length).setValues([vals]);
         var saved = {}; cols.forEach(function (c, j) { saved[c] = vals[j]; });
         return { status: 'ok', row: saved };
       }
       case 'bulkVisits': {
+        (b.rows || []).forEach(function (x) { mine(x.ae); });
         var rows = (b.rows || []).map(function (x) { return upsert_('Visits', x, 'V'); });
         return { status: 'ok', rows: rows };
       }
