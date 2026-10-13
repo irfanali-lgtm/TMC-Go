@@ -550,6 +550,13 @@ section.enter{animation:viewin .22s ease both}
   .dsheet .ds-cat .badge{max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px}
 }
 .ds-cat-in{display:none}
+.rolepick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.rolepick label{display:block;cursor:pointer}
+.rolepick input{position:absolute;opacity:0;pointer-events:none}
+.rolepick span{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--line-2);border-radius:12px;height:100%;background:#fff}
+.rolepick small{font-size:11.5px;color:var(--muted);line-height:1.3}
+.rolepick input:checked+span{border-color:#4252E8;background:#EEF1FF;box-shadow:0 0 0 2px rgba(66,82,232,.15)}
+@media (max-width:520px){.rolepick{grid-template-columns:1fr}}
 .rolesel{height:30px;border-radius:8px!important;font-size:12.5px;padding:0 6px;margin-right:4px}
 .adminnote{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .head.hello .sub{font-size:13px;color:var(--muted)}
@@ -877,7 +884,7 @@ tr.aerow.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-13 08:53 · production';
+const BUILD = '2026-10-13 09:22 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -1063,7 +1070,7 @@ function friendly(err){
   if (/WEAKPIN/.test(m)) return 'The admin PIN is still the default or too simple. A manager must set a stronger one (at least 6 digits) in the sheet’s Settings tab first.';
   if (/photo could not be saved|photo is too large/i.test(m)) return m.replace(/^Error:\s*/,'');
   if (/NOTYOU/.test(m)) return 'You can only change your own visits.';
-  if (/MANAGER_ONLY/.test(m)) return 'Only managers can do that.';
+  if (/MANAGER_ONLY/.test(m)) return 'Only admins can do that.';
   if (/NOPIN/.test(m)) return 'You don’t have a PIN yet — ask your manager for one.';
   if (/No email on file|code was sent less than|not right or has expired|Too many tries|not on the team list|wait 15 minutes|PIN isn’t right|4–8 digits/i.test(m)) return m.replace(/^Error:\s*/,'');
   if (/admin pin/i.test(m)) return 'Wrong admin PIN.';
@@ -1192,7 +1199,6 @@ async function load(first){
       const res = await callApi({action:'all'});
       ui.session = res.session || null;
       if (ui.session) { ui.me = ui.session.ae; try { localStorage.setItem('vi.me', ui.me); } catch(e){} }
-      if (first && ui.session && isAdminRole((res.data && (res.data.aes||[]).find(a => a.name === ui.me)) || {})) { ui.tab = 'dash'; }
       const d = res.data || {};
       const sig = JSON.stringify([d.visits, d.accounts, d.aes, d.aliases]).length + ':' + (d.visits||[]).length + ':' + (d.accounts||[]).length + ':' + (d.aes||[]).length;
       const changed = sig !== ui.dataSig; ui.dataSig = sig;
@@ -1250,8 +1256,11 @@ function dashVisits(){ return visitsBetween(ui.range.from, ui.range.to); }
 function aeByName(n){ return data.aes.find(a=>a.name===n); }
 function setHeaderAvatar(){ const h = $('#hav'); if (!h) return; h.innerHTML = ui.me ? avatar(ui.me, 30) : ''; h.style.display = ui.me ? '' : 'none'; }
 function activeAEs(){ return data.aes.filter(a => String(a.active||'Y').toUpperCase() !== 'N'); }
-const isAdminRole = a => String((a||{}).role||'').toLowerCase() === 'admin';
-function trackedAEs(){ return activeAEs().filter(a => !isAdminRole(a)); }
+const isAdminRole = a => ['admin','manager'].includes(String((a||{}).role||'').toLowerCase());
+function trackedAEs(){
+  const from = (ui.range||{}).from || '0000', to = (ui.range||{}).to || '9999';
+  return activeAEs().filter(a => !isAdminRole(a) || data.visits.some(v => v.ae === a.name && v.count && v.date >= from && v.date <= to));
+}
 function aesInCity(){ return trackedAEs().filter(a => !ui.city || String(a.city).includes(ui.city)); }
 function aesInScope(){ return aesInCity().filter(a => !ui.aeSel.size || ui.aeSel.has(a.name)); }
 function visitsInMonth(){ return data.visits.filter(v => monthOf(v.date) === ui.month && (!ui.city || (aeByName(v.ae)||{}).city && String((aeByName(v.ae)||{}).city).includes(ui.city) || v.city === ui.city)); }
@@ -1326,6 +1335,7 @@ function countUpNumbers(root){
 }
 function render(){
   _resolveCache.clear();
+
   $$('#tabbar button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
   $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab===ui.tab));
   ['log','dash'].forEach(t => { const s = $('#v-'+t); const show = ui.tab===t; if (show && s.style.display === 'none') { s.classList.remove('enter'); void s.offsetWidth; s.classList.add('enter'); } s.style.display = show ? '' : 'none'; });
@@ -1357,21 +1367,34 @@ function restoreDraft(){ try { const raw = localStorage.getItem('vi.draft.'+ui.m
 function setMe(v){ ui.me=v; localStorage.setItem('vi.me',v); setHeaderAvatar(); const s=$('#me'); if (![...s.options].some(o=>o.value===v)) s.add(new Option(v,v)); s.value=v; form=null; ui.route=null; render(); }
 function addAeDialog(){
   const cities = officeCities();
-  openModal('Add an AE', `
+  openModal('Add a person', `
     <div class="form">
       <div class="f c12"><label>Full name</label><input id="mName" placeholder="As it should appear on the dashboard"></div>
-      <div class="f c6"><label>City</label><select id="mCity2">${cities.map(c=>`<option>${esc(c)}</option>`).join('')}</select></div>
-      <div class="f c6"><label>Assigned book</label><select id="mMeasured"><option value="N">No fixed assignment</option><option value="Y">A/B/C account list</option></select></div>
-      <div class="f c12 hint">Routes start and end at the city's office. Add their assigned accounts in the Accounts tab of the sheet; until then every client they log counts as net new.</div>
+      <div class="f c12"><label>Role</label><div class="rolepick" id="mRolePick">
+        <label><input type="radio" name="mRole" value="" checked><span><b>AE</b><small>Logs their own visits</small></span></label>
+        <label><input type="radio" name="mRole" value="admin"><span><b>Admin</b><small>Everything: logs visits, sees the whole team, manages people and settings</small></span></label>
+      </div></div>
+      <div class="f c6 trk"><label>City</label><select id="mCity2">${cities.map(c=>`<option>${esc(c)}</option>`).join('')}</select></div>
+      <div class="f c6 trk"><label>Assigned book</label><select id="mMeasured"><option value="Y">A/B/C account list</option><option value="N">No fixed assignment</option></select></div>
+      <div class="f c12"><label>Email <span class="hint">(optional — lets them get a sign-in code by email)</span></label><input id="mEmail" type="email" placeholder="name@tmcltd.com"></div>
+      <div class="f c12 hint trk">Routes start and end at the city's office. Their accounts come from the Categories tab of the sheet.</div>
     </div>`, async () => {
       const name = $('#mName').value.trim().replace(/\s+/g, ' ');
-      if (!name) throw new Error('Enter the AE\u2019s name.');
+      const role = (document.querySelector('input[name=mRole]:checked')||{}).value || '';
+      const email = $('#mEmail').value.trim();
+      if (!name) throw new Error('Enter their full name.');
       if (name.length > 60) throw new Error('That name is too long (60 characters max).');
       if (data.aes.some(a => norm(a.name)===norm(name))) throw new Error('That name is already in the team list.');
-      const row = {name, city:$('#mCity2').value, active:'Y', coverageMeasured:$('#mMeasured').value, notes:''};
-      const r = await callApi({action:'upsertAE', row, adminPin:getAdminPin()}); data.aes.push(r.row || row);
-      initMeSelect(); toast(`${shortName(name)} added`); render(); setTimeout(adminDialog, 0); // reopen after this dialog closes
-    }, 'Add AE');
+      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('That email address does not look right.');
+      const row = {name, city: $('#mCity2').value, active:'Y', coverageMeasured: $('#mMeasured').value, notes:'', role, email};
+      const r = await callApi({action:'upsertAE', row, adminPin:getAdminPin()}); data.aes.push(Object.assign({}, row, r.row || {}));
+      initMeSelect(); render();
+      const text = `You’re on TMC Go. Open ${location.origin + location.pathname}, tap your name and enter 1234, then choose your own PIN.`;
+      try { await navigator.clipboard.writeText(text); } catch(e){}
+      toast(`${shortName(name)} added — starting PIN 1234 (a WhatsApp message is copied)`);
+      setTimeout(() => settingsDialog('team'), 0);
+    }, 'Add');
+
 }
 // ---- Sign in: tap your name, enter your PIN; the device stays signed in until you sign out ----
 let signin = { roster: [], step: 'pick', who: null, sentTo: '', busy: false, q: '' };
@@ -1390,8 +1413,8 @@ function drawSignIn(msg){
     const list = s.roster.filter(a => !s.q || norm(a.name).includes(norm(s.q)));
     el.innerHTML = card(`<h2>Who are you?</h2><p class="hint">Sign in once on this device — it remembers you.</p>
       <input id="siQ" placeholder="Search your name" value="${esc(s.q)}" autocomplete="off">
-      <div class="si-list">${!s.roster.length ? `<div class="si-empty">The team list couldn’t be loaded.<br><button type="button" class="btn sm" id="siRetry" style="margin-top:8px">Try again</button></div>` : ''}${list.map(a => `<button type="button" class="si-who" data-who="${esc(a.name)}">${safePhoto(a.photo)?`<img class="av" src="${safePhoto(a.photo)}" width="40" height="40" alt="">`:`<span class="av" style="width:40px;height:40px;background:${AV_COLORS[[...a.name].reduce((x,c)=>x+c.charCodeAt(0),0)%AV_COLORS.length]};font-size:15px">${esc(initials(a.name).toUpperCase())}</span>`}<span><b>${esc(a.name)}</b><small>${esc(a.city||'')}${a.manager?' · Manager':''}</small></span><i>›</i></button>`).join('') || (s.roster.length ? '<p class="hint">No one matches that name.</p>' : '')}</div>
-      <p class="hint" style="margin-top:10px">Not on the list? Ask your manager to add you.</p>`);
+      <div class="si-list">${!s.roster.length ? `<div class="si-empty">The team list couldn’t be loaded.<br><button type="button" class="btn sm" id="siRetry" style="margin-top:8px">Try again</button></div>` : ''}${list.map(a => `<button type="button" class="si-who" data-who="${esc(a.name)}">${safePhoto(a.photo)?`<img class="av" src="${safePhoto(a.photo)}" width="40" height="40" alt="">`:`<span class="av" style="width:40px;height:40px;background:${AV_COLORS[[...a.name].reduce((x,c)=>x+c.charCodeAt(0),0)%AV_COLORS.length]};font-size:15px">${esc(initials(a.name).toUpperCase())}</span>`}<span><b>${esc(a.name)}</b><small>${esc(a.city||'')}${a.manager?' · Admin':''}</small></span><i>›</i></button>`).join('') || (s.roster.length ? '<p class="hint">No one matches that name.</p>' : '')}</div>
+      <p class="hint" style="margin-top:10px">Not on the list? Ask an admin to add you.</p>`);
     $('#siQ').oninput = e => { s.q = e.target.value; const pos = e.target.selectionStart; drawSignIn(); const q = $('#siQ'); q.focus(); q.setSelectionRange(pos,pos); };
     $$('button[data-who]').forEach(b => b.onclick = () => { s.who = s.roster.find(a => a.name === b.dataset.who); s.step = 'pin'; drawSignIn(); });
     if ($('#siRetry')) $('#siRetry').onclick = () => signInScreen();
@@ -1404,8 +1427,8 @@ function drawSignIn(msg){
       <label class="si-l" for="siPin">Your PIN</label>
       <input id="siPin" class="si-code" type="password" inputmode="numeric" autocomplete="current-password" maxlength="8" placeholder="••••">
       <button type="button" class="btn primary si-big" id="siGo">Sign in</button>
-      <p class="hint si-help">${who.hasPin ? 'Forgot it? Your manager can give you a new one in a few seconds.' : 'First time? Ask your manager for your PIN — it takes them a few seconds.'}${who.email ? ` <button type="button" class="si-link inline" id="siEmail">Email me a code instead</button>` : ''}</p>`);
-    const go = async () => { const p = $('#siPin').value.replace(/\D/g,''); if (p.length < 4) return $('#siPin').focus(); const b = $('#siGo'); b.disabled = true; b.textContent = 'Signing in…'; try { const r = await callApi({action:'signIn', name: who.name, pin: p, device: navigator.userAgent}); signedIn(r.session, r.adminUsed ? 'admin' : ''); } catch(e) { drawSignIn(/NOPIN/.test(e.message) || /don’t have a PIN/.test(e.message) ? 'You don’t have a PIN yet — ask your manager for one.' : e.message); } };
+      <p class="hint si-help">${who.hasPin ? 'Forgot it? An admin can reset it to 1234 for you.' : 'First time? Your PIN is <b>1234</b> — you’ll choose your own right after.'}${who.email ? ` <button type="button" class="si-link inline" id="siEmail">Email me a code instead</button>` : ''}</p>`);
+    const go = async () => { const p = $('#siPin').value.replace(/\D/g,''); if (p.length < 4) return $('#siPin').focus(); const b = $('#siGo'); b.disabled = true; b.textContent = 'Signing in…'; try { const r = await callApi({action:'signIn', name: who.name, pin: p, device: navigator.userAgent}); signedIn(r.session, r.mustChange ? 'default' : (r.adminUsed ? 'admin' : '')); } catch(e) { drawSignIn(/NOPIN/.test(e.message) || /don’t have a PIN/.test(e.message) ? 'You don’t have a PIN yet — ask your manager for one.' : e.message); } };
     $('#siPin').onkeydown = e => { if (e.key === 'Enter') go(); };
     $('#siPin').oninput = e => { e.target.value = e.target.value.replace(/\D/g,'').slice(0,8); };
     $('#siGo').onclick = go; setTimeout(() => $('#siPin') && $('#siPin').focus(), 50);
@@ -1423,12 +1446,13 @@ function drawSignIn(msg){
 function signedIn(sess, via){
   setTok(sess.token); ui.session = {ae: sess.ae, role: sess.role}; ui.me = sess.ae; try { localStorage.setItem('vi.me', ui.me); } catch(e){}
   document.body.classList.remove('signed-out'); signin = { roster: signin.roster, step: 'pick', who: null, sentTo: '', busy: false, q: '' };
-  toast(`Welcome, ${sess.ae.split(' ')[0]}${sess.role === 'manager' ? ' — manager tools are unlocked' : ''}`);
+  toast(`Welcome, ${sess.ae.split(' ')[0]}${sess.role === 'manager' ? ' — admin tools are unlocked' : ''}`);
   $('#loading').style.display = ''; load(true);
-  if (via) setTimeout(() => setMyPin(true), 900);
+  if (via) setTimeout(() => setMyPin(via === 'default' ? 'default' : true), 900);
 }
 async function setMyPin(first){
-  const p = await askModal({title: first ? 'Choose your PIN' : 'Change my PIN', message: first ? 'Next time you sign in with just your name and this PIN. 4–8 digits.' : '4–8 digits. You’ll use it on any new phone or computer.', input:'password', okLabel:'Save PIN', cancelLabel: first ? 'Later' : 'Cancel', placeholder:'••••'});
+  const onDefault = first === 'default';
+  const p = await askModal({title: first ? 'Choose your own PIN' : 'Change my PIN', message: onDefault ? 'You signed in with the starting PIN 1234. Pick your own 4–8 digits so nobody else can sign in as you.' : first ? 'Next time you sign in with just your name and this PIN. 4–8 digits.' : '4–8 digits. You’ll use it on any new phone or computer.', input:'password', okLabel:'Save PIN', cancelLabel: first ? 'Later' : 'Cancel', placeholder:'••••'});
   if (p === null) return;
   try { await callApi({action:'setMyPin', pin: String(p).replace(/\D/g,'')}); toast('PIN saved'); } catch(e) { toast(e.message); if (/4–8 digits/.test(e.message)) setTimeout(() => setMyPin(first), 300); }
 }
@@ -1445,7 +1469,7 @@ function renderLog(){
       <p class="hint" style="margin-bottom:12px">This device remembers it. Your city and starting office come from the team list.</p>
       <div class="form"><div class="f c8"><select id="pickMe"><option value="">Select AE…</option>${activeAEs().map(a=>`<option>${esc(a.name)}</option>`).join('')}</select></div>
       <div class="c4"><button class="btn primary" id="pickGo" style="width:100%">Continue</button></div>
-      <div class="c12 hint">Not in the list? Ask your manager to add you.</div></div></div></div>`;
+      <div class="c12 hint">Not in the list? Ask an admin to add you.</div></div></div></div>`;
     $('#pickGo').onclick = () => { const v=$('#pickMe').value; if(!v) return; setMe(v); };
     return;
   }
@@ -1455,7 +1479,7 @@ function renderLog(){
   const editing = !!form.editId; const editDay = editing ? data.visits.find(v=>v.id===form.editId) : null;
   const city = aeCities(ui.me)[0] || '';
   const purposes = purposeList();
-  el.innerHTML = `${ui.adminNote ? `<div class="banner adminnote" style="grid-column:1/-1">You’re set up as <b>admin</b> — your visits aren’t tracked and you’re left out of the team figures. The Dashboard is your home. <button type="button" class="btn sm" id="goDash">Open Dashboard</button></div>` : ''}
+  el.innerHTML = `
   <div class="card logcard">
     <div class="head hello"><div class="who">${avatar(ui.me, 44)}<div><div class="eyebrow">${esc(fmtLong(todayIso()))} · ${esc(['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()])}</div><h2>${esc(greeting())}, ${esc(shortName(ui.me).split(' ')[0])} ${greetEmoji()}</h2><div class="hint">${esc([aeByName(ui.me)?.title, city].filter(Boolean).join(' · '))}${monthPulse()}</div></div></div><span class="sub">${editing ? `Editing ${fmtDate(editDay ? editDay.date : '')} — change the visits below and save; the day\u2019s kilometres are recalculated.` : 'Add your visits in the order you made them — kilometres follow that order.'}</span>
       <span class="spacer"></span>${editing ? '<button class="btn sm" id="fCancel">Cancel</button>' : ''}</div>
@@ -2232,19 +2256,19 @@ function settingsDialog(tab){
           <div class="form" style="margin-top:8px">
             <div class="f c6"><label>Title</label><input id="pTitle" value="${esc(me.title||'')}" placeholder="e.g. Account Executive"></div>
             <div class="f c6"><label>Phone</label><input id="pPhone" type="tel" value="${esc(me.phone||'')}" placeholder="03xx-xxxxxxx"></div>
-            <div class="f c12"><label>Email <span class="hint">(sign-in codes go here)</span></label>${ui.demo || isMgr() ? `<input id="pEmail" type="email" value="${esc(me.email||'')}" placeholder="name@tmcltd.com">` : `<div class="hint" style="padding:10px 0">${me.email ? esc(me.email) : 'Not set'} · ask your manager to change it</div><input id="pEmail" type="hidden" value="${esc(me.email||'')}">`}</div>
-            ${me.notes ? `<div class="f c12"><label>Note from your manager</label><div class="hint">${esc(me.notes)}</div></div>` : ''}
+            <div class="f c12"><label>Email <span class="hint">(sign-in codes go here)</span></label>${ui.demo || isMgr() ? `<input id="pEmail" type="email" value="${esc(me.email||'')}" placeholder="name@tmcltd.com">` : `<div class="hint" style="padding:10px 0">${me.email ? esc(me.email) : 'Not set'} · an admin can change it</div><input id="pEmail" type="hidden" value="${esc(me.email||'')}">`}</div>
+            ${me.notes ? `<div class="f c12"><label>Note from your admin</label><div class="hint">${esc(me.notes)}</div></div>` : ''}
           </div>
         </div>
       </div>` : '<div class="f c12 hint">Pick your name on the Log visit tab to set up your profile.</div>'}
       <div class="f c12 sect"><label>This device</label>
         <div class="form">
-          ${ui.demo ? `<div class="f c6"><label>Logging as</label><select id="mMe"><option value="">—</option>${activeAEs().map(a=>`<option ${a.name===ui.me?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>` : `<div class="f c6"><label>Signed in as</label><div class="signedas">${esc(ui.me)}${isMgr() ? ' <span class="badge B" style="height:18px">Manager</span>' : ''}</div></div>`}
+          ${ui.demo ? `<div class="f c6"><label>Logging as</label><select id="mMe"><option value="">—</option>${activeAEs().map(a=>`<option ${a.name===ui.me?'selected':''}>${esc(a.name)}</option>`).join('')}</select></div>` : `<div class="f c6"><label>Signed in as</label><div class="signedas">${esc(ui.me)}${isMgr() ? ' <span class="badge B" style="height:18px">Admin</span>' : ''}</div></div>`}
           <div class="f c6"><label>&nbsp;</label><div style="display:flex;gap:8px">${ui.demo ? '' : '<button type="button" class="btn" id="mMyPin">Change my PIN</button>'}<button type="button" class="btn" id="mForgetMe" title="Signs you out and clears drafts on this device">Sign out</button></div></div>
           <div class="f c12"><div class="appinstall"><img src="${$('link[rel=apple-touch-icon]').href}" alt="" width="40" height="40"><div><b>${isStandalone() ? 'TMC Go is installed' : 'Install TMC Go as an app'}</b><div class="hint">${isStandalone() ? 'You’re using the home-screen app.' : 'Home-screen icon, full screen, opens instantly.'}</div></div>${isStandalone() ? '' : '<button type="button" class="btn sm primary" id="mInstall">Install</button>'}</div></div>
           <div class="f c12 hint">Voice works best in Chrome or Edge. Tap 🎙 in the Go panel or “Log by voice” on the form.</div>
         </div></div>
-      ${ui.demo ? '' : `<div class="f c12 sect"><label>Manager area</label>
+      ${ui.demo ? '' : `<div class="f c12 sect"><label>Admin area</label>
         ${mgr ? `<div class="tabs" id="mTabs">${tabs.map(([k,l]) => `<button type="button" class="${k===mgr?'on':''}" data-mt="${k}">${l}</button>`).join('')}<span class="spacer"></span>${isMgr() ? '' : '<button type="button" class="btn sm" id="mLock">🔒 Lock</button>'}</div>
           <div id="mPane">${mgrPane(mgr)}</div>`
         : `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="btn sm" id="mUnlock">🔒 Unlock with admin PIN</button><span class="hint">Team, kilometres &amp; maps, Go, and the data connection.</span></div>`}
@@ -2279,10 +2303,10 @@ function mgrPane(tab){
     let sync = null; try { sync = JSON.parse(data.settings.categoriesSync||''); } catch(e){}
     return `${sync && sync.unknownAEs && sync.unknownAEs.length ? `<div class="banner" style="margin-bottom:10px">The Categories tab lists AEs who are not in the team yet: <b>${sync.unknownAEs.map(esc).join(', ')}</b>. Add them with the same spelling and their accounts attach automatically.</div>` : ''}
       <div class="tw"><table><thead><tr><th>Name</th><th>City</th><th>Book</th><th></th></tr></thead><tbody>
-        ${active.map(a => `<tr><td><span class="nm">${avatar(a.name, 24)}<b>${esc(a.name)}</b>${String(a.role||'').toLowerCase()==='manager'?' <span class="badge B" style="height:18px">Manager</span>':String(a.role||'').toLowerCase()==='admin'?' <span class="badge None" style="height:18px">Admin · not tracked</span>':''}</span><div class="hint">${a.email ? esc(a.email) : '<i>no email — use a code</i>'}</div></td><td>${esc(a.city||'')}</td><td class="hint">${a.coverageMeasured==='N'?'No fixed book':'A/B/C book'}</td><td class="acc"><button type="button" class="btn sm" data-inv="${esc(a.name)}" title="Give them a new 4-digit PIN">🔑 ${a.hasPin ? 'New PIN' : 'Give PIN'}</button><button type="button" class="btn sm" data-mail="${esc(a.name)}" title="Set the email sign-in codes go to">✉️</button><select class="rolesel" data-role="${esc(a.name)}" title="AE: logs visits · Manager: full access and logs visits · Admin: full access, no visits, not in the figures">${[['','AE'],['manager','Manager'],['admin','Admin']].map(([v,l]) => `<option value="${v}" ${String(a.role||'').toLowerCase()===v?'selected':''}>${l}</option>`).join('')}</select><button type="button" class="btn sm" data-out="${esc(a.name)}" title="Sign out all their devices">⏏</button><button type="button" class="dellink" data-rm="${esc(a.name)}">Remove…</button></td></tr>`).join('')}
+        ${active.map(a => `<tr><td><span class="nm">${avatar(a.name, 24)}<b>${esc(a.name)}</b>${isAdminRole(a)?' <span class="badge B" style="height:18px">Admin</span>':''}${a.hasPin?'':' <span class="badge pend" style="height:18px" title="Still on the starting PIN">PIN 1234</span>'}</span><div class="hint">${a.email ? esc(a.email) : '<i>no email — use a code</i>'}</div></td><td>${esc(a.city||'')}</td><td class="hint">${a.coverageMeasured==='N'?'No fixed book':'A/B/C book'}</td><td class="acc"><button type="button" class="btn sm" data-inv="${esc(a.name)}" title="Set their PIN back to 1234 (for a forgotten PIN)">↺ Reset PIN</button><button type="button" class="btn sm" data-mail="${esc(a.name)}" title="Set the email sign-in codes go to">✉️</button><select class="rolesel" data-role="${esc(a.name)}" title="AE: logs their own visits · Admin: everything, including logging visits">${[['','AE'],['admin','Admin']].map(([v,l]) => `<option value="${v}" ${(isAdminRole(a)?'admin':'')===v?'selected':''}>${l}</option>`).join('')}</select><button type="button" class="btn sm" data-out="${esc(a.name)}" title="Sign out all their devices">⏏</button><button type="button" class="dellink" data-rm="${esc(a.name)}">Remove…</button></td></tr>`).join('')}
         ${inactive.map(a => `<tr><td class="hint">${esc(a.name)}</td><td class="hint">${esc(a.city||'')}</td><td class="hint">removed</td><td><button type="button" class="dellink" data-rs="${esc(a.name)}">Restore</button></td></tr>`).join('')}
       </tbody></table></div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn sm primary" id="mAddAe">+ Add AE</button><span class="hint">Removing hides an AE from logging and the dashboard; their visits stay and they can be restored. Accounts and categories are managed in the sheet’s Categories tab.</span></div>`;
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn sm primary" id="mAddAe">+ Add person</button><span class="hint">Removing hides an AE from logging and the dashboard; their visits stay and they can be restored. Accounts and categories are managed in the sheet’s Categories tab.</span></div>`;
   }
   if (tab === 'km') {
     const nMissing = data.accounts.filter(a=>!located(a) && a.located!=='NOT FOUND').length, nNotFound = data.accounts.filter(a=>a.located==='NOT FOUND').length;
@@ -2312,13 +2336,12 @@ function mgrPane(tab){
 function wireMgrPane(tab){
   if (tab === 'team') {
     if ($('#mAddAe')) $('#mAddAe').onclick = () => addAeDialog();
-    $$('button[data-inv]').forEach(b => b.onclick = async () => { const n = b.dataset.inv, a = aeByName(n) || {}; if (a.hasPin && !(await confirmModal(`New PIN for ${shortName(n)}?`, 'Their old PIN stops working and their devices are signed out.', 'New PIN'))) return settingsDialog('team'); try { const r = await callApi({action:'resetPin', name:n, adminPin:getAdminPin()}); a.hasPin = true; const link = location.origin + location.pathname; const text = `Your TMC Go PIN is ${r.pin}. Open ${link}, tap your name and enter the PIN. You can change it in Settings.`; try { await navigator.clipboard.writeText(text); } catch(e){} await askModal({title:`${shortName(n)}’s PIN: ${r.pin}`, message:'A ready message with the link and PIN is copied — paste it into WhatsApp.', okLabel:'Done', cancelLabel:'Close'}); settingsDialog('team'); } catch(e) { $('#mErr').textContent = e.message; } });
+    $$('button[data-inv]').forEach(b => b.onclick = async () => { const n = b.dataset.inv, a = aeByName(n) || {}; if (!(await confirmModal(`Reset ${shortName(n)}’s PIN to 1234?`, 'Their own PIN stops working and their devices are signed out. They sign in with 1234 and choose a new one.', 'Reset PIN'))) return settingsDialog('team'); try { await callApi({action:'resetPin', name:n, adminPin:getAdminPin()}); a.hasPin = false; const text = `Your TMC Go PIN has been reset to 1234. Open ${location.origin + location.pathname}, tap your name, enter 1234 and choose your own PIN.`; try { await navigator.clipboard.writeText(text); } catch(e){} toast(`${shortName(n)} is back on PIN 1234 — a WhatsApp message is copied`); } catch(e) { toast(e.message); } settingsDialog('team'); });
     $$('button[data-mail]').forEach(b => b.onclick = async () => { const n = b.dataset.mail, a = aeByName(n) || {}; const v = await askModal({title:`Email for ${shortName(n)}`, message:'Sign-in codes are sent here.', input:'email', placeholder:'name@tmcltd.com', okLabel:'Save'}); if (v === null) return settingsDialog('team'); try { await callApi({action:'setEmail', name:n, email:v, adminPin:getAdminPin()}); a.email = v; toast('Email saved'); } catch(e) { toast(e.message); } settingsDialog('team'); });
-    $$('select[data-role]').forEach(sel => sel.onchange = async () => { const n = sel.dataset.role, a = aeByName(n) || {}, to = sel.value, label = {'':'an AE','manager':'a manager','admin':'an admin'}[to];
-      if (n === ui.me && !to) { toast('You can’t remove your own manager access.'); return settingsDialog('team'); }
-      const why = to === 'admin' ? 'Full access to everything, but no visits: they’re left out of coverage, kilometres, rankings and charts.' : to === 'manager' ? 'Full access, and their own visits still count in the team figures.' : 'They log their own visits and lose manager tools.';
-      if (!(await confirmModal(`Make ${shortName(n)} ${label}?`, why, 'Change role'))) return settingsDialog('team');
-      try { await callApi({action:'setRole', name:n, role: to, adminPin:getAdminPin()}); a.role = to; toast(n === ui.me ? 'Role updated' : 'Role updated — they’ll sign in again'); if (n === ui.me) { ui.session.role = to ? 'manager' : 'ae'; } } catch(e) { toast(e.message); }
+    $$('select[data-role]').forEach(sel => sel.onchange = async () => { const n = sel.dataset.role, a = aeByName(n) || {}, to = sel.value;
+      if (n === ui.me && !to) { toast('You can’t remove your own admin access.'); return settingsDialog('team'); }
+      if (!(await confirmModal(to ? `Make ${shortName(n)} an admin?` : `Make ${shortName(n)} an AE?`, to ? 'Admins can do everything: log visits, see the whole team, edit anyone’s days, manage people, PINs and settings. They only appear in the team figures when they log visits.' : 'They log their own visits and lose admin tools.', 'Change role'))) return settingsDialog('team');
+      try { await callApi({action:'setRole', name:n, role: to, adminPin:getAdminPin()}); a.role = to; toast(n === ui.me ? 'Role updated' : 'Role updated — they’ll sign in again'); } catch(e) { toast(e.message); }
       settingsDialog('team'); render(); });
     $$('button[data-out]').forEach(b => b.onclick = async () => { const n = b.dataset.out; if (!(await confirmModal(`Sign ${shortName(n)} out everywhere?`, 'Every phone and computer they use will need a new code.', 'Sign out devices'))) return settingsDialog('team'); try { const r = await callApi({action:'revokeSessions', name:n, adminPin:getAdminPin()}); toast(`${r.revoked} device${r.revoked===1?'':'s'} signed out`); } catch(e) { toast(e.message); } settingsDialog('team'); });
     $$('button[data-rm]').forEach(b => b.onclick = async () => {
