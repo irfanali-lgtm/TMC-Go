@@ -585,6 +585,10 @@ section.enter{animation:viewin .22s ease both}
 .imp .si-link{margin:8px 0 0}
 .rl2{font-size:11px;opacity:.8;margin-top:1px}
 .uchip .uneed{font-size:10.5px;color:var(--muted);font-weight:500}
+.acov summary{cursor:pointer;font-weight:600;font-size:13px}
+.acov table{margin-top:8px;font-size:13px}.acov td,.acov th{padding:7px 10px;vertical-align:top}
+.st{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.st.ok{background:#DCFCE7;color:#166534}.st.due{background:#FEF3C7;color:#92400E}.st.miss{background:#FEE2E2;color:#991B1B}
 .dc h4{margin:16px 0 8px;font-size:14px}
 .dc-m td,.dc-m th{padding:8px 10px}
 .dc-m .dc-empty td{color:var(--muted);background:#FFFBEB}
@@ -976,7 +980,7 @@ tr.aerow.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-13 12:42 · production';
+const BUILD = '2026-10-13 13:22 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -1092,8 +1096,9 @@ function matchAccounts(q, ae){
   return out.filter(x => x.own || !own.has(norm(x.a.account))).sort((x,y) => (y.s + (y.own?0.08:0)) - (x.s + (x.own?0.08:0)) || x.a.account.localeCompare(y.a.account));
 }
 // Category of a client as seen by this AE: A/B/C from their own book, None when unlisted, — when it is another AE's account.
+// Category of a client for this AE: from their own book only. Not in their book → None for them (whoever else lists it).
 function catFor(ae, name){ const own = accountRow(ae, name); if (own) return TIERS.includes(own.tier) ? own.tier : 'None'; return ownerOf(name) ? '—' : 'None'; }
-function catBadge(ae, name){ const c = catFor(ae, name); return c==='—' ? `<span class="badge O" title="Another AE\u2019s account — counts as your visit, their coverage">other AE</span>` : `<span class="badge ${c==='None'?'N':c}" title="${c==='None'?'Not in your category list':'Category '+c}">${c}</span>`; }
+function catBadge(ae, name){ const c = catFor(ae, name); if (c==='—') { const o = ownerOf(name); return `<span class="badge None" title="${esc((o ? shortName(o) + '\u2019s account' : 'Another AE\u2019s account') + ' — no category for you; it counts for them when they log the visit too')}">None</span>`; } return `<span class="badge ${c==='None'?'N':c}" title="${c==='None'?'Not in your category list':'Category '+c}">${c}</span>`; }
 
 /* ============================ STATE ============================ */
 const OFFICES = {"Lahore": "Floor No. 10, Zone B, DHA Business Hub, D.H.A. Commercial Broadway, DHA Phase 8, Lahore, Pakistan", "Karachi": "1st Floor, Nasreen Building, Main Shaheed-e-Millat Road, Block 7/8 Bangalore Town, Karachi, Pakistan", "Islamabad": "4th Floor, SNC Center, AKM Fazl-ul-Haq Road, Block D G-6/2, Blue Area, Islamabad, Pakistan"};
@@ -1394,25 +1399,35 @@ function periodsBetween(per, from, to){
   while (p.start <= to) { out.push(p); const n = new Date(+p.end.slice(0,4), +p.end.slice(5,7) - 1, +p.end.slice(8) + 1); p = periodOf(per, isoD(n)); }
   return out;
 }
-// For each AE: account (normalised name of its book entry) → set of distinct visit dates. Built once per render.
+// Categories belong to each person: an account's category for an AE is the category on THAT AE's own row of the
+// Categories tab (blank = no category for them, whatever anyone else has). Coverage for an AE counts only that AE's own
+// visits to accounts in their own book. When two people visit together, each logs it: it counts for whoever has the
+// account in their book; for the other it is a visit with no category.
 const _covIndex = new Map();
+const TIER_RANK = {A:0, B:1, C:2};
+const tierOf = a => TIERS.includes(a.tier) ? a.tier : '';
+const accountSince = a => a.addedOn || '';
+// For one AE: their own book's accounts (normalised) → distinct dates on which THEY visited them.
 function visitDatesFor(ae){
-  if (_covIndex.has(ae)) return _covIndex.get(ae);
+  const key = 'v|' + ae; if (_covIndex.has(key)) return _covIndex.get(key);
   const idx = new Map(), today = todayIso();
   data.visits.forEach(v => {
     if (v.ae !== ae || !v.date || v.date > today) return;
     splitAccts(v.accounts).forEach(n => { const r = accountRow(ae, n); if (!r) return; const k = norm(r.account); if (!idx.has(k)) idx.set(k, new Set()); idx.get(k).add(v.date); });
   });
-  _covIndex.set(ae, idx); return idx;
+  _covIndex.set(key, idx); return idx;
 }
+// Tracking starts with the first visit logged by anyone: months/quarters that ended before it have no data to judge.
+function trackingStart(){ if (!_covIndex.has('#start')) { let m = ''; data.visits.forEach(v => { if (v.date && splitAccts(v.accounts).length && (!m || v.date < m)) m = v.date; }); _covIndex.set('#start', m); } return _covIndex.get('#start'); }
 function coverageFor(ae, from, to){
-  const today = todayIso(), end = to > today ? today : to, idx = visitDatesFor(ae);
+  const today = todayIso(), end = to > today ? today : to, idx = visitDatesFor(ae), started = trackingStart();
   const book = assignedFor(ae, '9999-12-31').filter(a => TIERS.includes(a.tier));
   const tiers = {}; TIERS.forEach(tr => tiers[tr] = {due:0, met:0, needed:0, done:0, accounts:0, pct:null});
   const accts = [];
   book.forEach(a => {
     const rule = COVER[a.tier], dates = idx.get(norm(a.account)) || new Set();
-    const wins = periodsBetween(rule.per, from, end).filter(w => !a.addedOn || a.addedOn <= w.start).map(w => {
+    const since = accountSince(a);
+    const wins = periodsBetween(rule.per, from, end).filter(w => (!since || since <= w.start) && (!started || w.end >= started)).map(w => {
       let got = 0; dates.forEach(d => { if (d >= w.start && d <= w.end && d <= today) got++; });
       return {...w, need: rule.need, got, met: got >= rule.need, open: w.end >= today};
     });
@@ -1466,6 +1481,7 @@ function teamStats(){
   const measured = rows.filter(r=>r.measured);
   const sum = (arr, f) => arr.reduce((s,r)=>s+f(r),0);
   const total = { tiers:{}, measuredCount: measured.length };
+  // the team view adds up each person's own requirements (the same company in two books is two requirements)
   TIERS.forEach(t => { const as=sum(measured,r=>r.tiers[t].assigned), vz=sum(measured,r=>r.tiers[t].visited); total.tiers[t]={assigned:as, visited:vz, pct:pct(vz,as), needed:sum(measured,r=>r.tiers[t].needed||0)}; });
   const oa=sum(measured,r=>r.overall.assigned), ov=sum(measured,r=>r.overall.visited);
   total.overall={assigned:oa, visited:ov, pct:pct(ov,oa), needed:sum(measured,r=>r.overall.needed||0)};
@@ -2286,6 +2302,12 @@ function renderDrill(el, rows, mv){
   const d = document.createElement('div'); d.className='card';
   d.innerHTML = `<div class="head"><h2>${esc(ae)} — day by day</h2><span class="sub">${rangeLabel()} · ${days.length} days · ${r.totalVisits} visits · ${num(r.km)} km</span></div>
     ${notV.length ? `<div class="body" style="padding-bottom:0"><div class="hint"><b>Still due (${notV.length}):</b> ${notV.map(a=>`${esc(a.account)} <span class="badge ${a.tier}">${a.tier}</span>${a._need && a._need.cur.need > 1 ? ` <span class="hint">${a._need.cur.got}/${a._need.cur.need}</span>` : ''}`).join(', ')}</div></div>` : ''}
+    ${r.measured && r.cov.accts.length ? `<details class="body acov"><summary>Account by account — ${r.cov.overall.met} of ${r.cov.overall.due} on track</summary>
+      <div class="tw"><table><thead><tr><th>Account</th><th>Cat.</th><th>Rule</th><th>Period</th><th class="num">Visits</th><th>Status</th></tr></thead><tbody>
+      ${r.cov.accts.slice().sort((x,y)=>x.tier.localeCompare(y.tier)||x.a.account.localeCompare(y.a.account)).flatMap(x => x.wins.map((w,k) => `<tr>${k===0?`<td rowspan="${x.wins.length}"><b>${esc(x.a.account)}</b></td><td rowspan="${x.wins.length}"><span class="badge ${x.tier}">${x.tier}</span></td><td rowspan="${x.wins.length}" class="hint">${esc(x.rule)}</td>`:''}<td>${esc(w.label)}</td><td class="num">${w.got}/${w.need}</td><td>${w.met ? '<span class="st ok">✓ met</span>' : w.open ? `<span class="st due">due · ${w.need - w.got} more</span>` : '<span class="st miss">missed</span>'}</td></tr>`)).join('')}
+      </tbody></table></div>
+      ${(() => { const book = new Set(assignedFor(ae,'9999-12-31').map(b=>norm(b.account))); const out = new Map(); days.forEach(v => splitAccts(v.accounts).forEach(n => { const ownr = accountRow(ae, n); if (ownr && book.has(norm(ownr.account))) return; const g = accountRow('', n); out.set(norm(g ? g.account : n), (g ? g.account + (TIERS.includes(g.tier) ? ` (${g.ae.split(' ')[0]}’s ${g.tier})` : ` (${g.ae.split(' ')[0]}’s)`) : n + ' (not in any book)')); })); return out.size ? `<p class="hint" style="margin-top:8px"><b>Visited, but not in ${esc(shortName(ae))}’s book</b> (no category for ${esc(shortName(ae))} — it counts for the colleague only when they log the visit too): ${[...out.values()].map(esc).join(', ')}</p>` : ''; })()}
+    </details>` : ''}
     <div class="tw"><table class="daytbl"><thead><tr><th>Date</th><th>Client visited</th><th>Category</th><th>Opportunity / purpose</th><th class="num">KM (day)</th>${ui.mgr?'<th></th>':''}</tr></thead><tbody>
       ${days.map(v => { const det = v.count ? dayDetails(v) : [{client:'', purpose: v.purpose||'No visits'}]; const n = det.length; return det.map((x,i) => `<tr>${i===0?`<td rowspan="${n}" class="day"><b>${fmtDate(v.date)}</b> <span class="hint">${dayName(v.date)}</span><div class="hint">${v.count} visit${v.count===1?'':'s'}</div>${v.note?`<div class="mnote">📝 ${esc(v.note)}</div>`:''}</td>`:''}<td class="wrap">${x.client ? `<span class="seq sm">${i+1}</span>${esc(x.client)}` : `<span class="badge no">${esc(String(x.purpose).split(' — ')[0])}</span>`}</td><td>${x.client ? catBadge(ae, x.client) : ''}</td><td class="wrap hint">${x.client ? esc(x.purpose||'') : ''}</td>${i===0?`<td rowspan="${n}" class="num day">${kmCell(v)}${v.route?`<div class="hint" style="white-space:normal;font-weight:400;max-width:260px;margin-top:4px">${esc(v.route)}${routeMapLink(v)}</div>`:''}</td>${ui.mgr?`<td rowspan="${n}" class="day"><div class="rowact" style="flex-direction:column;align-items:flex-start"><button data-me="${v.id}">Edit</button><button class="del" data-md="${v.id}">Delete</button></div></td>`:''}`:''}</tr>`).join(''); }).join('') || `<tr><td colspan="${ui.mgr?6:5}" class="empty">No visits this month</td></tr>`}
     </tbody></table></div>`;
@@ -2951,7 +2973,9 @@ function dataAudit(){
   const strangers = rows.filter(v => !team.has(v.ae));
   const future = rows.filter(v => v.date > todayIso());
   const unmatched = new Map(); rows.forEach(v => splitAccts(v.accounts).forEach(n => { if (!accountRow(v.ae, n) && !accountRow('', n)) unmatched.set(norm(n), n); }));
-  return {months, monthList, repeats, miscount, bookDup, kmCheck, strangers, future, unmatched};
+  const catMap = new Map(); data.accounts.forEach(x => { if (!TIERS.includes(x.tier)) return; const k = x.ae + '|' + norm(x.account); if (!catMap.has(k)) catMap.set(k, {name: x.account, ae: x.ae, cats: new Set()}); catMap.get(k).cats.add(x.tier); });
+  const catConflict = [...catMap.values()].filter(x => x.cats.size > 1);
+  return {months, monthList, repeats, miscount, bookDup, kmCheck, strangers, future, unmatched, catConflict};
 }
 async function dataCheckDialog(){
   const a = dataAudit();
@@ -2967,6 +2991,9 @@ async function dataCheckDialog(){
       ${issue(a.miscount.length, 'Days whose visit count doesn’t match the clients listed', a.miscount.slice(0,8).map(v => `${fmtLong(v.date)} · ${esc(v.ae)}: says ${v.count}, lists ${splitAccts(v.accounts).length}`).join('<br>'), 'recount')}
       ${issue(a.bookDup.length, 'Accounts listed twice in someone’s book', a.bookDup.slice(0,10).map(l => `${esc(l[0].ae)}: ${esc(l[0].account)} ×${l.length}`).join('<br>') + '<br><span class="hint">The dashboard now counts each once. To tidy the sheet, delete the extra row in the <b>Categories</b> tab.</span>', '')}
       ${issue(a.kmCheck.length, 'Days with kilometres to check (pending, or over 300 km)', a.kmCheck.slice(0,8).map(v => `${fmtLong(v.date)} · ${esc(v.ae)}: ${v.kmMode === 'pending' ? 'pending' : num(v.km) + ' km'}`).join('<br>'), 'km')}
+      ${issue(a.catConflict.length, 'The same account twice in one person’s list with different categories', a.catConflict.slice(0,10).map(x => `${esc(x.ae)}: ${esc(x.name)} — ${[...x.cats].sort().join(' and ')} → counted as <b>${[...x.cats].sort()[0]}</b>`).join('<br>') + '<br><span class="hint">Keep one row per account for each person in the Categories tab.</span>', '')}
+      ${(() => { let cs = {}; try { cs = JSON.parse(data.settings.categoriesSync||'{}'); } catch(e){} const un = cs.unreadCategories || {}, n = Object.values(un).reduce((s,x)=>s+x,0); return issue(n, 'Categories tab: category values the app can’t read', Object.entries(un).slice(0,8).map(([v,c]) => `“${esc(v)}” ×${c}`).join(', ') + '<br><span class="hint">Use A, B or C (also fine: “Cat A”, “Category B”, “Tier C”). Blank or “None” means no category.</span>', ''); })()}
+      ${issue((() => { let cs = {}; try { cs = JSON.parse(data.settings.categoriesSync||'{}'); } catch(e){} return (cs.unknownAEs||[]).length; })(), 'Categories tab: names that don’t match anyone on the team', (() => { let cs = {}; try { cs = JSON.parse(data.settings.categoriesSync||'{}'); } catch(e){} return (cs.unknownAEs||[]).map(esc).join(', ') + '<br><span class="hint">Those rows aren’t in anyone’s book. Fix the spelling in the Categories tab, or add the person in Settings → Team.</span>'; })(), '')}
       ${issue(a.strangers.length, 'Visits by people who aren’t on the team (left out of every figure)', [...new Set(a.strangers.map(v => v.ae))].map(esc).join(', '), '')}
       ${issue(a.future.length, 'Visits dated in the future', a.future.slice(0,6).map(v => `${esc(v.date)} · ${esc(v.ae)}`).join('<br>'), '')}
       <div class="dc-issue info"><div class="dc-h"><span class="dc-n">${a.unmatched.size}</span><b>Clients not in anyone’s book</b></div><div class="dc-b">${[...a.unmatched.values()].slice(0,12).map(esc).join(', ')}${a.unmatched.size > 12 ? ', …' : ''}<br><span class="hint">They count as net-new visits. If one is really an existing account under another spelling, add the spelling in the <b>Aliases</b> tab.</span></div></div>
@@ -2974,7 +3001,7 @@ async function dataCheckDialog(){
         <li><b>Visits</b> — every client listed on a day, for the people and dates selected.</li>
         <li><b>Visit days</b> — days with at least one visit, counted per person (two people on the same date = 2). <b>Dates</b> — different calendar dates.</li>
         <li><b>Accounts visited</b> — different accounts each person visited (spellings and aliases of the same account count once).</li>
-        <li><b>Coverage</b> — each account must meet its rule in every calendar period: <b>A</b> 1 visit every month, <b>B</b> 2 visits every quarter, <b>C</b> 1 visit every quarter. Each account × period is one requirement; coverage = requirements met ÷ requirements due. Only the account’s own AE’s visits, dated today or earlier, count; the same account twice on one day counts once. Accounts added part-way through a period count from the next full period. People marked “no fixed book” and admins without visits are left out.</li>
+        <li><b>Coverage</b> — each account must meet its rule in every calendar period: <b>A</b> 1 visit every month, <b>B</b> 2 visits every quarter, <b>C</b> 1 visit every quarter. Each account × period is one requirement; coverage = requirements met ÷ requirements due. Categories are per person: an account’s category for someone is the one on their own row of the Categories tab (blank = no category for them, even if a colleague has the same company as A). Each person’s coverage counts only their own visits, dated today or earlier, to accounts in their own book (any spelling or alias); the same account twice on one day counts once. When two people visit together, each logs it — it counts for whoever has the account in their book. The team total adds up everyone’s requirements. Accounts added part-way through a period count from the next full period. Months and quarters that ended before the first visit logged in the app aren’t judged (there is no data for them). People marked “no fixed book” and admins without visits are left out.</li>
         <li><b>Net new</b> — visits to accounts outside the A/B/C book.</li>
         <li><b>Kilometres</b> — the day totals saved with each day (Google Maps or entered by hand); <b>per visit</b> = km ÷ visits.</li>
       </ul></details>
