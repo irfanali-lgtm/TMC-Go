@@ -980,7 +980,7 @@ tr.aerow.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-13 13:22 · production';
+const BUILD = '2026-10-13 17:30 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -1159,7 +1159,11 @@ function friendly(err){
   const m = String((err && err.message) || err || '');
   if (navigator.onLine === false || /offline/i.test(m)) return 'You are offline — your visits are kept on this phone and will be sent automatically when you have signal.';
   if (/HTML_PAGE/.test(m)) return 'The TMC Go link is not set up for everyone yet. Ask an admin to set the Apps Script deployment to “Anyone”.';
-  if (/APP_PAGE/.test(m)) return 'This link points at an older setup. Ask an admin to update the backend and deploy a new version.';
+  if (/APP_PAGE/.test(m) && /Authorization is required/i.test(m)) return 'The backend needs a one-time permission from Google. An admin opens Apps Script, picks checkSetup, presses Run and clicks Allow — then Deploy → Manage deployments → ✎ → New version.';
+  if (/APP_PAGE/.test(m) && /Script function not found|did not return anything/i.test(m)) return 'The backend code is incomplete. An admin pastes the whole Code.gs again (select all, replace), saves, and deploys a new version.';
+  if (/APP_PAGE/.test(m) && /(Type|Reference|Syntax)Error|Exception:/i.test(m)) return 'The backend hit an error: ' + m.replace(/^.*APP_PAGE:\s*/, '') + ' — an admin pastes the latest Code.gs and deploys a new version.';
+  if (/APP_PAGE/.test(m) && /unable to open the file|Page Not Found|does not exist/i.test(m)) return 'This backend link no longer exists. An admin copies the current web-app link (Deploy → Manage deployments) and sends it to be built into the app.';
+  if (/APP_PAGE/.test(m)) return 'The backend answered with a web page instead of data. An admin opens the /exec link in a browser to see the message, pastes the latest Code.gs and deploys a new version.';
   if (/NOT_JSON|Unexpected token|JSON/i.test(m)) return 'The sheet replied with something unexpected. Try again in a moment; if it keeps happening, tell an admin.';
   if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return 'Could not reach the sheet. Check your connection and try again.';
   if (/BUSY|lock timeout|another process was holding the lock/i.test(m)) return 'The sheet was busy saving for someone else. Please try again in a moment.';
@@ -1183,7 +1187,11 @@ async function parseApi(resp){
   const trimmed = text.trim();
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) { try { return JSON.parse(trimmed); } catch(e) { throw new Error('NOT_JSON'); } }
   if (/accounts\.google\.com|ServiceLogin|You need access|Sign in/i.test(text)) throw new Error('HTML_PAGE');
-  if (/<!DOCTYPE|<html/i.test(text)) throw new Error('APP_PAGE');
+  if (/<!DOCTYPE|<html/i.test(text)) {
+    const plain = text.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+    const m = /Authorization is required[^.]*\.?|Script function not found:?\s*\w*|Exception:[^.]{0,160}\.?|TypeError:[^.]{0,160}|ReferenceError:[^.]{0,160}|SyntaxError:[^.]{0,160}|Sorry, unable to open the file[^.]*\.?|The script completed but did not return anything|Page Not Found|does not exist/i.exec(plain);
+    throw new Error('APP_PAGE: ' + (m ? m[0] : plain.slice(0, 180)));
+  }
   throw new Error('NOT_JSON');
 }
 async function callApi(body, attempt){
@@ -1208,7 +1216,7 @@ async function callApiOnce(body){
     }
   } catch (e) { const err = new Error(friendly(e)); err.friendly = true; throw err; }
   if (res && res.status === 'ok') return res;
-  if (res && /^SIGNIN/.test(res.message || '') && !/^(sendCode|verifyCode|managerSignIn|roster|signIn)$/.test(body.action)) { resetGo(); setTok(''); ui.session = null; ui.me = ''; setTimeout(() => signInScreen(), 0); }
+  if (res && /^SIGNIN/.test(res.message || '') && !/^(sendCode|verifyCode|managerSignIn|roster|signIn)$/.test(body.action)) { resetGo(); clearCache(); setTok(''); ui.session = null; ui.me = ''; setTimeout(() => signInScreen(), 0); }
   const err2 = new Error(friendly((res && res.message) || 'Request failed')); err2.friendly = true; throw err2;
 }
 // Demo mode: in-memory writes, so the app can be explored before the sheet is connected.
@@ -1276,8 +1284,22 @@ function loadingWatch(on){
     $('#loadRetry').onclick = () => { el.innerHTML = `<div class="spin"></div><div><b>Loading TMC Go…</b><div class="hint">Connecting to the Google Sheet</div></div>`; loadingWatch(true); load(true); };
   }, 20000);
 }
+// Instant start: the last data this device received is shown immediately, then refreshed from the sheet.
+// Kept only for the signed-in person (tied to their sign-in), cleared on sign-out.
+const CACHE_KEY = 'vi.cache.v1';
+function saveCache(res){ try { const tok = getTok(); if (!tok || !res || !res.data) return; localStorage.setItem(CACHE_KEY, JSON.stringify({k: tok.slice(-12), at: Date.now(), session: res.session || null, data: res.data})); } catch(e) { try { localStorage.removeItem(CACHE_KEY); } catch(x){} } }
+function readCache(){ try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); const tok = getTok(); if (!c || !tok || c.k !== tok.slice(-12) || Date.now() - c.at > 14 * 864e5) return null; return c; } catch(e) { return null; } }
+function clearCache(){ try { localStorage.removeItem(CACHE_KEY); } catch(e){} }
+function applyData(res){
+  ui.session = res.session || ui.session || null;
+  if (ui.session) { ui.me = ui.session.ae; try { localStorage.setItem('vi.me', ui.me); } catch(e){} }
+  const d = res.data || {};
+  data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.aliases = d.aliases||[]; data.settings = d.settings || data.settings || {};
+}
 async function load(first){
   window.__booted = true;
+  // show the saved copy straight away; the live data replaces it a moment later
+  if (first && !ui.demo && getTok() && !ui.fromCache) { const c = readCache(); if (c) { ui.fromCache = true; applyData(c); ui.loading = false; loadingWatch(false); $('#loading').style.display = 'none'; const sk = $('#skeleton'); if (sk) sk.remove(); document.body.classList.remove('signed-out'); initUi(); render(); setConn('', 'Updating…'); } }
   if (first) loadingWatch(true);
   if (!ui.demo && !hasGs() && !apiUrl() && !/[?&]demo=1/.test(location.search)) {
     // The team-wide link lives next to the page in tmc-go.json, so nobody ever types it. Only if that file is missing
@@ -1294,6 +1316,7 @@ async function load(first){
     try {
       if (!getTok()) { loadingWatch(false); ui.loading = false; return signInScreen(); }
       const res = await callApi({action:'all'});
+      saveCache(res);
       ui.session = res.session || null;
       if (ui.session) { ui.me = ui.session.ae; try { localStorage.setItem('vi.me', ui.me); } catch(e){} }
       const d = res.data || {};
@@ -1305,8 +1328,8 @@ async function load(first){
       if (!first && !changed && ui.tab==='dash') { const l = $('.live'); if (l) { l.classList.add('on'); l.innerHTML = `<i></i>Live · ${ui.lastSync.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`; } const rb = $('#dRefresh'); if (rb) rb.disabled = false; return; }
       if (!first) initMeSelect();
     } catch (e) {
-      if (!getTok()) { loadingWatch(false); ui.loading = false; return signInScreen(); }
-      setConn('err', 'Not synced');
+      if (!getTok()) { clearCache(); loadingWatch(false); ui.loading = false; return signInScreen(); }
+      setConn('err', ui.fromCache ? 'Offline copy' : 'Not synced');
       showBanner(esc(friendly(e)) + ' <button type="button" class="btn sm" id="retryLoad" style="margin-left:8px">Retry</button>' + (lastTechnical ? ` <details style="margin-left:auto;font-size:12px"><summary style="cursor:pointer">Details for your admin</summary><code style="font-size:11px">${esc(lastTechnical.slice(0,160))}</code><div class="hint">Link: ${esc(apiUrl() || 'served by Apps Script')}</div></details>` : ''), true);
       $('#retryLoad').onclick = () => { hideBanner(); load(first); };
       loadingWatch(false);
@@ -1628,7 +1651,7 @@ async function setMyPin(first){
 }
 function resetGo(){ ai.msgs = []; ai.busy = false; try { stopSpeaking(); } catch(e){} if (voice && voice.on) { try { voiceToggle(); } catch(e){} } if (ai.open) aiCloseFn(); }
 async function signOut(){
-  resetGo();
+  resetGo(); clearCache();
   try { await callApi({action:'signOut'}); } catch(e){}
   setTok(''); ui.session = null; ui.me = ''; form = null; try { localStorage.removeItem('vi.me'); } catch(e){}
   signInScreen();
@@ -3054,6 +3077,8 @@ function initMeSelect(){
   meSel.innerHTML = '<option value="">Select AE…</option>' + activeAEs().map(a=>`<option ${a.name===ui.me?'selected':''}>${esc(a.name)}</option>`).join('');
 }
 function initUi(){
+  if (ui.uiReady) { initMeSelect(); return; }   // handlers and timers are set up once (the instant start may call this first)
+  ui.uiReady = true;
   // month: current, or the latest month with data
   const cur = todayIso().slice(0,7);
   const months = [...new Set(data.visits.map(v=>monthOf(v.date)))].sort();
