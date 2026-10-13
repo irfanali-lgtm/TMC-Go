@@ -557,6 +557,10 @@ section.enter{animation:viewin .22s ease both}
 .rolepick small{font-size:11.5px;color:var(--muted);line-height:1.3}
 .rolepick input:checked+span{border-color:#4252E8;background:#EEF1FF;box-shadow:0 0 0 2px rgba(66,82,232,.15)}
 @media (max-width:520px){.rolepick{grid-template-columns:1fr}}
+.prefchips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 6px}
+.prefchips button{border:1px solid #D7DCFB;background:#fff;color:#3442CC;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer}
+.prefchips button:hover{background:#EEF1FF}
+#pGo{width:100%}
 .rolesel{height:30px;border-radius:8px!important;font-size:12.5px;padding:0 6px;margin-right:4px}
 .adminnote{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .head.hello .sub{font-size:13px;color:var(--muted)}
@@ -956,7 +960,7 @@ tr.aerow.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-13 11:36 · production';
+const BUILD = '2026-10-13 11:56 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -1183,7 +1187,7 @@ async function callApiOnce(body){
     }
   } catch (e) { const err = new Error(friendly(e)); err.friendly = true; throw err; }
   if (res && res.status === 'ok') return res;
-  if (res && /^SIGNIN/.test(res.message || '') && !/^(sendCode|verifyCode|managerSignIn|roster)$/.test(body.action)) { setTok(''); ui.session = null; ui.me = ''; setTimeout(() => signInScreen(), 0); }
+  if (res && /^SIGNIN/.test(res.message || '') && !/^(sendCode|verifyCode|managerSignIn|roster|signIn)$/.test(body.action)) { resetGo(); setTok(''); ui.session = null; ui.me = ''; setTimeout(() => signInScreen(), 0); }
   const err2 = new Error(friendly((res && res.message) || 'Request failed')); err2.friendly = true; throw err2;
 }
 // Demo mode: in-memory writes, so the app can be explored before the sheet is connected.
@@ -1516,6 +1520,7 @@ function drawSignIn(msg){
   $('#siBack').onclick = () => { s.step = 'pick'; s.who = null; drawSignIn(); };
 }
 function signedIn(sess, via){
+  resetGo();
   setTok(sess.token); ui.session = {ae: sess.ae, role: sess.role}; ui.me = sess.ae; try { localStorage.setItem('vi.me', ui.me); } catch(e){}
   document.body.classList.remove('signed-out'); signin = { roster: signin.roster, step: 'pick', who: null, sentTo: '', busy: false, q: '' };
   toast(`Welcome, ${sess.ae.split(' ')[0]}${sess.role === 'manager' ? ' — admin tools are unlocked' : ''}`);
@@ -1528,7 +1533,9 @@ async function setMyPin(first){
   if (p === null) return;
   try { const r = await callApi({action:'setMyPin', pin: String(p).replace(/\D/g,'')}); if (r.session) ui.session = {ae: r.session.ae, role: r.session.role}; toast(adminWait && isMgr() ? 'PIN saved — admin tools unlocked' : 'PIN saved'); if (adminWait) { render(); load(false); } } catch(e) { toast(e.message); if (/4–8 digits/.test(e.message)) setTimeout(() => setMyPin(first), 300); }
 }
+function resetGo(){ ai.msgs = []; ai.busy = false; try { stopSpeaking(); } catch(e){} if (voice && voice.on) { try { voiceToggle(); } catch(e){} } if (ai.open) aiCloseFn(); }
 async function signOut(){
+  resetGo();
   try { await callApi({action:'signOut'}); } catch(e){}
   setTok(''); ui.session = null; ui.me = ''; form = null; try { localStorage.removeItem('vi.me'); } catch(e){}
   signInScreen();
@@ -2331,6 +2338,9 @@ function settingsDialog(tab){
             <div class="f c6"><label>Title</label><input id="pTitle" value="${esc(me.title||'')}" placeholder="e.g. Account Executive"></div>
             <div class="f c6"><label>Phone</label><input id="pPhone" type="tel" value="${esc(me.phone||'')}" placeholder="03xx-xxxxxxx"></div>
             <div class="f c12"><label>Email <span class="hint">(sign-in codes go here)</span></label>${ui.demo || isMgr() ? `<input id="pEmail" type="email" value="${esc(me.email||'')}" placeholder="name@tmcltd.com">` : `<div class="hint" style="padding:10px 0">${me.email ? esc(me.email) : 'Not set'} · an admin can change it</div><input id="pEmail" type="hidden" value="${esc(me.email||'')}">`}</div>
+            <div class="f c12"><label>How Go talks to you <span class="hint">(only you see this)</span></label>
+              <div class="prefchips">${['Reply in Roman Urdu','Reply in English','Keep answers short','Be more formal','More jokes 😄','Use bullet points'].map(p => `<button type="button" data-pref="${esc(p)}">${esc(p)}</button>`).join('')}</div>
+              <textarea id="pGo" rows="2" maxlength="600" placeholder="e.g. Call me Irfan bhai, reply in Roman Urdu, keep it short, remind me about A accounts">${esc(me.goPrefs||'')}</textarea></div>
             ${me.notes ? `<div class="f c12"><label>Note from your admin</label><div class="hint">${esc(me.notes)}</div></div>` : ''}
           </div>
         </div>
@@ -2351,7 +2361,7 @@ function settingsDialog(tab){
       if ($('#mMe')) { const sel = $('#mMe').value; if (sel !== ui.me) { ui.me = sel; localStorage.setItem('vi.me', ui.me); $('#me').value = ui.me; form = null; } }
       if (me) {
         const email = $('#pEmail').value.trim(); if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('That email address does not look right.');
-        const prof = {title: $('#pTitle').value.trim().slice(0,60), phone: $('#pPhone').value.trim().slice(0,30), email, photo: pendingPhoto === undefined ? (me.photo||'') : pendingPhoto};
+        const prof = {title: $('#pTitle').value.trim().slice(0,60), phone: $('#pPhone').value.trim().slice(0,30), email, photo: pendingPhoto === undefined ? (me.photo||'') : pendingPhoto, goPrefs: ($('#pGo') ? $('#pGo').value.trim().slice(0,600) : (me.goPrefs||''))};
         const changed = Object.keys(prof).some(k => String(prof[k]||'') !== String(me[k]||''));
         if (changed) { const r = await callApi({action:'upsertAE', row:{...me, ...prof}}); const i=data.aes.findIndex(a=>a.name===me.name); if(i>=0) data.aes[i] = r.row || {...me, ...prof}; toast('Profile saved'); }
       }
@@ -2368,6 +2378,7 @@ function settingsDialog(tab){
   if (mgr) wireMgrPane(mgr);
 }
 function wireProfile(me){
+  $$('button[data-pref]').forEach(b => b.onclick = () => { const ta = $('#pGo'), v = ta.value.trim(); if (!v.includes(b.dataset.pref)) ta.value = (v ? v.replace(/[.;,\s]*$/, '') + '; ' : '') + b.dataset.pref; ta.focus(); });
   if ($('#pPhoto')) $('#pPhoto').onchange = async e => { const f = e.target.files && e.target.files[0]; if (!f) return; try { pendingPhoto = await shrinkPhoto(f); $('#pAv').innerHTML = `<img class="av" src="${pendingPhoto}" alt="" style="width:72px;height:72px">`; } catch(err) { $('#mErr').textContent = 'Could not read that image.'; } };
   if ($('#pPhotoRm')) $('#pPhotoRm').onclick = () => { pendingPhoto = ''; $('#pAv').innerHTML = `<span class="av" style="width:72px;height:72px;background:#CBD5E1;font-size:28px">${esc(initials(me.name).toUpperCase())}</span>`; };
 }
@@ -2487,7 +2498,9 @@ const AI_STARTS = [
   {ic:'📊', t:'Summarise my week', s:'Wins, gaps and what’s next', prompt:'Summarise my week'},
   {ic:'⤒', t:'Upload a list', s:'Paste rows or an Excel file', run:'import'},
 ];
-const AI_QUICK = ['Which accounts haven’t I visited?', 'Who is behind on A accounts?', 'Show me this week', 'Mujhe hasao 😄'];
+const AI_QUICK_AE = ['Which accounts haven’t I visited?', 'How many km did I drive this month?', 'Show me this week', 'Mujhe hasao 😄'];
+const AI_QUICK_ADMIN = ['Which accounts haven’t I visited?', 'Who is behind on A accounts?', 'Show me this week', 'Mujhe hasao 😄'];
+const aiQuick = () => isMgr() ? AI_QUICK_ADMIN : AI_QUICK_AE;
 function aiOpen(){ ai.open = true; $('#ai').classList.add('open'); $('#ai').setAttribute('aria-hidden','false'); renderAi(); setTimeout(()=>{ const i=$('#aiIn'); if (i && !voice.on && matchMedia('(pointer:fine)').matches) i.focus(); }, 50); }
 function aiCloseFn(){ ai.open = false; $('#ai').classList.remove('open'); $('#ai').setAttribute('aria-hidden','true'); if (voice.on) voiceToggle(); else stopSpeaking(); }
 function aiReady(){ return !ui.demo && !!data.settings.ai; }
@@ -2498,8 +2511,8 @@ function aiWelcome(){
   if (!aiReady()) return `<div class="aiwel"><div class="aiwel-orb">✦</div><h3>${hi}, ${esc(firstName(ui.me))}</h3><p>${ui.demo ? 'Go is switched off in this preview. Once the app is connected and an admin adds the Gemini key, I can log visits, plan days and write follow-ups.' : 'I’m almost ready. An admin needs to add the Gemini key in the sheet’s Settings tab (<b>aiKey</b>). Everything else in the app works without me.'}</p></div>`;
   return `<div class="aiwel"><div class="aiwel-orb">✦</div><h3>${hi}, ${esc(firstName(ui.me))} 👋</h3><p>What can I take off your plate?</p>
     <div class="aistarts">${AI_STARTS.map((x,k) => `<button type="button" class="aistart" data-start="${k}"><span class="si">${x.ic}</span><span><b>${esc(x.t)}</b><small>${esc(x.s)}</small></span></button>`).join('')}</div>
-    <div class="aiquick">${AI_QUICK.map(q => `<button type="button" data-quick="${esc(q)}">${esc(q)}</button>`).join('')}</div>
-    <div class="ailang">I speak English, اردو and Roman Urdu — just write the way you talk.</div></div>`;
+    <div class="aiquick">${aiQuick().map(q => `<button type="button" data-quick="${esc(q)}">${esc(q)}</button>`).join('')}</div>
+    <div class="ailang">Your own Go — it only knows your work${isMgr() ? ' (and, as an admin, the team’s)' : ''}. English, اردو or Roman Urdu. <a href="#" id="aiPrefs">Set how Go talks to you</a></div></div>`;
 }
 // A fenced ```json {...}``` block at the end of a reply is an action for the app; the rest is what the person reads.
 function aiParse(reply){
@@ -2549,12 +2562,13 @@ function renderAi(){
   $$('button[data-cp]', box).forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText(ai.msgs[+b.dataset.cp].content); toast('Copied'); } catch(e) { toast('Select the text and copy it'); } });
   $$('button[data-start]', box).forEach(b => b.onclick = () => { const x = AI_STARTS[+b.dataset.start]; if (x.run === 'import') { aiCloseFn(); importDialog(); return; } aiSend(x.prompt); });
   $$('button[data-quick]', box).forEach(b => b.onclick = () => aiSend(b.dataset.quick));
+  if ($('#aiPrefs')) $('#aiPrefs').onclick = e => { e.preventDefault(); aiCloseFn(); settingsDialog(); setTimeout(() => { const g = $('#pGo'); if (g) { g.scrollIntoView({block:'center'}); g.focus(); } }, 150); };
   $$('button[data-tts]', box).forEach(b => b.onclick = () => speak(ai.msgs[+b.dataset.tts].content));
   $$('button[data-save]', box).forEach(b => b.onclick = () => aiSaveLog(+b.dataset.save));
   $$('button[data-act]', box).forEach(b => b.onclick = () => { const m = ai.msgs[+b.dataset.act]; form = {ae: ui.me, editId:null, lines: linesFromAction(m.action.log), results:null, kmByDate:{}}; m.done = true; ui.tab='log'; localStorage.setItem('vi.tab','log'); render(); aiCloseFn(); window.scrollTo({top:0}); });
   $$('button[data-copy]', box).forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText(ai.msgs[+b.dataset.copy].action.draft.text); toast('Copied'); } catch(e) { toast('Select the text and copy it'); } });
   $$('button[data-opp]', box).forEach(b => b.onclick = () => aiAddOpportunity(+b.dataset.opp));
-  $('#aiChips').innerHTML = !ai.msgs.length || ai.busy || !aiReady() ? '' : AI_QUICK.slice(0, 3).map(c => `<button type="button">${esc(c)}</button>`).join('');
+  $('#aiChips').innerHTML = !ai.msgs.length || ai.busy || !aiReady() ? '' : aiQuick().slice(0, 3).map(c => `<button type="button">${esc(c)}</button>`).join('');
   $$('#aiChips button').forEach(b => b.onclick = () => aiSend(b.textContent));
   box.scrollTop = ai.msgs.length ? box.scrollHeight : 0;   // a fresh chat starts at the greeting
   $('#aiStatus').innerHTML = ai.busy ? '<span class="odot"></span>Thinking…' : aiReady() ? '<span class="odot"></span>Online' : (ui.demo ? 'Preview — switched off' : 'Waiting for the Gemini key');

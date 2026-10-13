@@ -1,7 +1,7 @@
 // TMC Go service worker: makes the app installable and opens instantly, even on a weak signal.
 // Pages are fetched from the network first (so updates arrive straight away) and fall back to the last copy.
 // Data calls to Google are never cached.
-const CACHE = 'tmcgo-v24';
+const CACHE = 'tmcgo-v25';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
