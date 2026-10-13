@@ -572,6 +572,19 @@ section.enter{animation:viewin .22s ease both}
 .signin{min-height:calc(100dvh - 140px);display:flex;align-items:flex-start;justify-content:center;padding:28px 0}
 .si-card{width:min(440px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow-lg);padding:22px}
 .si-eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6366F1;margin-bottom:4px}
+.imp p{margin:0 0 12px;font-size:13.5px;color:var(--ink-2)}
+.dropzone{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:22px 16px;border:2px dashed #C7CEFB;border-radius:16px;background:#F8F9FF;cursor:pointer;text-align:center}
+.dropzone.over{background:#EEF1FF;border-color:#4252E8}
+.dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.dz-i{font-size:26px;color:#4252E8;line-height:1}
+.dropzone small{color:var(--muted)}
+.imp .si-link{margin:8px 0 0}
+.imp-sum{margin:14px 0 8px;font-size:14px}
+.imp-bad{color:#B91C1C;font-weight:600}
+.imp-skip{margin-bottom:8px;font-size:13px}.imp-skip ul{margin:6px 0 0 18px}
+.imp-days{max-height:min(42vh,360px);overflow:auto;border:1px solid var(--line);border-radius:12px}
+.imp-day{padding:10px 12px;border-bottom:1px solid #EEF1F6}.imp-day:last-child{border-bottom:none}
+.imp-day ol{margin:6px 0 0 20px;display:grid;gap:3px;font-size:13.5px}
 .si-l{display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-top:4px}
 .si-help{margin-top:12px;text-align:center}
 .si-link.inline{display:inline;margin:0;font-size:inherit}
@@ -884,7 +897,7 @@ tr.aerow.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-13 10:27 · production';
+const BUILD = '2026-10-13 10:55 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -1510,6 +1523,7 @@ function renderLog(){
         <button class="btn" id="fAdd">+ Another visit</button>
         <button class="btn primary" id="fSave">${editing ? 'Save changes' : (form.lines.length>1 ? 'Save all' : 'Save visit')}</button>
         ${!editing ? `<button class="btn voice" id="fVoice" title="Log your visits by talking" aria-label="Log by voice">🎙 Log by voice</button>` : ''}
+        ${!editing && !ui.demo ? `<button class="btn" id="fImport" title="Upload an Excel or CSV file with many visits at once">⤒ Upload Excel</button>` : ''}
         <span class="hint" id="fMsg"></span>
         ${editing ? `<span style="margin-left:auto"><button type="button" class="dellink${ui.pendingDelete===form.editId?' arm':''}" id="fDel">${ui.pendingDelete===form.editId ? 'Click again to remove this day' : 'Remove this day…'}</button></span>` : ''}
       </div>
@@ -1541,6 +1555,7 @@ function renderLog(){
   const move = (key, d) => { const i = form.lines.findIndex(x=>x.key===key); const j = i + d; if (i < 0 || j < 0 || j >= form.lines.length) return; [form.lines[i], form.lines[j]] = [form.lines[j], form.lines[i]]; renderLog(); };
   $$('select[data-ord]').forEach(s => s.onchange = () => { const i = form.lines.findIndex(x => x.key === s.dataset.ord), to = +s.value; if (i < 0 || to === i) return; const [it] = form.lines.splice(i, 1); form.lines.splice(to, 0, it); renderLog(); toast(`${it.client || 'Visit'} is now visit ${to+1}`); });
   if ($('#goDash')) $('#goDash').onclick = () => { ui.tab = 'dash'; localStorage.setItem('vi.tab','dash'); countUpArmed = true; render(); };
+  if ($('#fImport')) $('#fImport').onclick = importDialog;
   $('#fAdd').onclick = () => { form.lines.push(newLine(formDate())); renderLog(); const l = form.lines[form.lines.length-1]; const i = $('#lin-'+l.key); if (i) i.focus(); };
   $('#fSave').onclick = saveVisit;
   if ($('#fVoice')) $('#fVoice').onclick = vlStart;
@@ -2598,6 +2613,126 @@ function initAi(){
   $('#aiMic').onclick = voiceToggle;
   $('#aiVoiceStop').onclick = voiceToggle;
   $('#aiVoice').onclick = e => { if (e.target.id==='aiVoiceStop') return; if (voice.state === 'speaking') { stopSpeaking(); if (voice.on) listen(); } else if (voice.state === 'listening' && voice.rec) { try { voice.rec.stop(); } catch(x){} } };
+}
+
+/* ---------- Upload visits from Excel / CSV ----------
+ * One row per visit: Date · Client · Purpose (optional) · Order (optional) · AE (admins only, optional).
+ * Rows are grouped by person and day, clients are matched to the account book (as in the form), shown for review,
+ * then saved day by day — added to any visits already logged that day — with kilometres from Google Maps. */
+const IMPORT_MAX = 600;
+function loadScriptOnce(src){ return new Promise((ok, no) => { if ([...document.scripts].some(s => s.src === src)) return ok(); const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('Could not load the Excel reader — check the connection, or save the file as CSV and upload that.')); document.head.appendChild(s); }); }
+async function readSheetRows(file){
+  if (/\.csv$/i.test(file.name) || file.type === 'text/csv') return parseCsv(await file.text());
+  if (!window.XLSX) await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+  const wb = XLSX.read(await file.arrayBuffer(), {type:'array', cellDates:true});
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''});
+}
+function parseCsv(text){
+  const rows = []; let row = [], cur = '', q = false;
+  text = String(text).replace(/^\uFEFF/, '');
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i+1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true; else if (c === ',' || c === ';' || c === '\t') { row.push(cur); cur = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i+1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+    else cur += c;
+  }
+  if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+  return rows.filter(r => r.some(x => String(x).trim() !== ''));
+}
+// Dates arrive as Excel dates, serial numbers, 13/10/2026 (day first), 2026-10-13 or 13-Oct-2026.
+function importDate(v){
+  if (v instanceof Date && !isNaN(v)) return `${v.getFullYear()}-${pad(v.getMonth()+1)}-${pad(v.getDate())}`;
+  if (typeof v === 'number' && v > 20000 && v < 80000) { const d = new Date(Math.round((v - 25569) * 864e5)); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; }
+  const s = String(v||'').trim(); let m;
+  if ((m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/.exec(s))) return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
+  if ((m = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/.exec(s))) { const y = m[3].length === 2 ? 2000 + +m[3] : +m[3]; return `${y}-${pad(+m[2])}-${pad(+m[1])}`; }
+  if ((m = /^(\d{1,2})[-\s]([A-Za-z]{3,})[-\s,]*(\d{2,4})$/.exec(s))) { const mi = MONTHS.findIndex(x => m[2].toLowerCase().startsWith(x.toLowerCase())); if (mi >= 0) { const y = m[3].length === 2 ? 2000 + +m[3] : +m[3]; return `${y}-${pad(mi+1)}-${pad(+m[1])}`; } }
+  return '';
+}
+function importHeader(rows){
+  const want = {date:/^(visit\s*)?date|^day$/i, client:/client|account|customer|company|visited/i, purpose:/purpose|opportunit|reason|topic|product/i, order:/order|seq|sequence|^#$|^no\.?$|stop/i, ae:/^ae$|executive|^name$|sales\s*person|owner/i};
+  for (let h = 0; h < Math.min(6, rows.length); h++) {
+    const cells = rows[h].map(x => String(x||'').trim()), col = {};
+    Object.keys(want).forEach(k => { const i = cells.findIndex(c => want[k].test(c) && !Object.values(col).includes(cells.indexOf(c))); if (i >= 0) col[k] = i; });
+    if (col.date !== undefined && col.client !== undefined) return {row: h, col};
+  }
+  return null;
+}
+function importTemplate(){
+  const rows = [['Date','Client','Purpose','Order'].concat(isMgr() ? ['AE'] : []), [todayIso(), 'Ghani Glass', 'SAP', '1'].concat(isMgr() ? [ui.me] : []), [todayIso(), 'Dawn Foods', 'Follow-up', '2'].concat(isMgr() ? [ui.me] : [])];
+  const csv = '\uFEFF' + rows.map(r => r.map(x => /[",\n]/.test(x) ? `"${String(x).replace(/"/g,'""')}"` : x).join(',')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'TMC Go visits template.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function importDialog(){
+  openModal('Upload visits from Excel', `
+    <div class="imp">
+      <p>One row per visit. Columns: <b>Date</b>, <b>Client</b>, and optionally <b>Purpose</b>${isMgr() ? ', <b>Order</b> and <b>AE</b> (admins can upload for anyone)' : ' and <b>Order</b>'}. Visits on the same day are routed in the order of the rows (or the Order column).</p>
+      <label class="dropzone" id="impDrop"><input type="file" id="impFile" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"><span class="dz-i">⤒</span><b>Choose an Excel or CSV file</b><small>or drop it here · up to ${IMPORT_MAX} rows</small></label>
+      <button type="button" class="si-link" id="impTpl">Download a template</button>
+      <div id="impOut"></div>
+    </div>`, null, 'Close');
+  $('#impTpl').onclick = importTemplate;
+  const take = f => { if (f) importPreview(f); };
+  $('#impFile').onchange = e => take(e.target.files && e.target.files[0]);
+  const dz = $('#impDrop');
+  dz.ondragover = e => { e.preventDefault(); dz.classList.add('over'); }; dz.ondragleave = () => dz.classList.remove('over');
+  dz.ondrop = e => { e.preventDefault(); dz.classList.remove('over'); take(e.dataTransfer.files && e.dataTransfer.files[0]); };
+}
+async function importPreview(file){
+  const out = $('#impOut'); out.innerHTML = '<p class="hint">Reading the file…</p>';
+  let rows; try { rows = await readSheetRows(file); } catch(e) { out.innerHTML = `<div class="banner err">${esc(e.message || 'That file could not be read.')}</div>`; return; }
+  const hd = importHeader(rows);
+  if (!hd) { out.innerHTML = `<div class="banner err">I couldn’t find a <b>Date</b> and a <b>Client</b> column in the first rows. <a href="#" id="impTpl2">Download the template</a> to see the layout.</div>`; $('#impTpl2').onclick = e => { e.preventDefault(); importTemplate(); }; return; }
+  const body = rows.slice(hd.row + 1).slice(0, IMPORT_MAX), c = hd.col, items = [], bad = [];
+  const team = new Map(activeAEs().map(a => [norm(a.name), a.name]));
+  body.forEach((r, i) => {
+    const line = hd.row + i + 2, client = String(r[c.client] ?? '').trim().replace(/\s+/g,' ').slice(0, 120);
+    if (!client && !String(r[c.date] ?? '').trim()) return;
+    const date = importDate(r[c.date]);
+    let ae = ui.me;
+    if (c.ae !== undefined && String(r[c.ae] ?? '').trim()) { const n = norm(r[c.ae]); ae = team.get(n) || (activeAEs().find(a => norm(a.name).startsWith(n) || n.startsWith(norm(a.name))) || {}).name || ''; }
+    const why = !client ? 'no client' : !date ? `date “${esc(String(r[c.date]))}” not understood` : date > todayIso() ? 'date is in the future' : !ae ? `AE “${esc(String(r[c.ae]))}” is not on the team` : (ae !== ui.me && !isMgr()) ? 'only admins can upload for someone else' : '';
+    if (why) { bad.push({line, why}); return; }
+    const best = matchAccounts(client, ae)[0], matched = best && best.s >= 0.6 ? best.a.account : client;
+    items.push({line, date, ae, typed: client, client: matched, corrected: norm(matched) !== norm(client), isNew: !(best && best.s >= 0.6), purpose: String(r[c.purpose] ?? '').trim().slice(0, 120), order: Number(r[c.order]) || (i + 1)});
+  });
+  const groups = new Map();
+  items.forEach(x => { const k = x.ae + '|' + x.date; if (!groups.has(k)) groups.set(k, {ae: x.ae, date: x.date, rows: []}); groups.get(k).rows.push(x); });
+  const days = [...groups.values()].sort((a, b) => a.date.localeCompare(b.date) || a.ae.localeCompare(b.ae));
+  days.forEach(d => d.rows.sort((a, b) => a.order - b.order || a.line - b.line));
+  ui.importDays = days;
+  const people = new Set(days.map(d => d.ae)).size;
+  out.innerHTML = `
+    <div class="imp-sum"><b>${items.length}</b> visit${items.length===1?'':'s'} · <b>${days.length}</b> day${days.length===1?'':'s'}${people > 1 ? ` · <b>${people}</b> people` : ''}${bad.length ? ` · <span class="imp-bad">${bad.length} row${bad.length===1?'':'s'} skipped</span>` : ''}</div>
+    ${bad.length ? `<details class="imp-skip"><summary>Why ${bad.length===1?'a row was':'rows were'} skipped</summary><ul>${bad.slice(0,30).map(b => `<li>Row ${b.line}: ${b.why}</li>`).join('')}${bad.length>30?`<li>…and ${bad.length-30} more</li>`:''}</ul></details>` : ''}
+    <div class="imp-days">${days.slice(0, 60).map(d => { const ex = dayEntry(d.ae, d.date); return `<div class="imp-day"><div class="imp-dh"><b>${fmtLong(d.date)}</b>${people > 1 || d.ae !== ui.me ? ` · ${esc(d.ae)}` : ''}${ex ? ` <span class="hint">· added to ${ex.count} already logged</span>` : ''}</div><ol>${d.rows.map(x => `<li><b>${esc(x.client)}</b>${x.purpose ? ` <span class="hint">· ${esc(x.purpose)}</span>` : ''}${x.isNew ? ' <span class="badge None">new client</span>' : x.corrected ? ` <span class="hint">(“${esc(x.typed)}”)</span>` : ''}</li>`).join('')}</ol></div>`; }).join('')}${days.length > 60 ? `<p class="hint">…and ${days.length - 60} more days.</p>` : ''}</div>
+    ${items.length ? `<label class="switch" style="margin:10px 0 4px"><input type="checkbox" id="impKm" ${String(data.settings.autoKm||'Y').toUpperCase()!=='N'?'checked':''}> Work out kilometres from Google Maps (office → visits in order → office)</label>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button type="button" class="btn primary" id="impGo">Save ${items.length} visit${items.length===1?'':'s'}</button></div>` : '<div class="banner err">Nothing to import.</div>'}`;
+  if ($('#impGo')) $('#impGo').onclick = importSave;
+}
+async function importSave(){
+  const days = ui.importDays || [], go = $('#impGo'), auto = $('#impKm') && $('#impKm').checked;
+  go.disabled = true; let done = 0, failed = 0, visits = 0, km = 0; const errs = [];
+  for (const d of days) {
+    go.textContent = `Saving ${done + 1} of ${days.length} days…`;
+    const ex = dayEntry(d.ae, d.date), prev = ex ? dayDetails(ex) : [];
+    const details = prev.concat(d.rows.map(x => ({client: x.client, purpose: x.purpose, cat: catFor(d.ae, x.client)})));
+    const a = aeByName(d.ae) || {}, city = String(a.city || '').split('/')[0].trim();
+    const row = {id: ex ? ex.id : null, date: d.date, ae: d.ae, city, accounts: details.map(x => x.client).join('; '), count: details.length, purpose: [...new Set(details.map(x => x.purpose).filter(Boolean))].join('; '), loggedBy: ui.me, details: JSON.stringify(details)};
+    try {
+      const r = await callApi({action:'upsertVisit', row, autoKm: auto});
+      upsertLocal('visits', normVisits([r.row])[0]); visits += d.rows.length; if (r.route) km += r.route.totalKm || 0;
+      // brand-new clients join the person's book as net new, exactly like the form
+      for (const x of d.rows.filter(y => y.isNew && !accountRow(d.ae, y.client))) { try { const ra = await callApi({action:'upsertAccount', row:{ae: d.ae, account: x.client, tier:'', city, netNew:'Y', addedOn: d.date}}); upsertLocal('accounts', normAccounts([ra.row])[0]); } catch(e){} }
+    } catch(e) { failed++; errs.push(`${fmtLong(d.date)}${d.ae !== ui.me ? ' · ' + d.ae : ''}: ${e.message}`); }
+    done++;
+  }
+  ui.importDays = null;
+  $('#impOut').innerHTML = `<div class="banner${failed ? ' err' : ''}">${failed ? `Saved ${done - failed} of ${days.length} days. ` : ''}<b>${visits}</b> visit${visits===1?'':'s'} imported${km ? ` · <b>${num(km)}</b> km by road` : ''}.${errs.length ? `<ul>${errs.slice(0,10).map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>`;
+  toast(`${visits} visit${visits===1?'':'s'} imported${failed ? ` · ${failed} day${failed===1?'':'s'} failed` : ''}`);
+  form = null; render(); if (!ui.demo) load(false);
 }
 
 /* ---------- Modal / toast ---------- */
