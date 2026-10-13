@@ -530,6 +530,28 @@ section.enter{animation:viewin .22s ease both}
 }
 .dsheet .ds-k{width:auto;min-width:72px;padding-right:14px}
 .dsheet table{table-layout:auto}
+@media (max-width:760px){
+  .dsheet table{table-layout:fixed}
+  .dsheet .ds-n{width:34px}
+  .dsheet .ds-cat{display:none}
+  .dsheet .ds-cat-in{display:inline-block!important;margin-top:4px;font-style:normal}
+  .dsheet .ds-k{width:76px;min-width:0;padding-right:12px}
+  .dsheet .ds-c,.dsheet .ds-c *{white-space:normal!important;overflow-wrap:anywhere;word-break:break-word}
+  .dsheet td{overflow:hidden}
+  .dsheet .ds-k{width:96px!important;padding-left:4px}
+  .dsheet tfoot .ds-k b{font-size:16px}
+  .dsheet .ds-k small{font-size:11px}
+}
+@media (max-width:340px){
+  .dsheet .ds-k{width:82px!important}
+  .dsheet .ds-k small{display:none}
+  .dsheet tfoot .ds-k b{font-size:15px}
+  .dsheet .ds-n{width:28px}
+  .dsheet .ds-cat .badge{max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px}
+}
+.ds-cat-in{display:none}
+.rolesel{height:30px;border-radius:8px!important;font-size:12.5px;padding:0 6px;margin-right:4px}
+.adminnote{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .head.hello .sub{font-size:13px;color:var(--muted)}
 /* visit order picker */
 .line .ord{position:absolute;left:8px;top:10px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
@@ -855,7 +877,7 @@ tr.aerow.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-13 08:37 · production';
+const BUILD = '2026-10-13 08:53 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -1170,6 +1192,7 @@ async function load(first){
       const res = await callApi({action:'all'});
       ui.session = res.session || null;
       if (ui.session) { ui.me = ui.session.ae; try { localStorage.setItem('vi.me', ui.me); } catch(e){} }
+      if (first && ui.session && isAdminRole((res.data && (res.data.aes||[]).find(a => a.name === ui.me)) || {})) { ui.tab = 'dash'; }
       const d = res.data || {};
       const sig = JSON.stringify([d.visits, d.accounts, d.aes, d.aliases]).length + ':' + (d.visits||[]).length + ':' + (d.accounts||[]).length + ':' + (d.aes||[]).length;
       const changed = sig !== ui.dataSig; ui.dataSig = sig;
@@ -1227,7 +1250,9 @@ function dashVisits(){ return visitsBetween(ui.range.from, ui.range.to); }
 function aeByName(n){ return data.aes.find(a=>a.name===n); }
 function setHeaderAvatar(){ const h = $('#hav'); if (!h) return; h.innerHTML = ui.me ? avatar(ui.me, 30) : ''; h.style.display = ui.me ? '' : 'none'; }
 function activeAEs(){ return data.aes.filter(a => String(a.active||'Y').toUpperCase() !== 'N'); }
-function aesInCity(){ return activeAEs().filter(a => !ui.city || String(a.city).includes(ui.city)); }
+const isAdminRole = a => String((a||{}).role||'').toLowerCase() === 'admin';
+function trackedAEs(){ return activeAEs().filter(a => !isAdminRole(a)); }
+function aesInCity(){ return trackedAEs().filter(a => !ui.city || String(a.city).includes(ui.city)); }
 function aesInScope(){ return aesInCity().filter(a => !ui.aeSel.size || ui.aeSel.has(a.name)); }
 function visitsInMonth(){ return data.visits.filter(v => monthOf(v.date) === ui.month && (!ui.city || (aeByName(v.ae)||{}).city && String((aeByName(v.ae)||{}).city).includes(ui.city) || v.city === ui.city)); }
 function assignedFor(ae, asOf){ // the AE's book: tiers A/B/C (+ net-new not yet tiered), as of a date
@@ -1425,11 +1450,12 @@ function renderLog(){
     return;
   }
   if (!form || form.ae !== ui.me) { form = blankForm(); restoreDraft(); }
+  ui.adminNote = isAdminRole(aeByName(ui.me));
   saveDraft();
   const editing = !!form.editId; const editDay = editing ? data.visits.find(v=>v.id===form.editId) : null;
   const city = aeCities(ui.me)[0] || '';
   const purposes = purposeList();
-  el.innerHTML = `
+  el.innerHTML = `${ui.adminNote ? `<div class="banner adminnote" style="grid-column:1/-1">You’re set up as <b>admin</b> — your visits aren’t tracked and you’re left out of the team figures. The Dashboard is your home. <button type="button" class="btn sm" id="goDash">Open Dashboard</button></div>` : ''}
   <div class="card logcard">
     <div class="head hello"><div class="who">${avatar(ui.me, 44)}<div><div class="eyebrow">${esc(fmtLong(todayIso()))} · ${esc(['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()])}</div><h2>${esc(greeting())}, ${esc(shortName(ui.me).split(' ')[0])} ${greetEmoji()}</h2><div class="hint">${esc([aeByName(ui.me)?.title, city].filter(Boolean).join(' · '))}${monthPulse()}</div></div></div><span class="sub">${editing ? `Editing ${fmtDate(editDay ? editDay.date : '')} — change the visits below and save; the day\u2019s kilometres are recalculated.` : 'Add your visits in the order you made them — kilometres follow that order.'}</span>
       <span class="spacer"></span>${editing ? '<button class="btn sm" id="fCancel">Cancel</button>' : ''}</div>
@@ -1490,6 +1516,7 @@ function renderLog(){
   $$('button[data-lr]').forEach(b => b.onclick = () => { form.lines = form.lines.filter(x=>x.key!==b.dataset.lr); renderLog(); });
   const move = (key, d) => { const i = form.lines.findIndex(x=>x.key===key); const j = i + d; if (i < 0 || j < 0 || j >= form.lines.length) return; [form.lines[i], form.lines[j]] = [form.lines[j], form.lines[i]]; renderLog(); };
   $$('select[data-ord]').forEach(s => s.onchange = () => { const i = form.lines.findIndex(x => x.key === s.dataset.ord), to = +s.value; if (i < 0 || to === i) return; const [it] = form.lines.splice(i, 1); form.lines.splice(to, 0, it); renderLog(); toast(`${it.client || 'Visit'} is now visit ${to+1}`); });
+  if ($('#goDash')) $('#goDash').onclick = () => { ui.tab = 'dash'; localStorage.setItem('vi.tab','dash'); countUpArmed = true; render(); };
   $('#fAdd').onclick = () => { form.lines.push(newLine(formDate())); renderLog(); const l = form.lines[form.lines.length-1]; const i = $('#lin-'+l.key); if (i) i.focus(); };
   $('#fSave').onclick = saveVisit;
   if ($('#fVoice')) $('#fVoice').onclick = vlStart;
@@ -1777,9 +1804,13 @@ function routeLegs(v){
 }
 // The day as a small table: # · client · purpose · km to get there (· minutes), then the drive back and the total.
 function daySheet({date, details, legs, totalKm, totalMins, office, kmMode, note, compact}){
-  const nLegs = legs.length, back = nLegs ? legs[nLegs-1] : null;
-  const hasLegs = nLegs === details.length + 1;
-  const rows = details.map((d, i) => { const lg = hasLegs ? legs[i] : null; return `<tr><td class="ds-n"><span class="seq sm">${i+1}</span></td><td class="ds-c"><b>${esc(d.client)}</b>${d.purpose ? `<span>${esc(d.purpose)}</span>` : ''}</td><td class="ds-cat">${catBadge(ui.me, d.client)}</td><td class="ds-k">${lg ? `${num(lg.km)}<small> km</small>${lg.mins?`<em>${lg.mins} min</em>`:''}` : '<span class="hint">—</span>'}</td></tr>`; }).join('');
+  // match each visit to its leg by name, in order — clients that weren't on the map simply show no km
+  const nLegs = legs.length, last = nLegs ? legs[nLegs-1] : null;
+  const back = last && (!office || norm(last.to) === norm(office) || /office/i.test(last.to)) ? last : null;
+  const pool = back ? legs.slice(0, -1) : legs.slice(); let p = 0;
+  const legFor = d => { for (let k = p; k < pool.length; k++) if (norm(pool[k].to) === norm(d.client)) { p = k + 1; return pool[k]; } return null; };
+  const hasLegs = nLegs > 0;
+  const rows = details.map((d, i) => { const lg = hasLegs ? legFor(d) : null; return `<tr><td class="ds-n"><span class="seq sm">${i+1}</span></td><td class="ds-c"><b>${esc(d.client)}</b>${d.purpose ? `<span>${esc(d.purpose)}</span>` : ''}<em class="ds-cat-in">${catBadge(ui.me, d.client).replace('other AE','other AE’s')}</em></td><td class="ds-cat">${catBadge(ui.me, d.client).replace('other AE','other')}</td><td class="ds-k">${lg ? `${num(lg.km)}<small> km</small>${lg.mins?`<em>${lg.mins} min</em>`:''}` : '<span class="hint">—</span>'}</td></tr>`; }).join('');
   const total = totalKm !== '' && totalKm != null && !isNaN(totalKm) ? +totalKm : null;
   return `<div class="dsheet${compact?' compact':''}">
     <table><thead><tr><th></th><th>Client · purpose</th><th class="ds-cat">Cat.</th><th class="ds-k">KM</th></tr></thead>
@@ -2248,7 +2279,7 @@ function mgrPane(tab){
     let sync = null; try { sync = JSON.parse(data.settings.categoriesSync||''); } catch(e){}
     return `${sync && sync.unknownAEs && sync.unknownAEs.length ? `<div class="banner" style="margin-bottom:10px">The Categories tab lists AEs who are not in the team yet: <b>${sync.unknownAEs.map(esc).join(', ')}</b>. Add them with the same spelling and their accounts attach automatically.</div>` : ''}
       <div class="tw"><table><thead><tr><th>Name</th><th>City</th><th>Book</th><th></th></tr></thead><tbody>
-        ${active.map(a => `<tr><td><span class="nm">${avatar(a.name, 24)}<b>${esc(a.name)}</b>${String(a.role||'').toLowerCase()==='manager'?' <span class="badge B" style="height:18px">Manager</span>':''}</span><div class="hint">${a.email ? esc(a.email) : '<i>no email — use a code</i>'}</div></td><td>${esc(a.city||'')}</td><td class="hint">${a.coverageMeasured==='N'?'No fixed book':'A/B/C book'}</td><td class="acc"><button type="button" class="btn sm" data-inv="${esc(a.name)}" title="Give them a new 4-digit PIN">🔑 ${a.hasPin ? 'New PIN' : 'Give PIN'}</button><button type="button" class="btn sm" data-mail="${esc(a.name)}" title="Set the email sign-in codes go to">✉️</button><button type="button" class="btn sm" data-role="${esc(a.name)}" title="${String(a.role||'').toLowerCase()==='manager'?'Make AE':'Make manager'}">${String(a.role||'').toLowerCase()==='manager'?'★':'☆'}</button><button type="button" class="btn sm" data-out="${esc(a.name)}" title="Sign out all their devices">⏏</button><button type="button" class="dellink" data-rm="${esc(a.name)}">Remove…</button></td></tr>`).join('')}
+        ${active.map(a => `<tr><td><span class="nm">${avatar(a.name, 24)}<b>${esc(a.name)}</b>${String(a.role||'').toLowerCase()==='manager'?' <span class="badge B" style="height:18px">Manager</span>':String(a.role||'').toLowerCase()==='admin'?' <span class="badge None" style="height:18px">Admin · not tracked</span>':''}</span><div class="hint">${a.email ? esc(a.email) : '<i>no email — use a code</i>'}</div></td><td>${esc(a.city||'')}</td><td class="hint">${a.coverageMeasured==='N'?'No fixed book':'A/B/C book'}</td><td class="acc"><button type="button" class="btn sm" data-inv="${esc(a.name)}" title="Give them a new 4-digit PIN">🔑 ${a.hasPin ? 'New PIN' : 'Give PIN'}</button><button type="button" class="btn sm" data-mail="${esc(a.name)}" title="Set the email sign-in codes go to">✉️</button><select class="rolesel" data-role="${esc(a.name)}" title="AE: logs visits · Manager: full access and logs visits · Admin: full access, no visits, not in the figures">${[['','AE'],['manager','Manager'],['admin','Admin']].map(([v,l]) => `<option value="${v}" ${String(a.role||'').toLowerCase()===v?'selected':''}>${l}</option>`).join('')}</select><button type="button" class="btn sm" data-out="${esc(a.name)}" title="Sign out all their devices">⏏</button><button type="button" class="dellink" data-rm="${esc(a.name)}">Remove…</button></td></tr>`).join('')}
         ${inactive.map(a => `<tr><td class="hint">${esc(a.name)}</td><td class="hint">${esc(a.city||'')}</td><td class="hint">removed</td><td><button type="button" class="dellink" data-rs="${esc(a.name)}">Restore</button></td></tr>`).join('')}
       </tbody></table></div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn sm primary" id="mAddAe">+ Add AE</button><span class="hint">Removing hides an AE from logging and the dashboard; their visits stay and they can be restored. Accounts and categories are managed in the sheet’s Categories tab.</span></div>`;
@@ -2283,7 +2314,12 @@ function wireMgrPane(tab){
     if ($('#mAddAe')) $('#mAddAe').onclick = () => addAeDialog();
     $$('button[data-inv]').forEach(b => b.onclick = async () => { const n = b.dataset.inv, a = aeByName(n) || {}; if (a.hasPin && !(await confirmModal(`New PIN for ${shortName(n)}?`, 'Their old PIN stops working and their devices are signed out.', 'New PIN'))) return settingsDialog('team'); try { const r = await callApi({action:'resetPin', name:n, adminPin:getAdminPin()}); a.hasPin = true; const link = location.origin + location.pathname; const text = `Your TMC Go PIN is ${r.pin}. Open ${link}, tap your name and enter the PIN. You can change it in Settings.`; try { await navigator.clipboard.writeText(text); } catch(e){} await askModal({title:`${shortName(n)}’s PIN: ${r.pin}`, message:'A ready message with the link and PIN is copied — paste it into WhatsApp.', okLabel:'Done', cancelLabel:'Close'}); settingsDialog('team'); } catch(e) { $('#mErr').textContent = e.message; } });
     $$('button[data-mail]').forEach(b => b.onclick = async () => { const n = b.dataset.mail, a = aeByName(n) || {}; const v = await askModal({title:`Email for ${shortName(n)}`, message:'Sign-in codes are sent here.', input:'email', placeholder:'name@tmcltd.com', okLabel:'Save'}); if (v === null) return settingsDialog('team'); try { await callApi({action:'setEmail', name:n, email:v, adminPin:getAdminPin()}); a.email = v; toast('Email saved'); } catch(e) { toast(e.message); } settingsDialog('team'); });
-    $$('button[data-role]').forEach(b => b.onclick = async () => { const n = b.dataset.role, a = aeByName(n) || {}; const toMgr = String(a.role||'').toLowerCase() !== 'manager'; if (n === ui.me && !toMgr) return toast('You can’t remove your own manager role.'); if (!(await confirmModal(toMgr ? `Make ${shortName(n)} a manager?` : `Make ${shortName(n)} an AE?`, toMgr ? 'Managers can edit anyone’s visits, notes and settings, and manage sign-ins.' : 'They keep their visits but lose manager tools.', toMgr ? 'Make manager' : 'Make AE'))) return settingsDialog('team'); try { await callApi({action:'setRole', name:n, role: toMgr ? 'manager' : '', adminPin:getAdminPin()}); a.role = toMgr ? 'manager' : ''; toast('Role updated — they’ll sign in again'); } catch(e) { toast(e.message); } settingsDialog('team'); });
+    $$('select[data-role]').forEach(sel => sel.onchange = async () => { const n = sel.dataset.role, a = aeByName(n) || {}, to = sel.value, label = {'':'an AE','manager':'a manager','admin':'an admin'}[to];
+      if (n === ui.me && !to) { toast('You can’t remove your own manager access.'); return settingsDialog('team'); }
+      const why = to === 'admin' ? 'Full access to everything, but no visits: they’re left out of coverage, kilometres, rankings and charts.' : to === 'manager' ? 'Full access, and their own visits still count in the team figures.' : 'They log their own visits and lose manager tools.';
+      if (!(await confirmModal(`Make ${shortName(n)} ${label}?`, why, 'Change role'))) return settingsDialog('team');
+      try { await callApi({action:'setRole', name:n, role: to, adminPin:getAdminPin()}); a.role = to; toast(n === ui.me ? 'Role updated' : 'Role updated — they’ll sign in again'); if (n === ui.me) { ui.session.role = to ? 'manager' : 'ae'; } } catch(e) { toast(e.message); }
+      settingsDialog('team'); render(); });
     $$('button[data-out]').forEach(b => b.onclick = async () => { const n = b.dataset.out; if (!(await confirmModal(`Sign ${shortName(n)} out everywhere?`, 'Every phone and computer they use will need a new code.', 'Sign out devices'))) return settingsDialog('team'); try { const r = await callApi({action:'revokeSessions', name:n, adminPin:getAdminPin()}); toast(`${r.revoked} device${r.revoked===1?'':'s'} signed out`); } catch(e) { toast(e.message); } settingsDialog('team'); });
     $$('button[data-rm]').forEach(b => b.onclick = async () => {
       const name = b.dataset.rm;
