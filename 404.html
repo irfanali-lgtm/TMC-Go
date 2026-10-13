@@ -884,7 +884,7 @@ tr.aerow.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-13 09:22 · production';
+const BUILD = '2026-10-13 10:27 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -1032,7 +1032,7 @@ async function ensureAdmin(){
   if (isMgr()) return true;
   let pin = getAdminPin();
   for (let i=0;i<3;i++) {
-    if (!pin) { const p = await askModal({title: i ? 'Wrong admin PIN — try again' : 'Admin PIN', message:'Managers only. It is kept for this browser session.', input:'password', okLabel:'Unlock', placeholder:'Admin PIN'}); if (p===null) return false; pin = p; }
+    if (!pin) { const p = await askModal({title: i ? 'Wrong admin PIN — try again' : 'Admin PIN', message:'Admins only. It is kept for this browser session.', input:'password', okLabel:'Unlock', placeholder:'Admin PIN'}); if (p===null) return false; pin = p; }
     try { await callApi({action:'checkAdmin', adminPin:pin}); setAdminPin(pin); return true; } catch(e) { if (!/admin pin/i.test(e.message)) { toast(e.message); return false; } pin=''; }
   }
   return false;
@@ -1061,21 +1061,21 @@ function friendly(err){
   lastTechnical = String((err && err.message) || err || '');
   const m = String((err && err.message) || err || '');
   if (navigator.onLine === false || /offline/i.test(m)) return 'You are offline — your visits are kept on this phone and will be sent automatically when you have signal.';
-  if (/HTML_PAGE/.test(m)) return 'The TMC Go link is not set up for everyone yet. Ask your manager to set the Apps Script deployment to “Anyone”.';
-  if (/APP_PAGE/.test(m)) return 'This link points at an older setup. Ask your manager to update the backend and deploy a new version.';
-  if (/NOT_JSON|Unexpected token|JSON/i.test(m)) return 'The sheet replied with something unexpected. Try again in a moment; if it keeps happening, tell your manager.';
+  if (/HTML_PAGE/.test(m)) return 'The TMC Go link is not set up for everyone yet. Ask an admin to set the Apps Script deployment to “Anyone”.';
+  if (/APP_PAGE/.test(m)) return 'This link points at an older setup. Ask an admin to update the backend and deploy a new version.';
+  if (/NOT_JSON|Unexpected token|JSON/i.test(m)) return 'The sheet replied with something unexpected. Try again in a moment; if it keeps happening, tell an admin.';
   if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return 'Could not reach the sheet. Check your connection and try again.';
   if (/BUSY|lock timeout|another process was holding the lock/i.test(m)) return 'The sheet was busy saving for someone else. Please try again in a moment.';
   if (/^SIGNIN/.test(m)) return 'Please sign in.';
-  if (/WEAKPIN/.test(m)) return 'The admin PIN is still the default or too simple. A manager must set a stronger one (at least 6 digits) in the sheet’s Settings tab first.';
+  if (/WEAKPIN/.test(m)) return 'The admin PIN is still the default or too simple. An admin must set a stronger one (at least 6 digits) in the sheet’s Settings tab first.';
   if (/photo could not be saved|photo is too large/i.test(m)) return m.replace(/^Error:\s*/,'');
   if (/NOTYOU/.test(m)) return 'You can only change your own visits.';
   if (/MANAGER_ONLY/.test(m)) return 'Only admins can do that.';
-  if (/NOPIN/.test(m)) return 'You don’t have a PIN yet — ask your manager for one.';
+  if (/NOPIN/.test(m)) return 'That PIN isn’t right. Your starting PIN is 1234.';
   if (/No email on file|code was sent less than|not right or has expired|Too many tries|not on the team list|wait 15 minutes|PIN isn’t right|4–8 digits/i.test(m)) return m.replace(/^Error:\s*/,'');
   if (/admin pin/i.test(m)) return 'Wrong admin PIN.';
-  if (/wrong pin|pin required/i.test(m)) return 'The backend is on an older version. Ask your manager to paste the latest Code.gs into Apps Script and deploy a new version.';
-  if (/unknown action/i.test(m)) return 'The backend is on an older version and does not understand this request. Ask your manager to update Code.gs and deploy a new version.';
+  if (/wrong pin|pin required/i.test(m)) return 'The backend is on an older version. Ask an admin to paste the latest Code.gs into Apps Script and deploy a new version.';
+  if (/unknown action/i.test(m)) return 'The backend is on an older version and does not understand this request. Ask an admin to update Code.gs and deploy a new version.';
   if (/quota|rate ?limit|429/i.test(m)) return 'Google is busy right now. Wait a minute and try again.';
   if (/not found|could not find|could not locate|could not build the route|office address|no office/i.test(m)) return m.replace(/^Error:\s*/,'');
   if (/too long|does not look right|Enter |Choose |Add at least|needs a date|Type the purpose|already in the team|name missing|No AEs|Go is not approved|Gemini key|Gemini model|Gemini is busy|Go could not answer|A manager still needs/i.test(m)) return m;
@@ -1210,7 +1210,7 @@ async function load(first){
     } catch (e) {
       if (!getTok()) { loadingWatch(false); ui.loading = false; return signInScreen(); }
       setConn('err', 'Not synced');
-      showBanner(esc(friendly(e)) + ' <button type="button" class="btn sm" id="retryLoad" style="margin-left:8px">Retry</button>' + (lastTechnical ? ` <details style="margin-left:auto;font-size:12px"><summary style="cursor:pointer">Details for your manager</summary><code style="font-size:11px">${esc(lastTechnical.slice(0,160))}</code><div class="hint">Link: ${esc(apiUrl() || 'served by Apps Script')}</div></details>` : ''), true);
+      showBanner(esc(friendly(e)) + ' <button type="button" class="btn sm" id="retryLoad" style="margin-left:8px">Retry</button>' + (lastTechnical ? ` <details style="margin-left:auto;font-size:12px"><summary style="cursor:pointer">Details for your admin</summary><code style="font-size:11px">${esc(lastTechnical.slice(0,160))}</code><div class="hint">Link: ${esc(apiUrl() || 'served by Apps Script')}</div></details>` : ''), true);
       $('#retryLoad').onclick = () => { hideBanner(); load(first); };
       loadingWatch(false);
       if (first) { ui.loading = false; initUi(); render(); return; }
@@ -1428,7 +1428,7 @@ function drawSignIn(msg){
       <input id="siPin" class="si-code" type="password" inputmode="numeric" autocomplete="current-password" maxlength="8" placeholder="••••">
       <button type="button" class="btn primary si-big" id="siGo">Sign in</button>
       <p class="hint si-help">${who.hasPin ? 'Forgot it? An admin can reset it to 1234 for you.' : 'First time? Your PIN is <b>1234</b> — you’ll choose your own right after.'}${who.email ? ` <button type="button" class="si-link inline" id="siEmail">Email me a code instead</button>` : ''}</p>`);
-    const go = async () => { const p = $('#siPin').value.replace(/\D/g,''); if (p.length < 4) return $('#siPin').focus(); const b = $('#siGo'); b.disabled = true; b.textContent = 'Signing in…'; try { const r = await callApi({action:'signIn', name: who.name, pin: p, device: navigator.userAgent}); signedIn(r.session, r.mustChange ? 'default' : (r.adminUsed ? 'admin' : '')); } catch(e) { drawSignIn(/NOPIN/.test(e.message) || /don’t have a PIN/.test(e.message) ? 'You don’t have a PIN yet — ask your manager for one.' : e.message); } };
+    const go = async () => { const p = $('#siPin').value.replace(/\D/g,''); if (p.length < 4) return $('#siPin').focus(); const b = $('#siGo'); b.disabled = true; b.textContent = 'Signing in…'; try { const r = await callApi({action:'signIn', name: who.name, pin: p, device: navigator.userAgent}); signedIn(r.session, r.mustChange ? (r.adminPending ? 'defaultAdmin' : 'default') : (r.adminUsed ? 'admin' : '')); } catch(e) { drawSignIn(/NOPIN/.test(e.message) || /don’t have a PIN/.test(e.message) ? 'That PIN isn’t right. Your starting PIN is 1234.' : e.message); } };
     $('#siPin').onkeydown = e => { if (e.key === 'Enter') go(); };
     $('#siPin').oninput = e => { e.target.value = e.target.value.replace(/\D/g,'').slice(0,8); };
     $('#siGo').onclick = go; setTimeout(() => $('#siPin') && $('#siPin').focus(), 50);
@@ -1448,13 +1448,13 @@ function signedIn(sess, via){
   document.body.classList.remove('signed-out'); signin = { roster: signin.roster, step: 'pick', who: null, sentTo: '', busy: false, q: '' };
   toast(`Welcome, ${sess.ae.split(' ')[0]}${sess.role === 'manager' ? ' — admin tools are unlocked' : ''}`);
   $('#loading').style.display = ''; load(true);
-  if (via) setTimeout(() => setMyPin(via === 'default' ? 'default' : true), 900);
+  if (via) setTimeout(() => setMyPin(via === 'default' || via === 'defaultAdmin' ? via : true), 900);
 }
 async function setMyPin(first){
-  const onDefault = first === 'default';
-  const p = await askModal({title: first ? 'Choose your own PIN' : 'Change my PIN', message: onDefault ? 'You signed in with the starting PIN 1234. Pick your own 4–8 digits so nobody else can sign in as you.' : first ? 'Next time you sign in with just your name and this PIN. 4–8 digits.' : '4–8 digits. You’ll use it on any new phone or computer.', input:'password', okLabel:'Save PIN', cancelLabel: first ? 'Later' : 'Cancel', placeholder:'••••'});
+  const onDefault = first === 'default' || first === 'defaultAdmin', adminWait = first === 'defaultAdmin';
+  const p = await askModal({title: first ? 'Choose your own PIN' : 'Change my PIN', message: adminWait ? 'You’re an admin. Choose your own PIN (4–8 digits) to unlock the admin tools — until then you have AE access only.' : onDefault ? 'You signed in with the starting PIN 1234. Pick your own 4–8 digits so nobody else can sign in as you.' : first ? 'Next time you sign in with just your name and this PIN. 4–8 digits.' : '4–8 digits. You’ll use it on any new phone or computer.', input:'password', okLabel:'Save PIN', cancelLabel: first ? 'Later' : 'Cancel', placeholder:'••••'});
   if (p === null) return;
-  try { await callApi({action:'setMyPin', pin: String(p).replace(/\D/g,'')}); toast('PIN saved'); } catch(e) { toast(e.message); if (/4–8 digits/.test(e.message)) setTimeout(() => setMyPin(first), 300); }
+  try { const r = await callApi({action:'setMyPin', pin: String(p).replace(/\D/g,'')}); if (r.session) ui.session = {ae: r.session.ae, role: r.session.role}; toast(adminWait && isMgr() ? 'PIN saved — admin tools unlocked' : 'PIN saved'); if (adminWait) { render(); load(false); } } catch(e) { toast(e.message); if (/4–8 digits/.test(e.message)) setTimeout(() => setMyPin(first), 300); }
 }
 async function signOut(){
   try { await callApi({action:'signOut'}); } catch(e){}
@@ -1649,7 +1649,7 @@ async function installApp(){
         ? ['In Chrome or Edge, click the <b>install icon</b> <span class="kbdi">⊕</span> at the right end of the address bar.', 'Or open the menu <span class="kbdi">⋮</span> → <b>Cast, save and share</b> → <b>Install page as app</b>.', 'TMC Go opens in its own window and gets a desktop / Start-menu icon.']
         : ['Open the browser menu <span class="kbdi">⋮</span> (top right in Chrome).', 'Tap <b>Install app</b> or <b>Add to Home screen</b>.', 'Confirm — TMC Go appears with your other apps.']);
   openModal('Install TMC Go', `<div class="install"><img src="${$('link[rel=apple-touch-icon]').href}" alt="" width="64" height="64"><ol>${steps.map(s=>`<li>${s}</li>`).join('')}</ol><p class="hint">It opens full screen like any app, keeps your name and drafts, and updates itself.</p></div>${isIOS() ? '' : '<div id="instDiag" class="instdiag"><span class="hint">Checking why the browser hasn’t offered install…</span></div>'}`, null, 'Got it');
-  if (!isIOS()) installDiagnostics().then(list => { const el = $('#instDiag'); if (!el) return; const bad = list.filter(x => !x.ok); el.innerHTML = bad.length ? `<b>Your manager needs to fix ${bad.length === 1 ? 'one thing' : bad.length + ' things'} on the website before install works:</b><ul>${bad.map(x => `<li>${x.msg}</li>`).join('')}</ul>` : '<span class="hint">✓ Everything the browser needs is in place. If no install option appears yet, reload the page once and wait a few seconds, then tap Install again.</span>'; });
+  if (!isIOS()) installDiagnostics().then(list => { const el = $('#instDiag'); if (!el) return; const bad = list.filter(x => !x.ok); el.innerHTML = bad.length ? `<b>An admin needs to fix ${bad.length === 1 ? 'one thing' : bad.length + ' things'} on the website before install works:</b><ul>${bad.map(x => `<li>${x.msg}</li>`).join('')}</ul>` : '<span class="hint">✓ Everything the browser needs is in place. If no install option appears yet, reload the page once and wait a few seconds, then tap Install again.</span>'; });
 }
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost') && !hasGs()) { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); }); }
 function greeting(){ const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; }
@@ -2013,10 +2013,10 @@ function renderDash(){
       <span class="live${ui.demo?'':' on'}" title="Updates on its own"><i></i>${syncTxt}</span>
       ${ui.demo ? '' : '<button type="button" class="ib" id="dRefresh" title="Refresh now" aria-label="Refresh now"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></button>'}
       <button type="button" class="ib" id="dCsv" title="Download this view as CSV" aria-label="Download CSV"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
-      <button type="button" class="ib${ui.mgr?' on':''}" id="dMgr" title="${ui.mgr ? 'Manager mode on — click to turn off' : 'Manager mode: notes, edit and delete'}" aria-label="Manager mode"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="${ui.mgr ? 'M8 11V8a4 4 0 0 1 7.5-2' : 'M8 11V8a4 4 0 0 1 8 0v3'}"/></svg></button>
+      <button type="button" class="ib${ui.mgr?' on':''}" id="dMgr" title="${ui.mgr ? 'Admin mode on — click to turn off' : 'Admin mode: notes, edit and delete'}" aria-label="Admin mode"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="${ui.mgr ? 'M8 11V8a4 4 0 0 1 7.5-2' : 'M8 11V8a4 4 0 0 1 8 0v3'}"/></svg></button>
     </span>
   </div>
-  ${ui.mgr ? `<div class="banner mgr">Manager mode — click a note to edit it; select one AE to edit or delete their days. <button type="button" class="btn sm" id="dMgrOff">Turn off</button></div>` : ''}
+  ${ui.mgr ? `<div class="banner mgr">Admin mode — click a note to edit it; select one AE to edit or delete their days. <button type="button" class="btn sm" id="dMgrOff">Turn off</button></div>` : ''}
   <div class="fbar aerow">
     ${stories}
   </div>
@@ -2096,7 +2096,7 @@ function renderDash(){
   $('#dTo').onchange = e => { const tt = e.target.value; if (!tt) return; setRange('custom', tt < ui.range.from ? tt : ui.range.from, tt); renderDash(); };
   $('#dCity').onchange = e => { ui.city = e.target.value; const ok = new Set(aesInCity().map(a=>a.name)); [...ui.aeSel].forEach(n => { if (!ok.has(n)) ui.aeSel.delete(n); }); renderDash(); };
   if ($('#dRefresh')) $('#dRefresh').onclick = () => { $('#dRefresh').disabled = true; load(false); };
-  $('#dMgr').onclick = async () => { if (ui.mgr) { ui.mgr = false; renderDash(); return; } if (await ensureAdmin()) { ui.mgr = true; renderDash(); toast('Manager mode on'); } };
+  $('#dMgr').onclick = async () => { if (ui.mgr) { ui.mgr = false; renderDash(); return; } if (await ensureAdmin()) { ui.mgr = true; renderDash(); toast('Admin mode on'); } };
   if ($('#dMgrOff')) $('#dMgrOff').onclick = () => { ui.mgr = false; renderDash(); };
   $$('button[data-note]', el).forEach(b => b.onclick = () => noteDialog(b.dataset.note));
   $('#dCsv').onclick = () => downloadCsv(`visits-${ui.range.from}_${ui.range.to}${ui.city?'-'+ui.city:''}.csv`, [['AE','Date','Day','City','Client','Category','Purpose','Visits (day)','KM (day)','KM source','Route'], ...mv.slice().sort((a,b)=>a.ae.localeCompare(b.ae)||a.date.localeCompare(b.date)).flatMap(v => { const det = v.count ? dayDetails(v) : [{client:'', purpose:v.purpose}]; return det.map((d,i) => [v.ae, v.date, dayName(v.date), v.city, d.client, d.client ? catFor(v.ae, d.client).replace('—','Other AE') : '', d.purpose, i===0?v.count:'', i===0?v.km:'', i===0?(v.kmMode||''):'', i===0?(v.route||''):'']); })]);
@@ -2146,7 +2146,7 @@ function mgrEditDay(id){
   openModal(`${esc(v.ae)} — ${fmtDate(v.date)}`, `<div class="form">
       <div class="f c4"><label>Date</label><input type="date" id="mgDate" value="${v.date}" max="${todayIso()}"></div>
       <div class="f c12"><label>Visits</label><div id="mgLines">${det.map(lineHtml).join('')}</div><datalist id="mgrAccts">${accts.map(a=>`<option value="${esc(a)}">`).join('')}</datalist><button type="button" class="btn sm" id="mgAdd" style="margin-top:6px">+ Add visit</button></div>
-      <div class="f c12"><label>Manager note for this day</label><input id="mgNote" value="${esc(v.note||'')}" placeholder="e.g. Joint visit with Hussain · verified"></div>
+      <div class="f c12"><label>Admin note for this day</label><input id="mgNote" value="${esc(v.note||'')}" placeholder="e.g. Joint visit with Hussain · verified"></div>
       <div class="f c12 hint">Saving recalculates the day's kilometres${v.kmMode==='manual'?' (this day was entered manually; it will switch to automatic)':''}.</div>
     </div>`, async () => {
       const date = $('#mgDate').value; if (!date) throw new Error('Choose a date.');
@@ -2412,7 +2412,7 @@ function aiGreet(){
   const who = ui.me ? shortName(ui.me) : 'there';
   const text = aiReady()
     ? `Hi ${who} 👋 I’m Go. Tell me your visits and I’ll log them, ask me to plan tomorrow, draft a follow-up, prep a meeting, or summarise your week. English, اردو or Roman Urdu — and yes, I know a joke or two.`
-    : (ui.demo ? `Hi ${who} 👋 I’m Go. In this preview I’m switched off — once the app is connected to the sheet and a manager adds the Gemini key, I log visits, plan days, draft follow-ups and more.` : `Hi ${who} 👋 I’m Go. A manager still needs to add the Gemini key in the sheet’s Settings tab (aiKey) before I can help. Everything else in the app works without me.`);
+    : (ui.demo ? `Hi ${who} 👋 I’m Go. In this preview I’m switched off — once the app is connected to the sheet and an admin adds the Gemini key, I log visits, plan days, draft follow-ups and more.` : `Hi ${who} 👋 I’m Go. An admin still needs to add the Gemini key in the sheet’s Settings tab (aiKey) before I can help. Everything else in the app works without me.`);
   ai.msgs.push({role:'assistant', content:text});
 }
 // A fenced ```json {...}``` block at the end of a reply is an action for the app; the rest is what the person reads.
@@ -2500,7 +2500,7 @@ async function aiSend(text, opts={}){
 // "Log by voice" on the form = open Go in hands-free mode with the logging intent.
 async function vlStart(){
   if (!ui.me) return toast('Select your name first.');
-  if (!aiReady()) return toast(ui.demo ? 'Voice logging works once the app is connected and the Gemini key is set.' : 'Ask your manager to add the Gemini key in the sheet to enable voice.');
+  if (!aiReady()) return toast(ui.demo ? 'Voice logging works once the app is connected and the Gemini key is set.' : 'Ask an admin to add the Gemini key in the sheet to enable voice.');
   aiOpen(); if (!voice.on) voiceToggle();
 }
 
@@ -2623,7 +2623,7 @@ function toast(msg, actLabel, act){
 function initMeSelect(){
   setHeaderAvatar();
   const meSel = $('#me');
-  if (!ui.demo && ui.session) { meSel.innerHTML = `<option>${esc(ui.me)}</option>`; meSel.disabled = true; meSel.title = 'Signed in as ' + ui.me + (isMgr() ? ' (manager)' : ''); meSel.classList.add('locked'); return; }
+  if (!ui.demo && ui.session) { meSel.innerHTML = `<option>${esc(ui.me)}</option>`; meSel.disabled = true; meSel.title = 'Signed in as ' + ui.me + (isMgr() ? ' (admin)' : ''); meSel.classList.add('locked'); return; }
   if (!activeAEs().some(a=>a.name===ui.me)) ui.me='';
   meSel.innerHTML = '<option value="">Select AE…</option>' + activeAEs().map(a=>`<option ${a.name===ui.me?'selected':''}>${esc(a.name)}</option>`).join('');
 }
