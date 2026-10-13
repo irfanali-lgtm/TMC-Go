@@ -579,6 +579,8 @@ section.enter{animation:viewin .22s ease both}
 .dz-i{font-size:26px;color:#4252E8;line-height:1}
 .dropzone small{color:var(--muted)}
 .imp .si-link{margin:8px 0 0}
+.imp-paste{margin-top:10px;font-size:13px}.imp-paste summary{cursor:pointer;color:var(--muted)}
+.imp-paste textarea{width:100%;margin:8px 0 6px;font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid var(--line-2);border-radius:10px;padding:8px 10px}
 .imp-sum{margin:14px 0 8px;font-size:14px}
 .imp-bad{color:#B91C1C;font-weight:600}
 .imp-skip{margin-bottom:8px;font-size:13px}.imp-skip ul{margin:6px 0 0 18px}
@@ -610,6 +612,62 @@ body.signed-out #tabbar,body.signed-out #nav,body.signed-out .aifab,body.signed-
 .hright select.locked{opacity:1;cursor:default;-webkit-appearance:none;appearance:none;background-image:none;padding-right:12px}
 .signedas{height:42px;display:flex;align-items:center;gap:8px;font-weight:700}
 td.acc{white-space:nowrap}td.acc .btn.sm{padding:0 8px;margin-right:4px}
+/* Go panel */
+.ai .aihead{display:flex;align-items:center;gap:10px;padding:14px 14px 12px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#FBFCFF,#F6F7FE)}
+.ai .aiav{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:conic-gradient(from 200deg,#4F46E5,#7C3AED,#A855F7,#4F46E5);color:#fff;font-size:18px;box-shadow:0 4px 14px rgba(91,75,224,.35);flex:none}
+.ai .aiti{flex:1;min-width:0}
+.ai .ait{font-weight:800;font-size:16px;letter-spacing:-.01em}
+.ai .ais{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.ai .ais .odot{margin-right:0}
+.aiib{width:34px;height:34px;border:none;background:transparent;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;color:#64748B;cursor:pointer}
+.aiib svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.aiib:hover{background:#EEF1FF;color:#4252E8}
+.aimsgs{padding:16px 14px!important;background:#FAFBFE}
+.aiwel{text-align:center;padding:10px 4px 6px}
+.aiwel-orb{width:56px;height:56px;margin:4px auto 10px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;background:conic-gradient(from 200deg,#4F46E5,#7C3AED,#A855F7,#4F46E5);box-shadow:0 10px 26px rgba(91,75,224,.35)}
+.aiwel h3{font-size:20px;font-weight:800;letter-spacing:-.02em;margin:0}
+.aiwel>p{color:var(--muted);margin:4px 0 14px;font-size:14px}
+.aistarts{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left}
+.aistart{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:11px 12px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .1s}
+.aistart:hover{border-color:#C7CEFB;box-shadow:0 4px 14px rgba(66,82,232,.10)}
+.aistart:active{transform:scale(.98)}
+.aistart .si{font-size:18px;line-height:1.2;width:22px;text-align:center;flex:none}
+.aistart>span:last-child{flex:1;min-width:0}
+.aistart b{display:block;font-size:13.5px;color:var(--ink)}
+.aistart small{display:block;font-size:11.5px;color:var(--muted);margin-top:1px;line-height:1.3}
+.aiquick{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.aiquick button,.aichips button{border:1px solid #D7DCFB;background:#fff;color:#3442CC;border-radius:999px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer}
+.aiquick button:hover,.aichips button:hover{background:#EEF1FF}
+.ailang{margin-top:14px;font-size:12px;color:var(--muted)}
+.mrow{display:flex;gap:8px;margin:0 0 12px}
+.mrow.u{justify-content:flex-end}
+.mrow .mav{width:26px;height:26px;flex:none;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;background:linear-gradient(135deg,#4F46E5,#A855F7);margin-top:2px}
+.mrow .mcol{min-width:0;max-width:calc(100% - 34px)}
+.mrow .msg{max-width:100%!important;margin:0!important;padding:10px 13px!important;font-size:14px;line-height:1.5}
+.mrow.u .msg{max-width:85%!important}
+.msg.a p{margin:0 0 6px}.msg.a p:last-child{margin:0}
+.msg.a ul{margin:4px 0 6px 18px}
+.mtools{display:flex;gap:2px;margin-top:3px;opacity:0;transition:opacity .15s}
+.mrow.a:hover .mtools,.mrow.a:focus-within .mtools,.mrow.a:last-child .mtools{opacity:1}
+.mtools button{border:none;background:transparent;color:#64748B;font-size:11.5px;padding:3px 6px;border-radius:6px;cursor:pointer}
+.mtools button:hover{background:#EEF1FF;color:#3442CC}
+.msg .tts{display:none}
+.aichips{padding:0 14px 8px!important;display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;scrollbar-width:none}
+.aichips::-webkit-scrollbar{display:none}
+.aichips button{flex:none;white-space:nowrap}
+.aiact .btn{min-height:36px}
+.aicomp{margin:0 12px;padding:6px 6px 6px 14px!important;border:1px solid var(--line-2);border-radius:18px;background:#fff;display:flex;align-items:flex-end;gap:6px;box-shadow:0 2px 8px rgba(15,23,42,.05)}
+.aicomp:focus-within{border-color:#8B97F4;box-shadow:0 0 0 3px rgba(66,82,232,.15)}
+.aicomp textarea{border:none!important;box-shadow:none!important;background:transparent;padding:8px 0!important;resize:none;min-height:22px;font-size:15px}
+.aimic,.aisend{width:38px;height:38px;border-radius:12px!important;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.aimic svg,.aisend svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.aimic{background:#F1F4FA!important;color:#4252E8!important;border:none!important}
+.aimic.on{background:#FEE2E2!important;color:#DC2626!important}
+.aisend{background:linear-gradient(135deg,#4F5FF0,#7C3AED)!important;color:#fff!important;border:none!important}
+.aisend:disabled,.aimic:disabled{opacity:.45}
+.aifoot{font-size:11px;color:var(--muted);text-align:center;padding:6px 14px calc(10px + env(safe-area-inset-bottom,0px))}
+@media (max-width:340px){.aistarts{grid-template-columns:1fr}}
+@media (max-width:420px){.aistart{padding:10px}.aistart b{font-size:13px}.aistart small{font-size:11px}}
 /* day sheet */
 .dsheet table{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px}
 .dsheet thead th{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#64748B;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);background:transparent}
@@ -872,19 +930,20 @@ tr.aerow.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 <button class="aifab" id="aiFab" title="Talk to Go" aria-label="Talk to Go"><span class="spark">✦</span><span class="lbl">Ask Go</span></button>
 <aside class="ai" id="ai" aria-label="Go — TMC assistant" aria-hidden="true">
   <div class="aihead">
-    <div class="aiav">✦</div>
-    <div><div class="ait">Go</div><div class="ais" id="aiStatus">Knows the team's visits, coverage and kilometres · English · اردو</div></div>
-    <button class="btn sm" id="aiClear" title="Start over">Clear</button>
-    <button class="aix" id="aiClose" aria-label="Close">×</button>
+    <div class="aiav" aria-hidden="true"><span>✦</span></div>
+    <div class="aiti"><div class="ait">Go</div><div class="ais" id="aiStatus"></div></div>
+    <button class="aiib" id="aiClear" title="New chat" aria-label="New chat"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+    <button class="aiib" id="aiClose" title="Close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
   <div class="aimsgs" id="aiMsgs"></div>
   <div class="aivoice" id="aiVoice" style="display:none"><div class="orb"><i></i></div><div class="vtxt" id="aiVoiceTxt">Listening…</div><button type="button" class="btn sm" id="aiVoiceStop">Stop</button></div>
   <div class="aichips" id="aiChips"></div>
   <div class="aicomp">
-    <textarea id="aiIn" rows="1" placeholder="Tell me your visits, or ask for a plan, a draft, a summary…" aria-label="Message"></textarea>
-    <button class="aimic" id="aiMic" title="Talk — hands-free voice conversation" aria-label="Talk">🎙</button>
-    <button class="aisend" id="aiSend" title="Send" aria-label="Send">➤</button>
+    <textarea id="aiIn" rows="1" placeholder="Message Go…" aria-label="Message Go"></textarea>
+    <button class="aimic" id="aiMic" title="Talk to Go, hands-free" aria-label="Talk"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+    <button class="aisend" id="aiSend" title="Send" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
   </div>
+  <div class="aifoot">Go prepares things for you — visits are saved only when you tap <b>Save</b>.</div>
 </aside>
 <div class="modal top" id="ask"><div class="dialog small"><div class="body" id="askBody"></div><div class="foot" id="askFoot"></div></div></div>
 <div class="tabbar" id="tabbar" role="navigation" aria-label="Main">
@@ -897,7 +956,7 @@ tr.aerow.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-13 10:55 · production';
+const BUILD = '2026-10-13 11:36 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -2419,16 +2478,28 @@ function mdLite(s){
   if (inList) html += '</ul>';
   return html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>');
 }
-const AI_CHIPS = ['Log: aaj Ghani Glass aur Dawn Foods gaya, SAP demo', 'Plan my visits for tomorrow', 'Which of my accounts are untouched?', 'Draft a follow-up WhatsApp for my last visit', 'Summarise my week for my manager', 'Prep me for my next client meeting', 'Who is behind on A accounts?', 'Show me this week', 'Mujhe hasao'];
-function aiOpen(){ ai.open = true; $('#ai').classList.add('open'); $('#ai').setAttribute('aria-hidden','false'); if (!ai.msgs.length) aiGreet(); renderAi(); setTimeout(()=>{ const i=$('#aiIn'); if (i && !voice.on) i.focus(); }, 50); }
+// What Go is good at — shown as cards on a fresh chat. 'prompt' is sent as if typed; 'run' does it in the app.
+const AI_STARTS = [
+  {ic:'🗺️', t:'Log today’s visits', s:'Just tell me where you went', prompt:'I want to log today’s visits'},
+  {ic:'📅', t:'Plan tomorrow', s:'Untouched accounts first, by area', prompt:'Plan my visits for tomorrow'},
+  {ic:'✉️', t:'Write a follow-up', s:'WhatsApp or email, ready to send', prompt:'Draft a follow-up WhatsApp for my last visit'},
+  {ic:'🧭', t:'Prep my next meeting', s:'History, purpose, talking points', prompt:'Prep me for my next client meeting'},
+  {ic:'📊', t:'Summarise my week', s:'Wins, gaps and what’s next', prompt:'Summarise my week'},
+  {ic:'⤒', t:'Upload a list', s:'Paste rows or an Excel file', run:'import'},
+];
+const AI_QUICK = ['Which accounts haven’t I visited?', 'Who is behind on A accounts?', 'Show me this week', 'Mujhe hasao 😄'];
+function aiOpen(){ ai.open = true; $('#ai').classList.add('open'); $('#ai').setAttribute('aria-hidden','false'); renderAi(); setTimeout(()=>{ const i=$('#aiIn'); if (i && !voice.on && matchMedia('(pointer:fine)').matches) i.focus(); }, 50); }
 function aiCloseFn(){ ai.open = false; $('#ai').classList.remove('open'); $('#ai').setAttribute('aria-hidden','true'); if (voice.on) voiceToggle(); else stopSpeaking(); }
 function aiReady(){ return !ui.demo && !!data.settings.ai; }
-function aiGreet(){
-  const who = ui.me ? shortName(ui.me) : 'there';
-  const text = aiReady()
-    ? `Hi ${who} 👋 I’m Go. Tell me your visits and I’ll log them, ask me to plan tomorrow, draft a follow-up, prep a meeting, or summarise your week. English, اردو or Roman Urdu — and yes, I know a joke or two.`
-    : (ui.demo ? `Hi ${who} 👋 I’m Go. In this preview I’m switched off — once the app is connected to the sheet and an admin adds the Gemini key, I log visits, plan days, draft follow-ups and more.` : `Hi ${who} 👋 I’m Go. An admin still needs to add the Gemini key in the sheet’s Settings tab (aiKey) before I can help. Everything else in the app works without me.`);
-  ai.msgs.push({role:'assistant', content:text});
+function firstName(n){ return String(n||'').trim().split(/\s+/)[0] || 'there'; }
+function aiGreet(){ /* the welcome screen is drawn by renderAi when the chat is empty */ }
+function aiWelcome(){
+  const hour = new Date().getHours(), hi = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  if (!aiReady()) return `<div class="aiwel"><div class="aiwel-orb">✦</div><h3>${hi}, ${esc(firstName(ui.me))}</h3><p>${ui.demo ? 'Go is switched off in this preview. Once the app is connected and an admin adds the Gemini key, I can log visits, plan days and write follow-ups.' : 'I’m almost ready. An admin needs to add the Gemini key in the sheet’s Settings tab (<b>aiKey</b>). Everything else in the app works without me.'}</p></div>`;
+  return `<div class="aiwel"><div class="aiwel-orb">✦</div><h3>${hi}, ${esc(firstName(ui.me))} 👋</h3><p>What can I take off your plate?</p>
+    <div class="aistarts">${AI_STARTS.map((x,k) => `<button type="button" class="aistart" data-start="${k}"><span class="si">${x.ic}</span><span><b>${esc(x.t)}</b><small>${esc(x.s)}</small></span></button>`).join('')}</div>
+    <div class="aiquick">${AI_QUICK.map(q => `<button type="button" data-quick="${esc(q)}">${esc(q)}</button>`).join('')}</div>
+    <div class="ailang">I speak English, اردو and Roman Urdu — just write the way you talk.</div></div>`;
 }
 // A fenced ```json {...}``` block at the end of a reply is an action for the app; the rest is what the person reads.
 function aiParse(reply){
@@ -2444,7 +2515,7 @@ function linesFromAction(log){
 function actionCard(m, i){
   const a = m.action; if (!a) return '';
   let html = '';
-  if (Array.isArray(a.log) && a.log.length) html += `<div class="aiact"><div class="hint">${a.log.map((x,j)=>`<span class="seq sm">${j+1}</span>${esc(x.date||todayIso())}: ${esc(x.client)}${x.purpose?' — '+esc(x.purpose):''}`).join('<br>')}</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn sm primary" data-save="${i}">Save ${a.log.length===1?'this visit':'these '+a.log.length+' visits'}</button><button type="button" class="btn sm" data-act="${i}">Review in form</button></div></div>`;
+  if (Array.isArray(a.log) && a.log.length) html += `<div class="aiact"><div class="hint">${a.log.map((x,j)=>`<span class="seq sm">${j+1}</span><b>${esc(x.client)}</b>${x.purpose?' · '+esc(x.purpose):''} <span class="hint">· ${esc(/^\d{4}-\d{2}-\d{2}$/.test(x.date||'') ? (x.date===todayIso() ? 'today' : fmtLong(x.date)) : 'today')}</span>`).join('<br>')}</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn sm primary" data-save="${i}">Save ${a.log.length===1?'this visit':'these '+a.log.length+' visits'}</button><button type="button" class="btn sm" data-act="${i}">Review in form</button></div></div>`;
   if (a.draft && a.draft.text) html += `<div class="aiact"><b>${esc(a.draft.title||'Draft')}</b><div class="draft">${esc(a.draft.text)}</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn sm" data-copy="${i}">Copy</button>${a.draft.text.length<1500?`<a class="btn sm" href="https://wa.me/?text=${encodeURIComponent(a.draft.text)}" target="_blank" rel="noopener">WhatsApp</a>`:''}${a.draft.title && /mail/i.test(a.draft.title)?`<a class="btn sm" href="mailto:?subject=${encodeURIComponent(a.draft.subject||a.draft.title)}&body=${encodeURIComponent(a.draft.text)}">Email</a>`:''}</div></div>`;
   if (a.opportunity && a.opportunity.client) html += `<div class="aiact"><div class="hint"><b>${esc(a.opportunity.client)}</b> — ${esc(a.opportunity.text||'')}${a.opportunity.stage?` <span class="badge B">${esc(a.opportunity.stage)}</span>`:''}</div><button type="button" class="btn sm primary" data-opp="${i}">Add to opportunities</button></div>`;
   return html;
@@ -2471,24 +2542,32 @@ async function aiAddOpportunity(i){
 function aiApplyRange(r){ if (!r) return; if (r.preset && r.preset!=='custom') setRange(r.preset); else if (r.from && r.to) setRange('custom', r.from, r.to); ui.tab='dash'; localStorage.setItem('vi.tab','dash'); render(); toast(`Dashboard set to ${rangeLabel()}`); }
 function renderAi(){
   const box = $('#aiMsgs');
-  box.innerHTML = ai.msgs.map((m,i) => m.role==='user'
-    ? `<div class="msg u">${esc(m.content)}</div>`
-    : `<div class="msg a" ${isUrdu(m.content)?'dir="rtl"':''}>${mdLite(m.content)}${m.done ? '' : actionCard(m, i)}${'speechSynthesis' in window && m.content ? `<button class="tts" data-tts="${i}">🔊</button>` : ''}</div>`).join('')
-    + (ai.busy ? '<div class="msg a typing"><span></span><span></span><span></span></div>' : '');
+  box.innerHTML = (ai.msgs.length ? '' : aiWelcome()) + ai.msgs.map((m,i) => m.role==='user'
+    ? `<div class="mrow u"><div class="msg u">${esc(m.content)}</div></div>`
+    : `<div class="mrow a"><span class="mav" aria-hidden="true">✦</span><div class="mcol"><div class="msg a" ${isUrdu(m.content)?'dir="rtl"':''}>${mdLite(m.content)}${m.done ? '' : actionCard(m, i)}</div><div class="mtools">${'speechSynthesis' in window && m.content ? `<button type="button" data-tts="${i}" title="Read aloud">🔊 Listen</button>` : ''}<button type="button" data-cp="${i}" title="Copy">⧉ Copy</button></div></div></div>`).join('')
+    + (ai.busy ? '<div class="mrow a"><span class="mav">✦</span><div class="msg a typing"><span></span><span></span><span></span></div></div>' : '');
+  $$('button[data-cp]', box).forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText(ai.msgs[+b.dataset.cp].content); toast('Copied'); } catch(e) { toast('Select the text and copy it'); } });
+  $$('button[data-start]', box).forEach(b => b.onclick = () => { const x = AI_STARTS[+b.dataset.start]; if (x.run === 'import') { aiCloseFn(); importDialog(); return; } aiSend(x.prompt); });
+  $$('button[data-quick]', box).forEach(b => b.onclick = () => aiSend(b.dataset.quick));
   $$('button[data-tts]', box).forEach(b => b.onclick = () => speak(ai.msgs[+b.dataset.tts].content));
   $$('button[data-save]', box).forEach(b => b.onclick = () => aiSaveLog(+b.dataset.save));
   $$('button[data-act]', box).forEach(b => b.onclick = () => { const m = ai.msgs[+b.dataset.act]; form = {ae: ui.me, editId:null, lines: linesFromAction(m.action.log), results:null, kmByDate:{}}; m.done = true; ui.tab='log'; localStorage.setItem('vi.tab','log'); render(); aiCloseFn(); window.scrollTo({top:0}); });
   $$('button[data-copy]', box).forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText(ai.msgs[+b.dataset.copy].action.draft.text); toast('Copied'); } catch(e) { toast('Select the text and copy it'); } });
   $$('button[data-opp]', box).forEach(b => b.onclick = () => aiAddOpportunity(+b.dataset.opp));
-  $('#aiChips').innerHTML = ai.busy || !aiReady() ? '' : AI_CHIPS.map(c => `<button type="button">${esc(c)}</button>`).join('');
+  $('#aiChips').innerHTML = !ai.msgs.length || ai.busy || !aiReady() ? '' : AI_QUICK.slice(0, 3).map(c => `<button type="button">${esc(c)}</button>`).join('');
   $$('#aiChips button').forEach(b => b.onclick = () => aiSend(b.textContent));
-  box.scrollTop = box.scrollHeight;
-  $('#aiStatus').innerHTML = aiReady() ? '<span class="odot"></span>Online · your TMC sidekick' : (ui.demo ? 'Preview — switched off' : 'Waiting for the Gemini key');
+  box.scrollTop = ai.msgs.length ? box.scrollHeight : 0;   // a fresh chat starts at the greeting
+  $('#aiStatus').innerHTML = ai.busy ? '<span class="odot"></span>Thinking…' : aiReady() ? '<span class="odot"></span>Online' : (ui.demo ? 'Preview — switched off' : 'Waiting for the Gemini key');
   $('#aiIn').disabled = !aiReady(); $('#aiMic').disabled = !aiReady(); $('#aiSend').disabled = !aiReady();
 }
 async function aiSend(text, opts={}){
   text = String(text||'').trim(); if (!text || ai.busy || !aiReady()) return;
   ai.msgs.push({role:'user', content:text, voice: opts.voice || null}); $('#aiIn').value = ''; autoGrow($('#aiIn'));
+  if (looksLikeVisitRows(text)) {
+    const n = rowsFromPaste(text).length;
+    ai.msgs.push({role:'assistant', content:`That’s a list of about ${n} visits — I’ve opened the upload preview so you can check every row before anything is saved. Tap **Save** there when it looks right.`});
+    renderAi(); aiCloseFn(); importFromText(text); return;
+  }
   ai.busy = true; renderAi();
   let reply = '';
   try {
@@ -2496,7 +2575,11 @@ async function aiSend(text, opts={}){
     const r = await callApi({action:'ask', messages: turns, range:{from:ui.range.from, to:ui.range.to}, city: ui.city, me: ui.me, today: todayIso()});
     reply = String(r.reply || '').trim();
     const parsed = aiParse(reply);
-    const msg = {role:'assistant', content: parsed.text || (parsed.action ? 'Here you go.' : 'Sorry, I lost my train of thought — say that again?'), action: parsed.action || null, voice: opts.voice || null};
+    let said = parsed.text || (parsed.action ? 'Here you go.' : 'Sorry, I lost my train of thought — say that again?');
+    // the app is the only thing that saves: if Go claims it saved without a Save card, say so plainly
+    if (!(parsed.action && Array.isArray(parsed.action.log) && parsed.action.log.length) && /\b(saved|logged|recorded|updated|added)\b.*\bvisits?\b|\bvisits?\b.*\b(saved|logged|recorded|updated|added)\b/i.test(said))
+      said += '\n\n_Nothing was saved from this message. To record many visits, paste the rows here or use **⤒ Upload Excel** on the Log tab._';
+    const msg = {role:'assistant', content: said, action: parsed.action || null, voice: opts.voice || null};
     ai.msgs.push(msg);
     if (parsed.action && parsed.action.range) aiApplyRange(parsed.action.range);
     if (parsed.action && parsed.action.save) {
@@ -2606,7 +2689,7 @@ function autoGrow(el){ el.style.height = 'auto'; el.style.height = Math.min(120,
 function initAi(){
   $('#aiFab').onclick = () => ai.open ? aiCloseFn() : aiOpen();
   $('#aiClose').onclick = aiCloseFn;
-  $('#aiClear').onclick = () => { ai.msgs = []; aiGreet(); renderAi(); };
+  $('#aiClear').onclick = () => { ai.msgs = []; stopSpeaking(); renderAi(); $('#aiIn').focus(); };
   $('#aiSend').onclick = () => aiSend($('#aiIn').value);
   $('#aiIn').addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); aiSend(e.target.value); } });
   $('#aiIn').addEventListener('input', e => autoGrow(e.target));
@@ -2665,15 +2748,18 @@ function importTemplate(){
   const csv = '\uFEFF' + rows.map(r => r.map(x => /[",\n]/.test(x) ? `"${String(x).replace(/"/g,'""')}"` : x).join(',')).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'TMC Go visits template.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
+function importFromText(text){ importDialog(); const d = $('.imp-paste'); if (d) d.open = true; $('#impText').value = text; importPreviewRows(rowsFromPaste(text)); }
 function importDialog(){
   openModal('Upload visits from Excel', `
     <div class="imp">
       <p>One row per visit. Columns: <b>Date</b>, <b>Client</b>, and optionally <b>Purpose</b>${isMgr() ? ', <b>Order</b> and <b>AE</b> (admins can upload for anyone)' : ' and <b>Order</b>'}. Visits on the same day are routed in the order of the rows (or the Order column).</p>
       <label class="dropzone" id="impDrop"><input type="file" id="impFile" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"><span class="dz-i">⤒</span><b>Choose an Excel or CSV file</b><small>or drop it here · up to ${IMPORT_MAX} rows</small></label>
       <button type="button" class="si-link" id="impTpl">Download a template</button>
+      <details class="imp-paste"><summary>…or paste rows instead</summary><textarea id="impText" rows="5" placeholder="13/10/2026	Ghani Glass	SAP&#10;13/10/2026	Dawn Foods	Follow-up"></textarea><button type="button" class="btn sm" id="impTextGo">Preview</button></details>
       <div id="impOut"></div>
     </div>`, null, 'Close');
   $('#impTpl').onclick = importTemplate;
+  $('#impTextGo').onclick = () => { const v = $('#impText').value; if (!v.trim()) return; importPreviewRows(rowsFromPaste(v)); };
   const take = f => { if (f) importPreview(f); };
   $('#impFile').onchange = e => take(e.target.files && e.target.files[0]);
   const dz = $('#impDrop');
@@ -2683,7 +2769,23 @@ function importDialog(){
 async function importPreview(file){
   const out = $('#impOut'); out.innerHTML = '<p class="hint">Reading the file…</p>';
   let rows; try { rows = await readSheetRows(file); } catch(e) { out.innerHTML = `<div class="banner err">${esc(e.message || 'That file could not be read.')}</div>`; return; }
-  const hd = importHeader(rows);
+  importPreviewRows(rows);
+}
+// Rows copied from Excel / WhatsApp / a document: tab, comma or wide-space separated; header optional.
+function rowsFromPaste(text){
+  const lines = String(text||'').replace(/\r/g,'').split('\n').map(l => l.trim()).filter(Boolean);
+  const sep = lines.some(l => l.includes('\t')) ? '\t' : null;
+  return lines.map(l => sep ? l.split('\t') : (l.includes(',') ? parseCsv(l)[0] || [l] : l.split(/\s{2,}|\s+[-–|]\s+/)));
+}
+function looksLikeVisitRows(text){
+  const lines = String(text||'').split('\n').map(l => l.trim()).filter(Boolean);
+  const dated = lines.filter(l => importDate((l.split(/\t|,|\s{2,}|\s+[-–|]\s+/)[0]||'').trim()));
+  return dated.length >= 4 && dated.length >= lines.length * 0.6;
+}
+function importPreviewRows(rows){
+  const out = $('#impOut');
+  let hd = importHeader(rows);
+  if (!hd && rows.length && importDate(rows[0][0])) hd = {row: -1, col: {date: 0, client: 1, purpose: rows.some(r => r.length > 2) ? 2 : undefined}};   // no header: Date, Client, Purpose
   if (!hd) { out.innerHTML = `<div class="banner err">I couldn’t find a <b>Date</b> and a <b>Client</b> column in the first rows. <a href="#" id="impTpl2">Download the template</a> to see the layout.</div>`; $('#impTpl2').onclick = e => { e.preventDefault(); importTemplate(); }; return; }
   const body = rows.slice(hd.row + 1).slice(0, IMPORT_MAX), c = hd.col, items = [], bad = [];
   const team = new Map(activeAEs().map(a => [norm(a.name), a.name]));
