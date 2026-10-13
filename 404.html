@@ -583,6 +583,8 @@ section.enter{animation:viewin .22s ease both}
 .dz-i{font-size:26px;color:#4252E8;line-height:1}
 .dropzone small{color:var(--muted)}
 .imp .si-link{margin:8px 0 0}
+.rl2{font-size:11px;opacity:.8;margin-top:1px}
+.uchip .uneed{font-size:10.5px;color:var(--muted);font-weight:500}
 .dc h4{margin:16px 0 8px;font-size:14px}
 .dc-m td,.dc-m th{padding:8px 10px}
 .dc-m .dc-empty td{color:var(--muted);background:#FFFBEB}
@@ -974,7 +976,7 @@ tr.aerow.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-13 12:17 · production';
+const BUILD = '2026-10-13 12:42 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -1353,6 +1355,7 @@ function trackedAEs(){
 }
 function aesInCity(){ return trackedAEs().filter(a => !ui.city || String(a.city).includes(ui.city)); }
 function aesInScope(){ return aesInCity().filter(a => !ui.aeSel.size || ui.aeSel.has(a.name)); }
+function monthRange(){ const end = monthEnd(ui.month), today = todayIso(); return {from: ui.month + '-01', to: end > today ? today : end}; }
 function visitsInMonth(){ return data.visits.filter(v => monthOf(v.date) === ui.month && (!ui.city || (aeByName(v.ae)||{}).city && String((aeByName(v.ae)||{}).city).includes(ui.city) || v.city === ui.city)); }
 function assignedFor(ae, asOf){ // the AE's book: tiers A/B/C (+ net-new not yet tiered), as of a date — each account once
   const end = asOf || monthEnd(ui.month), rank = t => ({A:0, B:1, C:2}[t] ?? 3), seen = new Map();
@@ -1371,6 +1374,63 @@ function resolveAccount(ae, name){
 function ownerOf(accountName){ const a = resolveAccount('', accountName); return a ? a.ae : ''; }
 function accountRow(ae, name){ return resolveAccount(ae, name); }
 
+/* Visit coverage rules — calendar periods, judged account by account:
+ *   A: at least 1 visit every calendar month      B: at least 2 visits every calendar quarter
+ *   C: at least 1 visit every calendar quarter
+ * For a selected date range, every calendar month (A) / quarter (B, C) that overlaps it is one requirement per account.
+ * Qualifying visit = a visit by the account's own AE, dated today or earlier, to that account (any spelling/alias);
+ * the same account twice on the same day counts once. An account added part-way through a period starts counting
+ * from the next full period. The account's current category is used for every period. */
+const COVER = {A:{per:'month', need:1, rule:'1 visit every month'}, B:{per:'quarter', need:2, rule:'2 visits every quarter'}, C:{per:'quarter', need:1, rule:'1 visit every quarter'}};
+const isoD = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+function periodOf(per, iso){
+  const y = +iso.slice(0,4), m = +iso.slice(5,7) - 1;
+  if (per === 'month') { const s = new Date(y, m, 1), e = new Date(y, m + 1, 0); return {per, start: isoD(s), end: isoD(e), key: iso.slice(0,7), label: `${MONTHS[m]} ${y}`, short: MONTHS_LONG[m]}; }
+  const q = Math.floor(m / 3), s = new Date(y, q * 3, 1), e = new Date(y, q * 3 + 3, 0);
+  return {per, start: isoD(s), end: isoD(e), key: `${y}-Q${q+1}`, label: `Q${q+1} ${y} (${MONTHS[q*3]}–${MONTHS[q*3+2]})`, short: `Q${q+1}`};
+}
+function periodsBetween(per, from, to){
+  const out = []; let p = periodOf(per, from);
+  while (p.start <= to) { out.push(p); const n = new Date(+p.end.slice(0,4), +p.end.slice(5,7) - 1, +p.end.slice(8) + 1); p = periodOf(per, isoD(n)); }
+  return out;
+}
+// For each AE: account (normalised name of its book entry) → set of distinct visit dates. Built once per render.
+const _covIndex = new Map();
+function visitDatesFor(ae){
+  if (_covIndex.has(ae)) return _covIndex.get(ae);
+  const idx = new Map(), today = todayIso();
+  data.visits.forEach(v => {
+    if (v.ae !== ae || !v.date || v.date > today) return;
+    splitAccts(v.accounts).forEach(n => { const r = accountRow(ae, n); if (!r) return; const k = norm(r.account); if (!idx.has(k)) idx.set(k, new Set()); idx.get(k).add(v.date); });
+  });
+  _covIndex.set(ae, idx); return idx;
+}
+function coverageFor(ae, from, to){
+  const today = todayIso(), end = to > today ? today : to, idx = visitDatesFor(ae);
+  const book = assignedFor(ae, '9999-12-31').filter(a => TIERS.includes(a.tier));
+  const tiers = {}; TIERS.forEach(tr => tiers[tr] = {due:0, met:0, needed:0, done:0, accounts:0, pct:null});
+  const accts = [];
+  book.forEach(a => {
+    const rule = COVER[a.tier], dates = idx.get(norm(a.account)) || new Set();
+    const wins = periodsBetween(rule.per, from, end).filter(w => !a.addedOn || a.addedOn <= w.start).map(w => {
+      let got = 0; dates.forEach(d => { if (d >= w.start && d <= w.end && d <= today) got++; });
+      return {...w, need: rule.need, got, met: got >= rule.need, open: w.end >= today};
+    });
+    if (!wins.length) return;                      // new account: counts from its first full period
+    const T = tiers[a.tier]; T.accounts++;
+    wins.forEach(w => { T.due++; if (w.met) T.met++; T.done += Math.min(w.got, w.need); T.needed += Math.max(0, w.need - w.got); });
+    const cur = wins[wins.length - 1];             // the period containing the end of the range (today for current views)
+    accts.push({a, tier: a.tier, rule: rule.rule, wins, cur, ok: wins.every(w => w.met), still: Math.max(0, cur.need - cur.got)});
+  });
+  TIERS.forEach(tr => tiers[tr].pct = pct(tiers[tr].met, tiers[tr].due));
+  const sum = f => TIERS.reduce((s, tr) => s + tiers[tr][f], 0);
+  const overall = {due: sum('due'), met: sum('met'), needed: sum('needed'), done: sum('done')}; overall.pct = pct(overall.met, overall.due);
+  // what to do now: accounts whose current period still needs visits, A first
+  const dueNow = accts.filter(x => x.still > 0 && x.cur.open).sort((x, y) => x.tier.localeCompare(y.tier) || y.still - x.still || x.a.account.localeCompare(y.a.account));
+  const missed = accts.filter(x => x.wins.some(w => !w.met && !w.open));
+  return {tiers, overall, accts, dueNow, missed};
+}
+const needText = x => x.cur.got && x.cur.need > 1 ? `${x.cur.got} of ${x.cur.need} this quarter` : x.tier === 'A' ? `due this month` : x.still === 2 ? `2 visits due this quarter` : `due this quarter`;
 function statsFor(ae, mv, asOf){
   const mine = mv.filter(v => v.ae === ae);
   const counts = {}; // account name -> visits by this AE in the period
@@ -1379,18 +1439,18 @@ function statsFor(ae, mv, asOf){
   // a visit belongs to a book entry when it resolves to that account (any duplicate row of it, any spelling or alias)
   const visitsOf = a => { let tot = 0; const k = norm(a.account); Object.keys(counts).forEach(n => { const r = accountRow(ae, n); if (r && (r.id === a.id || norm(r.account) === k)) tot += counts[n]; }); return tot; };
   const distinct = new Set(Object.keys(counts).map(n => { const r = accountRow(ae, n) || accountRow('', n); return r ? 'a|' + norm(r.account) : 'n|' + norm(n); }));
-  const tiers = {};
-  TIERS.forEach(t => { const as = book.filter(a=>a.tier===t); const vz = as.filter(a=>visitsOf(a)>0); tiers[t] = {assigned:as.length, visited:vz.length, pct:pct(vz.length,as.length)}; });
-  const tiered = book.filter(a=>TIERS.includes(a.tier));
-  const tieredV = tiered.filter(a=>visitsOf(a)>0);
+  const range = arguments[3] || {from: ui.range.from, to: asOf || ui.range.to};
+  const cov = coverageFor(ae, range.from, range.to);
+  const tiers = {}; TIERS.forEach(t => { const c = cov.tiers[t]; tiers[t] = {assigned: c.due, visited: c.met, pct: c.pct, needed: c.needed, accounts: c.accounts}; });
   const nn = book.filter(a=>a.netNew==='Y' && visitsOf(a)>0);
   const other = Object.keys(counts).filter(n => !book.some(a=>norm(a.account)===norm(n)));
   const info = aeByName(ae) || {};
   const measured = String(info.coverageMeasured||'Y').toUpperCase() !== 'N';
   return {
     ae, info, measured, tiers,
-    overall: {assigned: tiered.length, visited: tieredV.length, pct: pct(tieredV.length, tiered.length)},
-    notVisited: tiered.length - tieredV.length,
+    overall: {assigned: cov.overall.due, visited: cov.overall.met, pct: cov.overall.pct, needed: cov.overall.needed},
+    notVisited: cov.overall.due - cov.overall.met,
+    cov,
     netNew: {accounts: nn.length, visits: nn.reduce((s,a)=>s+visitsOf(a),0)},
     totalAccounts: distinct.size,
     totalVisits: mine.reduce((s,v)=>s+splitAccts(v.accounts).length,0),
@@ -1406,9 +1466,9 @@ function teamStats(){
   const measured = rows.filter(r=>r.measured);
   const sum = (arr, f) => arr.reduce((s,r)=>s+f(r),0);
   const total = { tiers:{}, measuredCount: measured.length };
-  TIERS.forEach(t => { const as=sum(measured,r=>r.tiers[t].assigned), vz=sum(measured,r=>r.tiers[t].visited); total.tiers[t]={assigned:as, visited:vz, pct:pct(vz,as)}; });
+  TIERS.forEach(t => { const as=sum(measured,r=>r.tiers[t].assigned), vz=sum(measured,r=>r.tiers[t].visited); total.tiers[t]={assigned:as, visited:vz, pct:pct(vz,as), needed:sum(measured,r=>r.tiers[t].needed||0)}; });
   const oa=sum(measured,r=>r.overall.assigned), ov=sum(measured,r=>r.overall.visited);
-  total.overall={assigned:oa, visited:ov, pct:pct(ov,oa)};
+  total.overall={assigned:oa, visited:ov, pct:pct(ov,oa), needed:sum(measured,r=>r.overall.needed||0)};
   total.netNew={accounts:sum(rows,r=>r.netNew.accounts), visits:sum(rows,r=>r.netNew.visits)};
   total.totalAccounts=sum(rows,r=>r.totalAccounts); total.totalVisits=sum(rows,r=>r.totalVisits); total.km=sum(rows,r=>r.km);
   return {rows, total, mv};
@@ -1427,7 +1487,7 @@ function countUpNumbers(root){
   });
 }
 function render(){
-  _resolveCache.clear();
+  _resolveCache.clear(); _covIndex.clear();
 
   $$('#tabbar button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
   $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab===ui.tab));
@@ -1910,7 +1970,7 @@ function learnAlias(typed, account, ae){
 // A small celebration when a save completes the A list for the month (once per month per device).
 function milestoneCheck(){
   try {
-    const s = statsFor(ui.me, visitsInMonth()); if (!s.measured || !s.tiers.A.assigned) return;
+    const s = statsFor(ui.me, visitsInMonth(), null, monthRange()); if (!s.measured || !s.tiers.A.assigned) return;
     const key = 'vi.ms.A.' + ui.me + '.' + ui.month;
     if (s.tiers.A.visited === s.tiers.A.assigned && !localStorage.getItem(key)) { localStorage.setItem(key, '1'); setTimeout(() => toast(`🎉 Every A account visited this month — ${s.tiers.A.assigned} of ${s.tiers.A.assigned}. Shabash!`), 1200); }
   } catch(e){}
@@ -2023,17 +2083,19 @@ function removeLocal(tab, id){ const i = data[tab].findIndex(r=>r.id===id); if(i
 
 function renderMyMonth(){
   const el = $('#myMonth'); if(!el) return;
-  const mv = visitsInMonth(); const s = statsFor(ui.me, mv);
+  const mv = visitsInMonth(); const s = statsFor(ui.me, mv, null, monthRange());
   const mine = mv.filter(v=>v.ae===ui.me).sort((a,b)=>b.date.localeCompare(a.date));
-  const notV = s.book.filter(a=>TIERS.includes(a.tier) && s.visitsOf(a)===0).sort((a,b)=>a.tier.localeCompare(b.tier));
+  // accounts whose rule isn't met yet for this period (A: this month · B/C: this quarter), A first
+  const notV = s.cov.accts.filter(x => !x.cur.met).sort((x,y) => x.tier.localeCompare(y.tier) || y.still - x.still || x.a.account.localeCompare(y.a.account)).map(x => Object.assign({}, x.a, {_need: x}));
+  const curOpen = monthRange().to === todayIso();
   el.innerHTML = `
     <div class="kpis" style="margin-bottom:14px">
       <div class="kpi k-blue"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><div class="l">Visits</div><div class="v">${s.totalVisits}</div><div class="d">${s.totalAccounts} client${s.totalAccounts===1?'':'s'}</div></div>
-      <div class="kpi k-green"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 9 9h-9z" fill="currentColor" stroke="none" opacity=".35"/></svg></span><div class="l">Coverage</div><div class="v">${s.measured ? (s.overall.pct??0)+'%' : '—'}</div><div class="d">${s.measured ? `${s.overall.visited} of ${s.overall.assigned} assigned` : 'No fixed assignment'}</div></div>
+      <div class="kpi k-green"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 9 9h-9z" fill="currentColor" stroke="none" opacity=".35"/></svg></span><div class="l">Coverage</div><div class="v">${s.measured ? (s.overall.pct??0)+'%' : '—'}</div><div class="d">${s.measured ? `${s.overall.visited} of ${s.overall.assigned} on track` : 'No fixed assignment'}</div></div>
       <div class="kpi k-purple"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><div class="l">Net new</div><div class="v">${s.netNew.accounts}</div><div class="d">${s.netNew.visits} visits</div></div>
       <div class="kpi k-amber"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/></svg></span><div class="l">Kilometres</div><div class="v">${num(s.km)}</div><div class="d">${mine.length} day${mine.length===1?'':'s'} logged</div></div>
     </div>
-    ${notV.length && !$('#untouchedSlot') ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>Not yet visited</b><span class="ut-n">${notV.length}</span></span><span class="hint ut-h">tap a client to add it to today</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,14).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="Add ${esc(a.account)} as a visit">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span></button>`).join('')}${notV.length>14?`<span class="hint">and ${notV.length-14} more</span>`:''}</div></details>`:''}
+    ${notV.length && !$('#untouchedSlot') ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>Still due</b><span class="ut-n">${notV.length}</span></span><span class="hint ut-h">tap a client to add it to today</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,14).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="Add ${esc(a.account)} as a visit">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span></button>`).join('')}${notV.length>14?`<span class="hint">and ${notV.length-14} more</span>`:''}</div></details>`:''}
     <div class="feed">${mine.map(v => { const det = v.count ? dayDetails(v) : []; return `<article class="post${v.id===form.editId?' hi':''}" data-day="${v.date}">
       <div class="ph"><span class="pdate"><b>${fmtDate(v.date)}</b><span>${dayName(v.date)}</span></span><span class="pmeta">${v.count} visit${v.count===1?'':'s'}${v.km!=='' && v.count ? ` · <b>${num(v.km)} km</b>` : ''}${v.kmMode==='pending'?' · <span class="badge pend">km pending</span>':''}</span></div>
       ${v.note ? `<div class="mnote" style="margin:0 14px 6px">📝 ${esc(v.note)}</div>` : ''}
@@ -2050,7 +2112,7 @@ function renderMyMonth(){
   wireRowActions(el); countUpNumbers(el);
   // the "not yet visited" list sits under the log form, where tapping a client adds it
   const slot = $('#untouchedSlot');
-  if (slot) { slot.innerHTML = notV.length ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>Not yet visited this month</b><span class="ut-n">${notV.length}</span></span><span class="hint ut-h">tap a client to add it</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,40).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="Add ${esc(a.account)} as a visit">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span></button>`).join('')}${notV.length>40?`<span class="hint">and ${notV.length-40} more</span>`:''}</div></details>` : `<div class="allclear">✓ Every account in your book has a visit this month</div>`; wireRowActions(slot); }
+  if (slot) { slot.innerHTML = notV.length ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>${curOpen ? 'Still due' : 'Missed in ' + MONTHS_LONG[+ui.month.slice(5)-1]}</b><span class="ut-n">${notV.length}</span></span><span class="hint ut-h">${curOpen ? 'A: every month · B: 2× a quarter · C: every quarter' : 'rule not met'}</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,40).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="${esc(a._need.rule)} — ${esc(needText(a._need))}">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span><small class="uneed">${esc(curOpen ? needText(a._need) : (a._need.cur.got + ' of ' + a._need.cur.need))}</small></button>`).join('')}${notV.length>40?`<span class="hint">and ${notV.length-40} more</span>`:''}</div></details>` : `<div class="allclear">✓ Every account is on track — A this month, B and C this quarter</div>`; wireRowActions(slot); }
 }
 function wireRowActions(el){
   $$('details.untouched', el).forEach(d => d.ontoggle = () => { try { localStorage.setItem('vi.untouchedOpen', d.open ? '1' : '0'); } catch(e){} });
@@ -2124,7 +2186,7 @@ function renderDash(){
   <div class="hero">
     <div class="card gauge">
       <div class="gl">Team coverage</div>
-      <div class="ring"><canvas id="cGauge"></canvas><div class="rc"><div class="rv">${total.overall.pct??0}%</div><div class="rl">${total.overall.visited} of ${total.overall.assigned}</div></div></div>
+      <div class="ring"><canvas id="cGauge"></canvas><div class="rc"><div class="rv">${total.overall.pct??0}%</div><div class="rl">${total.overall.visited} of ${total.overall.assigned}</div><div class="rl2">on track</div></div></div>
       <div class="gsub">${rangeLabel()} · ${cityTxt}${ui.aeSel.size?` · ${ui.aeSel.size} AE${ui.aeSel.size===1?'':'s'}`:''}</div>
       <div class="tiers">${TIERS.map(tr=>`<div><span class="badge ${tr}">${tr}</span><b>${total.tiers[tr].pct??0}%</b><span class="hint">${total.tiers[tr].visited}/${total.tiers[tr].assigned}</span></div>`).join('')}</div>
     </div>
@@ -2133,17 +2195,17 @@ function renderDash(){
       <div class="kpi k-blue"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6"/></svg></span><div class="l">Accounts visited</div><div class="v">${total.totalAccounts}</div><div class="d">incl. net new &amp; shared</div></div>
       <div class="kpi k-purple"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><div class="l">Net new accounts</div><div class="v">${total.netNew.accounts}</div><div class="d">${total.netNew.visits} visit${total.netNew.visits===1?'':'s'}</div></div>
       <div class="kpi k-amber"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/></svg></span><div class="l">Kilometres</div><div class="v">${num(total.km,0)}</div><div class="d">${total.totalVisits? num(total.km/total.totalVisits,1):0} km per visit</div></div>
-      <div class="kpi k-rose"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div class="l">Not yet visited</div><div class="v">${total.overall.assigned-total.overall.visited}</div><div class="d">of ${total.overall.assigned} assigned</div></div>
+      <div class="kpi k-rose"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div class="l">Still due</div><div class="v">${total.overall.assigned-total.overall.visited}</div><div class="d">${total.overall.needed} visit${total.overall.needed===1?'':'s'} still needed</div></div>
       <div class="kpi lead k-amber"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span><div class="l">Most visits</div>${leader.length ? `<ol>${leader.map((r,i)=>`<li><span class="rk">${['🥇','🥈','🥉'][i]}</span>${avatar(r.ae, 22)}<span class="nm">${esc(shortName(r.ae))}</span><b>${r.totalVisits}</b></li>`).join('')}</ol>` : '<div class="hint">No visits yet</div>'}</div>
     </div>
   </div>
 
   <div class="card">
-    <div class="head"><h2>Category performance</h2><span class="sub">Accounts visited vs assigned · ${rangeLabel()}</span><span class="spacer"></span>
+    <div class="head"><h2>Category performance</h2><span class="sub">Accounts meeting their rule · A: 1 visit every month · B: 2 every quarter · C: 1 every quarter · ${rangeLabel()}</span><span class="spacer"></span>
       <div class="legend"><span><i style="background:#DCFCE7"></i>≥70%</span><span><i style="background:#FEF3C7"></i>40–69%</span><span><i style="background:#FEE2E2"></i>&lt;40%</span></div></div>
     <div class="tw"><table class="cov"><thead>
       <tr><th rowspan="2">AE</th><th rowspan="2">City</th><th class="grp" colspan="3">A category</th><th class="grp" colspan="3">B category</th><th class="grp" colspan="3">C category</th><th class="grp" colspan="4">Overall</th><th class="grp" colspan="2">New accounts</th><th class="grp num" rowspan="2">Accts visited<br><span style="font-weight:500">incl. net new</span></th><th class="num" rowspan="2">Visits</th><th class="num" rowspan="2">KM</th><th rowspan="2">Notes</th></tr>
-      <tr>${['Asg','Vis','%','Asg','Vis','%','Asg','Vis','%','Asg','Vis','%'].map((h,i)=>`<th class="num${i%3===0?' gl':''}">${h}</th>`).join('')}<th></th><th class="num gl">Accts</th><th class="num">Visits</th></tr>
+      <tr>${['Due','Met','%','Due','Met','%','Due','Met','%','Due','Met','%'].map((h,i)=>`<th class="num${i%3===0?' gl':''}" title="${['Due: account requirements in the selected months/quarters','Met: requirements fulfilled','% met'][i%3]}">${h}</th>`).join('')}<th></th><th class="num gl">Accts</th><th class="num">Visits</th></tr>
     </thead><tbody>
       ${rows.map(r => `<tr class="aerow${ui.aeSel.has(r.ae)?' sel':''}" data-aerow="${esc(r.ae)}" title="Click to focus on ${esc(shortName(r.ae))}">
         <td><span class="nm">${avatar(r.ae, 24)}<b>${esc(r.ae)}</b></span></td><td>${esc(r.info.city||'')}</td>
@@ -2159,8 +2221,8 @@ function renderDash(){
         <td class="num gl">${total.totalAccounts}</td><td class="num">${total.totalVisits}</td><td class="num">${num(total.km)}</td><td></td></tr>
     </tbody></table></div>
     ${rows.length ? '' : `<div class="empty"><svg class="eart" viewBox="0 0 120 80" aria-hidden="true"><rect x="14" y="16" width="92" height="52" rx="12" fill="#E0E7FF"/><rect x="60" y="16" width="46" height="52" rx="12" fill="#EDE4FE" opacity=".8"/><path d="M30 56l14-14 10 10 18-20 18 18" fill="none" stroke="#6366F1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="92" cy="22" r="8" fill="#FDE68A"/></svg><b>No AEs in ${cityTxt}</b>Change the city filter or add AEs in the sheet.</div>`}
-    <details class="body" style="padding-top:12px"><summary style="cursor:pointer;font-weight:600;font-size:13px">Accounts not yet visited in this period, by AE</summary>
-      <div class="nv">${measured.map(r => { const nv = r.book.filter(a=>TIERS.includes(a.tier) && r.visitsOf(a)===0).sort((a,b)=>a.tier.localeCompare(b.tier)); return nv.length ? `<div><b>${esc(shortName(r.ae))}</b> <span class="hint">${nv.length}</span><div class="hint" style="margin-top:2px">${nv.map(a=>`${esc(a.account)} <span class="badge ${a.tier}">${a.tier}</span>`).join(', ')}</div></div>` : ''; }).join('')}</div>
+    <details class="body" style="padding-top:12px"><summary style="cursor:pointer;font-weight:600;font-size:13px">Still due, by AE (A this month · B and C this quarter)</summary>
+      <div class="nv">${measured.map(r => { const nv = r.cov.accts.filter(x => !x.cur.met).sort((x,y)=>x.tier.localeCompare(y.tier)||x.a.account.localeCompare(y.a.account)).map(x => Object.assign({}, x.a, {_need:x})); return nv.length ? `<div><b>${esc(shortName(r.ae))}</b> <span class="hint">${nv.length}</span><div class="hint" style="margin-top:2px">${nv.map(a=>`${esc(a.account)} <span class="badge ${a.tier}">${a.tier}</span>`).join(', ')}</div></div>` : ''; }).join('')}</div>
     </details>
   </div>
 
@@ -2172,7 +2234,7 @@ function renderDash(){
     <div class="card chart tall"><div class="ch"><h3>Category coverage by AE</h3><p>% of A / B / C accounts visited</p></div><div class="cv"><canvas id="c5"></canvas></div></div>
     <div class="card chart tall"><div class="ch"><h3>Kilometres by AE</h3><p>Road distance, office to office</p></div><div class="cv"><canvas id="c6"></canvas></div></div>
     <div class="card chart"><div class="ch"><h3>Net-new accounts by AE</h3><p>Accounts outside the book that were visited</p></div><div class="cv"><canvas id="c7"></canvas></div></div>
-    <div class="card chart"><div class="ch"><h3>Coverage by city</h3><p>Visited vs assigned</p></div><div class="cv"><canvas id="c8"></canvas></div></div>
+    <div class="card chart"><div class="ch"><h3>Coverage by city</h3><p>On track vs still due</p></div><div class="cv"><canvas id="c8"></canvas></div></div>
   </div>`;
   drawCharts(rows, total, mv, {byDay, days, catCount});
   countUpNumbers(el);
@@ -2220,10 +2282,10 @@ function renderDrill(el, rows, mv){
   if (ui.aeSel.size !== 1) return;
   const ae = [...ui.aeSel][0]; const r = rows.find(x=>x.ae===ae); if (!r) return;
   const days = mv.filter(v=>v.ae===ae).sort((a,b)=>b.date.localeCompare(a.date));
-  const notV = r.book.filter(a=>TIERS.includes(a.tier) && r.visitsOf(a)===0).sort((a,b)=>a.tier.localeCompare(b.tier));
+  const notV = r.cov.accts.filter(x => !x.cur.met).sort((x,y)=>x.tier.localeCompare(y.tier)||x.a.account.localeCompare(y.a.account)).map(x => Object.assign({}, x.a, {_need:x}));
   const d = document.createElement('div'); d.className='card';
   d.innerHTML = `<div class="head"><h2>${esc(ae)} — day by day</h2><span class="sub">${rangeLabel()} · ${days.length} days · ${r.totalVisits} visits · ${num(r.km)} km</span></div>
-    ${notV.length ? `<div class="body" style="padding-bottom:0"><div class="hint"><b>Not yet visited (${notV.length}):</b> ${notV.map(a=>`${esc(a.account)} <span class="badge ${a.tier}">${a.tier}</span>`).join(', ')}</div></div>` : ''}
+    ${notV.length ? `<div class="body" style="padding-bottom:0"><div class="hint"><b>Still due (${notV.length}):</b> ${notV.map(a=>`${esc(a.account)} <span class="badge ${a.tier}">${a.tier}</span>${a._need && a._need.cur.need > 1 ? ` <span class="hint">${a._need.cur.got}/${a._need.cur.need}</span>` : ''}`).join(', ')}</div></div>` : ''}
     <div class="tw"><table class="daytbl"><thead><tr><th>Date</th><th>Client visited</th><th>Category</th><th>Opportunity / purpose</th><th class="num">KM (day)</th>${ui.mgr?'<th></th>':''}</tr></thead><tbody>
       ${days.map(v => { const det = v.count ? dayDetails(v) : [{client:'', purpose: v.purpose||'No visits'}]; const n = det.length; return det.map((x,i) => `<tr>${i===0?`<td rowspan="${n}" class="day"><b>${fmtDate(v.date)}</b> <span class="hint">${dayName(v.date)}</span><div class="hint">${v.count} visit${v.count===1?'':'s'}</div>${v.note?`<div class="mnote">📝 ${esc(v.note)}</div>`:''}</td>`:''}<td class="wrap">${x.client ? `<span class="seq sm">${i+1}</span>${esc(x.client)}` : `<span class="badge no">${esc(String(x.purpose).split(' — ')[0])}</span>`}</td><td>${x.client ? catBadge(ae, x.client) : ''}</td><td class="wrap hint">${x.client ? esc(x.purpose||'') : ''}</td>${i===0?`<td rowspan="${n}" class="num day">${kmCell(v)}${v.route?`<div class="hint" style="white-space:normal;font-weight:400;max-width:260px;margin-top:4px">${esc(v.route)}${routeMapLink(v)}</div>`:''}</td>${ui.mgr?`<td rowspan="${n}" class="day"><div class="rowact" style="flex-direction:column;align-items:flex-start"><button data-me="${v.id}">Edit</button><button class="del" data-md="${v.id}">Delete</button></div></td>`:''}`:''}</tr>`).join(''); }).join('') || `<tr><td colspan="${ui.mgr?6:5}" class="empty">No visits this month</td></tr>`}
     </tbody></table></div>`;
@@ -2292,8 +2354,8 @@ function drawCharts(rows, total, mv, x){
   // 1 coverage by AE: stacked horizontal visited / open, sorted by %
   const covRows = meas.slice().sort((a,b)=>(b.overall.pct??0)-(a.overall.pct??0));
   mk('c1', {type:'bar', data:{labels:covRows.map(r=>shortName(r.ae)), datasets:[
-      {label:'Visited', data:covRows.map(r=>r.overall.visited), backgroundColor:grad('#0E9F6E','#34D399',true), borderRadius:{topLeft:6,bottomLeft:6,topRight:0,bottomRight:0}, borderSkipped:false, barThickness:16, datalabels:{display:false}},
-      {label:'Still open', data:covRows.map(r=>r.notVisited), backgroundColor:C.grey, borderRadius:{topRight:6,bottomRight:6,topLeft:0,bottomLeft:0}, borderSkipped:false, barThickness:16, datalabels:dl({formatter:(v,ctx)=>{ const r=covRows[ctx.dataIndex]; return (r.overall.pct??0)+'%'; }})}
+      {label:'On track', data:covRows.map(r=>r.overall.visited), backgroundColor:grad('#0E9F6E','#34D399',true), borderRadius:{topLeft:6,bottomLeft:6,topRight:0,bottomRight:0}, borderSkipped:false, barThickness:16, datalabels:{display:false}},
+      {label:'Still due', data:covRows.map(r=>r.notVisited), backgroundColor:C.grey, borderRadius:{topRight:6,bottomRight:6,topLeft:0,bottomLeft:0}, borderSkipped:false, barThickness:16, datalabels:dl({formatter:(v,ctx)=>{ const r=covRows[ctx.dataIndex]; return (r.overall.pct??0)+'%'; }})}
     ]}, options:hbarOpts({plugins:{legend:legend(true), tooltip:tip, datalabels:{display:true}}, scales:{x:{stacked:true, grid:softGrid, border:{display:false}, beginAtZero:true}, y:{stacked:true, grid:noGrid, border:{display:false}, ticks:{color:C.ink, font:{weight:'500'}}}}})});
 
   // 2 visits by AE
@@ -2330,8 +2392,8 @@ function drawCharts(rows, total, mv, x){
   const cities = {}; meas.forEach(r => { const c = String(r.info.city||'').split('/')[0].trim(); cities[c] = cities[c] || {a:0,v:0}; cities[c].a += r.overall.assigned; cities[c].v += r.overall.visited; });
   const cl = Object.keys(cities);
   mk('c8', {type:'bar', data:{labels:cl, datasets:[
-      {label:'Visited', data:cl.map(c=>cities[c].v), backgroundColor:grad('#0E9F6E','#34D399',true), borderRadius:{topLeft:6,bottomLeft:6}, borderSkipped:false, barThickness:22, datalabels:{display:false}},
-      {label:'Still open', data:cl.map(c=>cities[c].a-cities[c].v), backgroundColor:C.grey, borderRadius:{topRight:6,bottomRight:6}, borderSkipped:false, barThickness:22, datalabels:dl({formatter:(v,ctx)=>{ const c=cities[cl[ctx.dataIndex]]; return (pct(c.v,c.a)??0)+'%'; }})}]},
+      {label:'On track', data:cl.map(c=>cities[c].v), backgroundColor:grad('#0E9F6E','#34D399',true), borderRadius:{topLeft:6,bottomLeft:6}, borderSkipped:false, barThickness:22, datalabels:{display:false}},
+      {label:'Still due', data:cl.map(c=>cities[c].a-cities[c].v), backgroundColor:C.grey, borderRadius:{topRight:6,bottomRight:6}, borderSkipped:false, barThickness:22, datalabels:dl({formatter:(v,ctx)=>{ const c=cities[cl[ctx.dataIndex]]; return (pct(c.v,c.a)??0)+'%'; }})}]},
     options:hbarOpts({plugins:{legend:legend(true), tooltip:tip, datalabels:{display:true}}, scales:{x:{stacked:true, grid:softGrid, border:{display:false}, beginAtZero:true}, y:{stacked:true, grid:noGrid, border:{display:false}, ticks:{color:C.ink, font:{weight:'500'}}}}})});
 }
 
@@ -2912,7 +2974,7 @@ async function dataCheckDialog(){
         <li><b>Visits</b> — every client listed on a day, for the people and dates selected.</li>
         <li><b>Visit days</b> — days with at least one visit, counted per person (two people on the same date = 2). <b>Dates</b> — different calendar dates.</li>
         <li><b>Accounts visited</b> — different accounts each person visited (spellings and aliases of the same account count once).</li>
-        <li><b>Coverage</b> — A/B/C accounts in each person’s book with at least one visit, ÷ all their A/B/C accounts. People marked “no fixed book” and admins without visits are left out.</li>
+        <li><b>Coverage</b> — each account must meet its rule in every calendar period: <b>A</b> 1 visit every month, <b>B</b> 2 visits every quarter, <b>C</b> 1 visit every quarter. Each account × period is one requirement; coverage = requirements met ÷ requirements due. Only the account’s own AE’s visits, dated today or earlier, count; the same account twice on one day counts once. Accounts added part-way through a period count from the next full period. People marked “no fixed book” and admins without visits are left out.</li>
         <li><b>Net new</b> — visits to accounts outside the A/B/C book.</li>
         <li><b>Kilometres</b> — the day totals saved with each day (Google Maps or entered by hand); <b>per visit</b> = km ÷ visits.</li>
       </ul></details>
