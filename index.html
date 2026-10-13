@@ -583,6 +583,20 @@ section.enter{animation:viewin .22s ease both}
 .dz-i{font-size:26px;color:#4252E8;line-height:1}
 .dropzone small{color:var(--muted)}
 .imp .si-link{margin:8px 0 0}
+.dc h4{margin:16px 0 8px;font-size:14px}
+.dc-m td,.dc-m th{padding:8px 10px}
+.dc-m .dc-empty td{color:var(--muted);background:#FFFBEB}
+.dc-issue{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:#fff}
+.dc-issue.warn{border-color:#FCD34D;background:#FFFBEB}
+.dc-issue.ok{opacity:.75}
+.dc-issue.info{background:#F8FAFF}
+.dc-h{display:flex;align-items:center;gap:10px}
+.dc-h b{flex:1;font-size:13.5px}
+.dc-n{min-width:26px;height:26px;padding:0 7px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12.5px;background:#FEF3C7;color:#92400E}
+.dc-issue.ok .dc-n{background:#DCFCE7;color:#166534}
+.dc-issue.info .dc-n{background:#E0E7FF;color:#3442CC}
+.dc-b{margin:8px 0 0 36px;font-size:12.5px;color:var(--ink-2);line-height:1.6}
+.dc-def{margin-top:12px;font-size:13px}.dc-def summary{cursor:pointer;font-weight:600}.dc-def ul{margin:8px 0 0 18px;display:grid;gap:6px}
 .imp-paste{margin-top:10px;font-size:13px}.imp-paste summary{cursor:pointer;color:var(--muted)}
 .imp-paste textarea{width:100%;margin:8px 0 6px;font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid var(--line-2);border-radius:10px;padding:8px 10px}
 .imp-sum{margin:14px 0 8px;font-size:14px}
@@ -960,7 +974,7 @@ tr.aerow.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-13 11:56 · production';
+const BUILD = '2026-10-13 12:17 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -1340,9 +1354,10 @@ function trackedAEs(){
 function aesInCity(){ return trackedAEs().filter(a => !ui.city || String(a.city).includes(ui.city)); }
 function aesInScope(){ return aesInCity().filter(a => !ui.aeSel.size || ui.aeSel.has(a.name)); }
 function visitsInMonth(){ return data.visits.filter(v => monthOf(v.date) === ui.month && (!ui.city || (aeByName(v.ae)||{}).city && String((aeByName(v.ae)||{}).city).includes(ui.city) || v.city === ui.city)); }
-function assignedFor(ae, asOf){ // the AE's book: tiers A/B/C (+ net-new not yet tiered), as of a date
-  const end = asOf || monthEnd(ui.month);
-  return data.accounts.filter(a => a.ae === ae && (!a.addedOn || a.addedOn <= end));
+function assignedFor(ae, asOf){ // the AE's book: tiers A/B/C (+ net-new not yet tiered), as of a date — each account once
+  const end = asOf || monthEnd(ui.month), rank = t => ({A:0, B:1, C:2}[t] ?? 3), seen = new Map();
+  data.accounts.forEach(a => { if (a.ae !== ae || (a.addedOn && a.addedOn > end)) return; const k = norm(a.account), cur = seen.get(k); if (!cur || rank(a.tier) < rank(cur.tier)) seen.set(k, a); });
+  return [...seen.values()];
 }
 // Exact match first, then alias, then a strong fuzzy match (≥0.85) — so "Al-Ghazi" still counts as Sofia's "Al-Ghazi Tractors Ltd".
 const _resolveCache = new Map();
@@ -1358,10 +1373,12 @@ function accountRow(ae, name){ return resolveAccount(ae, name); }
 
 function statsFor(ae, mv, asOf){
   const mine = mv.filter(v => v.ae === ae);
-  const counts = {}; // account name -> visits by this AE this month
+  const counts = {}; // account name -> visits by this AE in the period
   mine.forEach(v => splitAccts(v.accounts).forEach(n => { counts[n] = (counts[n]||0) + 1; }));
   const book = assignedFor(ae, asOf);
-  const visitsOf = a => { let tot = 0; Object.keys(counts).forEach(n => { const r = accountRow(ae, n); if (r && r.id === a.id) tot += counts[n]; }); return tot; };
+  // a visit belongs to a book entry when it resolves to that account (any duplicate row of it, any spelling or alias)
+  const visitsOf = a => { let tot = 0; const k = norm(a.account); Object.keys(counts).forEach(n => { const r = accountRow(ae, n); if (r && (r.id === a.id || norm(r.account) === k)) tot += counts[n]; }); return tot; };
+  const distinct = new Set(Object.keys(counts).map(n => { const r = accountRow(ae, n) || accountRow('', n); return r ? 'a|' + norm(r.account) : 'n|' + norm(n); }));
   const tiers = {};
   TIERS.forEach(t => { const as = book.filter(a=>a.tier===t); const vz = as.filter(a=>visitsOf(a)>0); tiers[t] = {assigned:as.length, visited:vz.length, pct:pct(vz.length,as.length)}; });
   const tiered = book.filter(a=>TIERS.includes(a.tier));
@@ -1375,8 +1392,8 @@ function statsFor(ae, mv, asOf){
     overall: {assigned: tiered.length, visited: tieredV.length, pct: pct(tieredV.length, tiered.length)},
     notVisited: tiered.length - tieredV.length,
     netNew: {accounts: nn.length, visits: nn.reduce((s,a)=>s+visitsOf(a),0)},
-    totalAccounts: Object.keys(counts).length,
-    totalVisits: mine.reduce((s,v)=>s+v.count,0),
+    totalAccounts: distinct.size,
+    totalVisits: mine.reduce((s,v)=>s+splitAccts(v.accounts).length,0),
     km: mine.reduce((s,v)=>s+v.km,0),
     other, counts, visitsOf, book
   };
@@ -2075,7 +2092,7 @@ function renderDash(){
   const cities = [...new Set(activeAEs().flatMap(a=>String(a.city).split('/').map(s=>s.trim())))].filter(Boolean).sort();
   const noData = mv.length === 0;
   const today = new Date();
-  const fieldDays = new Set(mv.filter(v=>v.count>0).map(v=>v.date)).size;
+  const fieldDays = new Set(mv.filter(v=>v.count>0).map(v=>v.date)).size, aeDays = mv.filter(v=>v.count>0).length;
   const measured = rows.filter(r=>r.measured);
   const leader = rows.slice().filter(r=>r.totalVisits>0).sort((a,b)=>b.totalVisits-a.totalVisits).slice(0,3);
   const byDay = {}; mv.forEach(v => { byDay[v.date] = (byDay[v.date]||0) + v.count; });
@@ -2093,6 +2110,7 @@ function renderDash(){
     <span class="tools">
       <span class="live${ui.demo?'':' on'}" title="Updates on its own"><i></i>${syncTxt}</span>
       ${ui.demo ? '' : '<button type="button" class="ib" id="dRefresh" title="Refresh now" aria-label="Refresh now"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></button>'}
+      ${isMgr() ? '<button type="button" class="ib" id="dCheck" title="Check the numbers" aria-label="Check the numbers"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>' : ''}
       <button type="button" class="ib" id="dCsv" title="Download this view as CSV" aria-label="Download CSV"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
       <button type="button" class="ib${ui.mgr?' on':''}" id="dMgr" title="${ui.mgr ? 'Admin mode on — click to turn off' : 'Admin mode: notes, edit and delete'}" aria-label="Admin mode"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="${ui.mgr ? 'M8 11V8a4 4 0 0 1 7.5-2' : 'M8 11V8a4 4 0 0 1 8 0v3'}"/></svg></button>
     </span>
@@ -2111,7 +2129,7 @@ function renderDash(){
       <div class="tiers">${TIERS.map(tr=>`<div><span class="badge ${tr}">${tr}</span><b>${total.tiers[tr].pct??0}%</b><span class="hint">${total.tiers[tr].visited}/${total.tiers[tr].assigned}</span></div>`).join('')}</div>
     </div>
     <div class="kpis hk">
-      <div class="kpi k-blue"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><div class="l">Visits</div><div class="v">${total.totalVisits}</div><div class="d">${fieldDays} field day${fieldDays===1?'':'s'}</div>${sparkline(days.map(d=>byDay[d]))}</div>
+      <div class="kpi k-blue"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><div class="l">Visits</div><div class="v">${total.totalVisits}</div><div class="d">${aeDays} visit day${aeDays===1?'':'s'}${aeDays!==fieldDays?` · ${fieldDays} dates`:''}</div>${sparkline(days.map(d=>byDay[d]))}</div>
       <div class="kpi k-blue"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6"/></svg></span><div class="l">Accounts visited</div><div class="v">${total.totalAccounts}</div><div class="d">incl. net new &amp; shared</div></div>
       <div class="kpi k-purple"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><div class="l">Net new accounts</div><div class="v">${total.netNew.accounts}</div><div class="d">${total.netNew.visits} visit${total.netNew.visits===1?'':'s'}</div></div>
       <div class="kpi k-amber"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/></svg></span><div class="l">Kilometres</div><div class="v">${num(total.km,0)}</div><div class="d">${total.totalVisits? num(total.km/total.totalVisits,1):0} km per visit</div></div>
@@ -2176,6 +2194,7 @@ function renderDash(){
   $('#dFrom').onchange = e => { const f = e.target.value; if (!f) return; setRange('custom', f, f > ui.range.to ? f : ui.range.to); renderDash(); };
   $('#dTo').onchange = e => { const tt = e.target.value; if (!tt) return; setRange('custom', tt < ui.range.from ? tt : ui.range.from, tt); renderDash(); };
   $('#dCity').onchange = e => { ui.city = e.target.value; const ok = new Set(aesInCity().map(a=>a.name)); [...ui.aeSel].forEach(n => { if (!ok.has(n)) ui.aeSel.delete(n); }); renderDash(); };
+  if ($('#dCheck')) $('#dCheck').onclick = dataCheckDialog;
   if ($('#dRefresh')) $('#dRefresh').onclick = () => { $('#dRefresh').disabled = true; load(false); };
   $('#dMgr').onclick = async () => { if (ui.mgr) { ui.mgr = false; renderDash(); return; } if (await ensureAdmin()) { ui.mgr = true; renderDash(); toast('Admin mode on'); } };
   if ($('#dMgrOff')) $('#dMgrOff').onclick = () => { ui.mgr = false; renderDash(); };
@@ -2412,6 +2431,7 @@ function mgrPane(tab){
   if (tab === 'data') {
     return `<div class="form">
       <div class="f c12"><label>Data connection</label>${hasGs() ? '<div class="hint">Served by Apps Script — the page and the sheet are the same deployment.</div>' : `<input id="mApi" value="${esc(apiUrl())}" placeholder="https://script.google.com/macros/s/…/exec"><span class="hint">The Apps Script web-app link this device uses. Share the app as <code>…?connect=&lt;link&gt;</code> so AEs never see a connect screen.</span>`}</div>
+      <div class="f c12"><label>Check the numbers</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="btn sm" id="mDataCheck">🔎 Check the numbers</button><span class="hint">Months in the sheet, duplicates, counts and kilometres — with one-tap fixes.</span></div></div>
       <div class="f c12"><label>Build</label><div class="hint">${esc(BUILD)}</div></div>
       <div class="f c12"><label>Updating</label><div class="hint">New page → upload it where the app is hosted. New Code.gs → paste into Apps Script → Deploy → Manage deployments → ✎ → New version. The link never changes. The admin PIN itself lives in the sheet (<b>adminPin</b>). <a href="#" id="mForgetPin">Forget admin PIN on this device</a></div></div>
     </div>`;
@@ -2446,6 +2466,7 @@ function wireMgrPane(tab){
     } catch(e) { out.innerHTML = `<div class="banner err">${esc(e.message)}</div>`; }
     btn.disabled = false;
   };
+  if (tab === 'data' && $('#mDataCheck')) $('#mDataCheck').onclick = () => { $('#modal').classList.remove('open'); dataCheckDialog(); };
   if (tab === 'data' && $('#mForgetPin')) $('#mForgetPin').onclick = e => { e.preventDefault(); setAdminPin(''); toast('Admin PIN forgotten on this device'); settingsDialog(); };
 }
 async function saveMgrPane(tab){
@@ -2801,7 +2822,7 @@ function importPreviewRows(rows){
   let hd = importHeader(rows);
   if (!hd && rows.length && importDate(rows[0][0])) hd = {row: -1, col: {date: 0, client: 1, purpose: rows.some(r => r.length > 2) ? 2 : undefined}};   // no header: Date, Client, Purpose
   if (!hd) { out.innerHTML = `<div class="banner err">I couldn’t find a <b>Date</b> and a <b>Client</b> column in the first rows. <a href="#" id="impTpl2">Download the template</a> to see the layout.</div>`; $('#impTpl2').onclick = e => { e.preventDefault(); importTemplate(); }; return; }
-  const body = rows.slice(hd.row + 1).slice(0, IMPORT_MAX), c = hd.col, items = [], bad = [];
+  const body = rows.slice(hd.row + 1).slice(0, IMPORT_MAX), c = hd.col, items = [], bad = [], seenRows = new Set();
   const team = new Map(activeAEs().map(a => [norm(a.name), a.name]));
   body.forEach((r, i) => {
     const line = hd.row + i + 2, client = String(r[c.client] ?? '').trim().replace(/\s+/g,' ').slice(0, 120);
@@ -2812,6 +2833,9 @@ function importPreviewRows(rows){
     const why = !client ? 'no client' : !date ? `date “${esc(String(r[c.date]))}” not understood` : date > todayIso() ? 'date is in the future' : !ae ? `AE “${esc(String(r[c.ae]))}” is not on the team` : (ae !== ui.me && !isMgr()) ? 'only admins can upload for someone else' : '';
     if (why) { bad.push({line, why}); return; }
     const best = matchAccounts(client, ae)[0], matched = best && best.s >= 0.6 ? best.a.account : client;
+    const ex = dayEntry(ae, date), dupKey = ae + '|' + date + '|' + norm(matched);
+    if ((ex && dayDetails(ex).some(d => norm(d.client) === norm(matched))) || seenRows.has(dupKey)) { bad.push({line, why: `${esc(matched)} is already logged for ${fmtLong(date)}${ae !== ui.me ? ' (' + esc(ae) + ')' : ''}`, dup: true}); return; }
+    seenRows.add(dupKey);
     items.push({line, date, ae, typed: client, client: matched, corrected: norm(matched) !== norm(client), isNew: !(best && best.s >= 0.6), purpose: String(r[c.purpose] ?? '').trim().slice(0, 120), order: Number(r[c.order]) || (i + 1)});
   });
   const groups = new Map();
@@ -2821,8 +2845,8 @@ function importPreviewRows(rows){
   ui.importDays = days;
   const people = new Set(days.map(d => d.ae)).size;
   out.innerHTML = `
-    <div class="imp-sum"><b>${items.length}</b> visit${items.length===1?'':'s'} · <b>${days.length}</b> day${days.length===1?'':'s'}${people > 1 ? ` · <b>${people}</b> people` : ''}${bad.length ? ` · <span class="imp-bad">${bad.length} row${bad.length===1?'':'s'} skipped</span>` : ''}</div>
-    ${bad.length ? `<details class="imp-skip"><summary>Why ${bad.length===1?'a row was':'rows were'} skipped</summary><ul>${bad.slice(0,30).map(b => `<li>Row ${b.line}: ${b.why}</li>`).join('')}${bad.length>30?`<li>…and ${bad.length-30} more</li>`:''}</ul></details>` : ''}
+    <div class="imp-sum"><b>${items.length}</b> visit${items.length===1?'':'s'} · <b>${days.length}</b> day${days.length===1?'':'s'}${people > 1 ? ` · <b>${people}</b> people` : ''}${bad.filter(b=>b.dup).length ? ` · <span class="hint">${bad.filter(b=>b.dup).length} already logged</span>` : ''}${bad.filter(b=>!b.dup).length ? ` · <span class="imp-bad">${bad.filter(b=>!b.dup).length} row${bad.filter(b=>!b.dup).length===1?'':'s'} skipped</span>` : ''}</div>
+    ${bad.length ? `<details class="imp-skip"><summary>Rows not added (${bad.length})</summary><ul>${bad.slice(0,30).map(b => `<li>Row ${b.line}: ${b.why}</li>`).join('')}${bad.length>30?`<li>…and ${bad.length-30} more</li>`:''}</ul></details>` : ''}
     <div class="imp-days">${days.slice(0, 60).map(d => { const ex = dayEntry(d.ae, d.date); return `<div class="imp-day"><div class="imp-dh"><b>${fmtLong(d.date)}</b>${people > 1 || d.ae !== ui.me ? ` · ${esc(d.ae)}` : ''}${ex ? ` <span class="hint">· added to ${ex.count} already logged</span>` : ''}</div><ol>${d.rows.map(x => `<li><b>${esc(x.client)}</b>${x.purpose ? ` <span class="hint">· ${esc(x.purpose)}</span>` : ''}${x.isNew ? ' <span class="badge None">new client</span>' : x.corrected ? ` <span class="hint">(“${esc(x.typed)}”)</span>` : ''}</li>`).join('')}</ol></div>`; }).join('')}${days.length > 60 ? `<p class="hint">…and ${days.length - 60} more days.</p>` : ''}</div>
     ${items.length ? `<label class="switch" style="margin:10px 0 4px"><input type="checkbox" id="impKm" ${String(data.settings.autoKm||'Y').toUpperCase()!=='N'?'checked':''}> Work out kilometres from Google Maps (office → visits in order → office)</label>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button type="button" class="btn primary" id="impGo">Save ${items.length} visit${items.length===1?'':'s'}</button></div>` : '<div class="banner err">Nothing to import.</div>'}`;
@@ -2849,6 +2873,68 @@ async function importSave(){
   $('#impOut').innerHTML = `<div class="banner${failed ? ' err' : ''}">${failed ? `Saved ${done - failed} of ${days.length} days. ` : ''}<b>${visits}</b> visit${visits===1?'':'s'} imported${km ? ` · <b>${num(km)}</b> km by road` : ''}.${errs.length ? `<ul>${errs.slice(0,10).map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>`;
   toast(`${visits} visit${visits===1?'':'s'} imported${failed ? ` · ${failed} day${failed===1?'':'s'} failed` : ''}`);
   form = null; render(); if (!ui.demo) load(false);
+}
+
+/* ---------- Data check: what is really in the sheet, what each number means, and one-tap fixes ---------- */
+function dataAudit(){
+  const team = new Set(activeAEs().map(a => a.name)), months = new Map();
+  const rows = data.visits.filter(v => v.date);
+  rows.forEach(v => { if (!team.has(v.ae)) return; const m = v.date.slice(0,7), o = months.get(m) || {days:0, visits:0, km:0, people:new Set()}; const n = splitAccts(v.accounts).length; o.km += Number(v.km)||0; if (n) { o.days++; o.visits += n; o.people.add(v.ae); } months.set(m, o); });   // km includes travel days without client visits, as the dashboard does
+  const today = todayIso().slice(0,7), recent = []; for (let i = 5; i >= 0; i--) { const d = new Date(+today.slice(0,4), +today.slice(5,7)-1-i, 1); recent.push(`${d.getFullYear()}-${pad(d.getMonth()+1)}`); }
+  const monthList = [...new Set([...recent, ...months.keys()])].sort().reverse();
+  const repeats = rows.map(v => { const c = {}; splitAccts(v.accounts).forEach(n => { const k = norm(n); c[k] = (c[k]||0) + 1; }); const extra = Object.values(c).reduce((s,x)=>s+Math.max(0,x-1),0); return extra ? {v, extra} : null; }).filter(Boolean);
+  const miscount = rows.filter(v => Number(v.count) !== splitAccts(v.accounts).length);
+  const bookDup = []; const seen = new Map(); data.accounts.forEach(a => { const k = a.ae + '|' + norm(a.account); seen.set(k, (seen.get(k)||[]).concat(a)); }); seen.forEach(list => { if (list.length > 1) bookDup.push(list); });
+  const kmCheck = rows.filter(v => splitAccts(v.accounts).length && (v.kmMode === 'pending' || Number(v.km) > 300));
+  const strangers = rows.filter(v => !team.has(v.ae));
+  const future = rows.filter(v => v.date > todayIso());
+  const unmatched = new Map(); rows.forEach(v => splitAccts(v.accounts).forEach(n => { if (!accountRow(v.ae, n) && !accountRow('', n)) unmatched.set(norm(n), n); }));
+  return {months, monthList, repeats, miscount, bookDup, kmCheck, strangers, future, unmatched};
+}
+async function dataCheckDialog(){
+  const a = dataAudit();
+  const issue = (n, title, body, fix) => `<div class="dc-issue ${n ? 'warn' : 'ok'}"><div class="dc-h"><span class="dc-n">${n ? n : '✓'}</span><b>${title}</b>${n && fix ? `<button type="button" class="btn sm primary" data-fix="${fix}">Fix</button>` : ''}</div>${n && body ? `<div class="dc-b">${body}</div>` : ''}</div>`;
+  openModal('Check the numbers', `
+    <div class="dc">
+      <p class="hint" style="margin:0 0 10px">Straight from the sheet — every visit row, counted the same way the dashboard counts it.</p>
+      <div class="tw"><table class="dc-m"><thead><tr><th>Month</th><th class="num">Days logged</th><th class="num">Visits</th><th class="num">Km</th><th class="num">People</th></tr></thead><tbody>
+        ${a.monthList.map(m => { const o = a.months.get(m); return `<tr class="${o && o.visits ? '' : 'dc-empty'}"><td><b>${MONTHS_LONG[+m.slice(5)-1]} ${m.slice(0,4)}</b></td>${o && o.visits ? `<td class="num">${o.days}</td><td class="num">${o.visits}</td><td class="num">${num(o.km,0)}</td><td class="num">${o.people.size}</td>` : `<td colspan="4" class="hint">nothing logged</td>`}</tr>`; }).join('')}
+      </tbody></table></div>
+      <h4>Things that change the numbers</h4>
+      ${issue(a.repeats.reduce((s,x)=>s+x.extra,0), 'Same client logged twice on the same day', a.repeats.slice(0,8).map(x => `${fmtLong(x.v.date)} · ${esc(x.v.ae)}`).join('<br>') + (a.repeats.length > 8 ? '<br>…' : ''), 'repeats')}
+      ${issue(a.miscount.length, 'Days whose visit count doesn’t match the clients listed', a.miscount.slice(0,8).map(v => `${fmtLong(v.date)} · ${esc(v.ae)}: says ${v.count}, lists ${splitAccts(v.accounts).length}`).join('<br>'), 'recount')}
+      ${issue(a.bookDup.length, 'Accounts listed twice in someone’s book', a.bookDup.slice(0,10).map(l => `${esc(l[0].ae)}: ${esc(l[0].account)} ×${l.length}`).join('<br>') + '<br><span class="hint">The dashboard now counts each once. To tidy the sheet, delete the extra row in the <b>Categories</b> tab.</span>', '')}
+      ${issue(a.kmCheck.length, 'Days with kilometres to check (pending, or over 300 km)', a.kmCheck.slice(0,8).map(v => `${fmtLong(v.date)} · ${esc(v.ae)}: ${v.kmMode === 'pending' ? 'pending' : num(v.km) + ' km'}`).join('<br>'), 'km')}
+      ${issue(a.strangers.length, 'Visits by people who aren’t on the team (left out of every figure)', [...new Set(a.strangers.map(v => v.ae))].map(esc).join(', '), '')}
+      ${issue(a.future.length, 'Visits dated in the future', a.future.slice(0,6).map(v => `${esc(v.date)} · ${esc(v.ae)}`).join('<br>'), '')}
+      <div class="dc-issue info"><div class="dc-h"><span class="dc-n">${a.unmatched.size}</span><b>Clients not in anyone’s book</b></div><div class="dc-b">${[...a.unmatched.values()].slice(0,12).map(esc).join(', ')}${a.unmatched.size > 12 ? ', …' : ''}<br><span class="hint">They count as net-new visits. If one is really an existing account under another spelling, add the spelling in the <b>Aliases</b> tab.</span></div></div>
+      <details class="dc-def"><summary>How each number is worked out</summary><ul>
+        <li><b>Visits</b> — every client listed on a day, for the people and dates selected.</li>
+        <li><b>Visit days</b> — days with at least one visit, counted per person (two people on the same date = 2). <b>Dates</b> — different calendar dates.</li>
+        <li><b>Accounts visited</b> — different accounts each person visited (spellings and aliases of the same account count once).</li>
+        <li><b>Coverage</b> — A/B/C accounts in each person’s book with at least one visit, ÷ all their A/B/C accounts. People marked “no fixed book” and admins without visits are left out.</li>
+        <li><b>Net new</b> — visits to accounts outside the A/B/C book.</li>
+        <li><b>Kilometres</b> — the day totals saved with each day (Google Maps or entered by hand); <b>per visit</b> = km ÷ visits.</li>
+      </ul></details>
+    </div>`, null, 'Close');
+  $$('button[data-fix]').forEach(b => b.onclick = () => dataFix(b.dataset.fix, b));
+}
+async function dataFix(kind, btn){
+  const a = dataAudit(); btn.disabled = true; let done = 0, failed = 0;
+  const list = kind === 'repeats' ? a.repeats.map(x => x.v) : kind === 'recount' ? a.miscount : a.kmCheck;
+  if (!(await confirmModal(kind === 'repeats' ? `Remove ${a.repeats.reduce((s,x)=>s+x.extra,0)} repeated visits?` : kind === 'recount' ? `Recount ${list.length} days?` : `Recalculate kilometres for ${list.length} days?`,
+      kind === 'repeats' ? 'On each affected day the client is kept once (the first time it appears); that day’s kilometres are recalculated.' : kind === 'recount' ? 'Each day’s visit count is set to the number of clients actually listed.' : 'Kilometres are worked out again from Google Maps, in the order of the visits.', 'Go ahead'))) { btn.disabled = false; return; }
+  for (const v of list) {
+    btn.textContent = `Fixing ${done + failed + 1} of ${list.length}…`;
+    try {
+      let row = {...v}, autoKm = false;
+      if (kind === 'repeats') { const seen = new Set(); const det = dayDetails(v).filter(d => { const k = norm(d.client); if (seen.has(k)) return false; seen.add(k); return true; }); row.details = JSON.stringify(det); row.accounts = det.map(d => d.client).join('; '); row.count = det.length; autoKm = String(data.settings.autoKm||'Y').toUpperCase() !== 'N'; }
+      if (kind === 'recount') row.count = splitAccts(v.accounts).length;
+      if (kind === 'km') { const r = await callApi({action:'recalcKm', id: v.id, adminPin:getAdminPin()}); upsertLocal('visits', normVisits([r.row])[0]); done++; continue; }
+      const r = await callApi({action:'upsertVisit', row, autoKm, adminPin:getAdminPin()}); upsertLocal('visits', normVisits([r.row])[0]); done++;
+    } catch(e) { failed++; }
+  }
+  toast(`${done} day${done===1?'':'s'} fixed${failed ? ` · ${failed} couldn’t be fixed` : ''}`); render(); dataCheckDialog();
 }
 
 /* ---------- Modal / toast ---------- */
