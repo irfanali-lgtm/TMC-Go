@@ -1583,7 +1583,7 @@ async function load(first){
       data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.aliases = d.aliases||[]; data.settings = d.settings || data.settings;
       ui.lastSync = new Date(); setConn('ok', 'Live · ' + ui.lastSync.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
       hideBanner();
-      if (!first && !changed && ui.tab==='dash') { const l = $('.live'); if (l) { l.classList.add('on'); l.innerHTML = `<i></i>Live · ${ui.lastSync.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`; } const rb = $('#dRefresh'); if (rb) rb.disabled = false; return; }
+      if (!first && !changed && ui.tab==='dash') { const rb = $('#dRefresh'); if (rb) { rb.disabled = false; const tt = 'updated ' + ui.lastSync.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); rb.title = 'Refresh now · ' + tt; rb.setAttribute('aria-label', 'Refresh now — ' + tt); } return; }
       if (!first) initMeSelect();
     } catch (e) {
       if (!getTok()) { clearCache(); loadingWatch(false); ui.loading = false; return signInScreen(); }
