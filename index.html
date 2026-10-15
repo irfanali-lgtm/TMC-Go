@@ -1237,7 +1237,7 @@ body .kpi svg.spark{position:static!important;display:block;width:100%!important
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-14 11:58 · production';
+const BUILD = '2026-10-15 07:31 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -1328,6 +1328,11 @@ const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 // Fuzzy name matching: AEs type "Dawn bread", "Parco", "M&P" — find the account they mean.
 const STOPW = new Set(['ltd','limited','pvt','private','company','co','the','of','and','group','pakistan','pk','inc','corporation','corp','industries','industry','pvt.','ltd.']);
 const toks = s => norm(s).split(' ').filter(w => w && !STOPW.has(w));
+// Same company, different spelling: drop only legal suffixes and punctuation (keeps words like "Pakistan" or "Group"
+// that tell companies apart). Used to keep one person's list and their visits together.
+const LEGAL = new Set(['ltd','limited','pvt','private','co','company','inc','incorporated','corp','corporation','plc','llc','smc','the']);
+const _canonMemo = new Map();
+const canon = s => { const k = String(s||''); let v = _canonMemo.get(k); if (v === undefined) { v = norm(k).split(' ').filter(w => w && !LEGAL.has(w)).join(' ') || norm(k); if (_canonMemo.size > 50000) _canonMemo.clear(); _canonMemo.set(k, v); } return v; };
 const bigrams = s => { const w = toks(s).join(' '); const out = new Set(); for (let i=0;i<w.length-1;i++) out.add(w.slice(i,i+2)); return out; };
 function dice(a, b){ const A=bigrams(a), B=bigrams(b); if(!A.size||!B.size) return 0; let n=0; for (const x of A) if (B.has(x)) n++; return 2*n/(A.size+B.size); }
 function tokenScore(q, name){ const qt=toks(q), nt=toks(name); if(!qt.length||!nt.length) return 0; const hit = qt.filter(x => nt.some(y => y===x || (x.length>=3 && y.startsWith(x)) || (y.length>=3 && x.startsWith(y)))).length; return hit/qt.length * (hit===nt.length ? 1 : 0.95); }
@@ -1335,6 +1340,7 @@ function acronyms(name){ const all = norm(name).split(' ').filter(Boolean); retu
 function scoreName(q, name){
   const nq = norm(q), nn = norm(name); if (!nq) return 0;
   if (nq === nn) return 1;
+  if (canon(q) === canon(name)) return 0.97;   // same company, legal suffix differs
   let s = Math.max(dice(q, name), tokenScore(q, name));
   if (nn.includes(nq) || toks(name).join(' ').includes(toks(q).join(' '))) s = Math.max(s, 0.85);
   const flat = nq.replace(/ /g,''); if (/^[a-z&]{2,6}$/.test(flat)) { const ac = acronyms(name); if (ac.has(flat)) s = Math.max(s, 0.9); else if (flat.length>=3 && [...ac].some(x => x.startsWith(flat))) s = Math.max(s, 0.8); } // "ffc", "nbc", "ogdcl"
@@ -1346,15 +1352,16 @@ function aliasFor(q, ae){ const nq = norm(q); const hit = data.aliases.find(x =>
 function matchAccounts(q, ae){
   const seen = new Set(), out = [];
   const alias = aliasFor(q, ae);
-  data.accounts.forEach(a => { const k = (a.ae===ae?'own':'oth') + '|' + norm(a.account); if (seen.has(k)) return; seen.add(k);
+  data.accounts.forEach(a => { const k = (a.ae===ae?'own':'oth') + '|' + canon(a.account); if (seen.has(k)) return; seen.add(k);
     let s = scoreName(q, a.account); if (alias && norm(alias)===norm(a.account)) s = 1;
     out.push({a, s, own: a.ae===ae}); });
-  const own = new Set(out.filter(x=>x.own).map(x=>norm(x.a.account)));
-  return out.filter(x => x.own || !own.has(norm(x.a.account))).sort((x,y) => (y.s + (y.own?0.08:0)) - (x.s + (x.own?0.08:0)) || x.a.account.localeCompare(y.a.account));
+  const own = new Set(out.filter(x=>x.own).map(x=>canon(x.a.account)));
+  return out.filter(x => x.own || !own.has(canon(x.a.account))).sort((x,y) => (y.s + (y.own?0.08:0)) - (x.s + (x.own?0.08:0)) || x.a.account.localeCompare(y.a.account));
 }
 // Category of a client as seen by this AE: A/B/C from their own book, None when unlisted, — when it is another AE's account.
 // Category of a client for this AE: from their own book only. Not in their book → None for them (whoever else lists it).
-function catFor(ae, name){ const own = accountRow(ae, name); if (own) return TIERS.includes(own.tier) ? own.tier : 'None'; return ownerOf(name) ? '—' : 'None'; }
+function bookTiers(ae){ const key = 'bt|' + ae; if (!_covIndex.has(key)) { const m = new Map(); assignedFor(ae, '9999-12-31').forEach(a => { if (TIERS.includes(a.tier)) m.set(canon(a.account), a.tier); }); _covIndex.set(key, m); } return _covIndex.get(key); }
+function catFor(ae, name){ const own = accountRow(ae, name); if (own) { if (TIERS.includes(own.tier)) return own.tier; return bookTiers(ae).get(canon(own.account)) || 'None'; } return ownerOf(name) ? '—' : 'None'; }
 function catBadge(ae, name){ const c = catFor(ae, name); if (c==='—') { const o = ownerOf(name); return `<span class="badge None" title="${esc((o ? shortName(o) + '\u2019s account' : 'Another AE\u2019s account') + ' — no category for you; it counts for them when they log the visit too')}">None</span>`; } return `<span class="badge ${c==='None'?'N':c}" title="${c==='None'?'Not in your category list':'Category '+c}">${c}</span>`; }
 
 /* ============================ STATE ============================ */
@@ -1552,7 +1559,7 @@ function applyData(res){
   ui.session = res.session || ui.session || null;
   if (ui.session) { ui.me = ui.session.ae; try { localStorage.setItem('vi.me', ui.me); } catch(e){} }
   const d = res.data || {};
-  data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.aliases = d.aliases||[]; data.settings = d.settings || data.settings || {};
+  data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.aliases = (d.aliases||[]).map(x => ({...x, ae: x.ae ? teamName(x.ae) : ''})); data.settings = d.settings || data.settings || {};
 }
 async function load(first){
   window.__booted = true;
@@ -1580,7 +1587,7 @@ async function load(first){
       const d = res.data || {};
       const sig = JSON.stringify([d.visits, d.accounts, d.aes, d.aliases]).length + ':' + (d.visits||[]).length + ':' + (d.accounts||[]).length + ':' + (d.aes||[]).length;
       const changed = sig !== ui.dataSig; ui.dataSig = sig;
-      data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.aliases = d.aliases||[]; data.settings = d.settings || data.settings;
+      data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.aliases = (d.aliases||[]).map(x => ({...x, ae: x.ae ? teamName(x.ae) : ''})); data.settings = d.settings || data.settings;
       ui.lastSync = new Date(); setConn('ok', 'Live · ' + ui.lastSync.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
       hideBanner();
       if (!first && !changed && ui.tab==='dash') { const rb = $('#dRefresh'); if (rb) { rb.disabled = false; const tt = 'updated ' + ui.lastSync.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); rb.title = 'Refresh now · ' + tt; rb.setAttribute('aria-label', 'Refresh now — ' + tt); } return; }
@@ -1598,9 +1605,24 @@ async function load(first){
   if (first) initUi();
   render();
 }
-const normAccounts = rows => rows.map(r => ({...r, tier:String(r.tier||'').trim().toUpperCase().replace('PARTNER','Partner'), netNew: String(r.netNew||'').toUpperCase().startsWith('Y') ? 'Y':'N', addedOn: String(r.addedOn||'').slice(0,10), lat: r.lat===''||r.lat==null ? '' : Number(r.lat), lng: r.lng===''||r.lng==null ? '' : Number(r.lng)}));
+const tierOfText = v => { const t = String(v ?? '').toUpperCase().replace(/CATEGORY|CATEG|CAT\.?|TIER|CLASS|TYPE|GRADE/g, ' ').replace(/^[^A-Z]+/, '').trim(); if (/^PARTNER/.test(t)) return 'Partner'; const m = /^([ABC])(\b|[^A-Z])/.exec(t + ' '); return m ? m[1] : ''; };
+const normAccounts = rows => rows.map(r => ({...r, ae: teamName(r.ae), account: String(r.account ?? '').trim(), addedOn: isoDay(r.addedOn), tier: tierOfText(r.tier), netNew: String(r.netNew||'').toUpperCase().startsWith('Y') ? 'Y':'N', lat: r.lat===''||r.lat==null ? '' : Number(r.lat), lng: r.lng===''||r.lng==null ? '' : Number(r.lng)}));
 const located = a => a && a.lat !== '' && !isNaN(a.lat);
-const normVisits = rows => rows.map(r => ({...r, date:String(r.date||'').slice(0,10), count:Number(r.count||0), km:Number(r.km||0)}));
+// Values typed straight into the sheet: dates as 30/09/2026, 30-Sep-2026 or a timestamp; km as "35.4 km" or "1,061".
+function isoDay(v){
+  const s = String(v ?? '').trim(); if (!s) return ''; let m;
+  if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|[T ])/.exec(s))) {
+    if (/T\d{2}:\d{2}.*(Z|[+-]\d{2}:?\d{2})$/.test(s)) { const d = new Date(s); if (!isNaN(d)) return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+    return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`; }
+  if ((m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/.exec(s))) { const y = m[3].length === 2 ? 2000 + +m[3] : +m[3]; return `${y}-${pad(+m[2])}-${pad(+m[1])}`; }
+  if ((m = /^(\d{1,2})[\s-]([A-Za-z]{3,})[\s,-]*(\d{2,4})$/.exec(s))) { const mi = MONTHS.findIndex(x => m[2].toLowerCase().startsWith(x.toLowerCase())); if (mi >= 0) { const y = m[3].length === 2 ? 2000 + +m[3] : +m[3]; return `${y}-${pad(mi+1)}-${pad(+m[1])}`; } }
+  return s.slice(0, 10);
+}
+const numOf = v => { if (typeof v === 'number') return isFinite(v) ? v : 0; const n = parseFloat(String(v ?? '').replace(/,/g, '').replace(/[^\d.\-]/g, '')); return isFinite(n) ? n : 0; };
+let _teamNames = null;
+function teamName(n){ const s = String(n ?? '').trim(); if (!_teamNames || _teamNames.src !== data.aes) { _teamNames = new Map(); _teamNames.src = data.aes; (data.aes||[]).forEach(a => _teamNames.set(String(a.name||'').trim().toLowerCase(), a.name)); } return _teamNames.get(s.toLowerCase()) || s; }
+// A day's count is always the clients listed (one source of truth); the sheet's own number is kept only for the data check.
+const normVisits = rows => rows.map(r => ({...r, ae: teamName(r.ae), accounts: splitAccts(r.accounts).join('; '), date: isoDay(r.date), count: splitAccts(r.accounts).length, storedCount: numOf(r.count), km: numOf(r.km)}));
 
 function showBanner(html, err){ const b=$('#banner'); b.innerHTML=html; b.className='banner'+(err?' err':''); b.style.display='flex'; }
 function hideBanner(){ $('#banner').style.display='none'; }
@@ -1629,7 +1651,7 @@ function rangeFor(preset, from, to){
 function setRange(preset, from, to){ const r = rangeFor(preset, from, to); ui.range = {preset, from:r.from, to:r.to}; localStorage.setItem('vi.range', JSON.stringify(ui.range)); }
 function rangeLabel(){ const r = ui.range; if (r.from===r.to) return fmtLong(r.from); const sameM = r.from.slice(0,7)===r.to.slice(0,7); return sameM ? `${+r.from.slice(8)}–${fmtLong(r.to)}` : `${fmtLong(r.from)} – ${fmtLong(r.to)}`; }
 const fmtLong = s => { if(!s) return ''; const [y,m,d]=s.split('-'); return `${+d} ${MONTHS[+m-1]} ${y}`; };
-function visitsBetween(from, to){ return data.visits.filter(v => v.date >= from && v.date <= to && (!ui.city || String((aeByName(v.ae)||{}).city || v.city || '').includes(ui.city))); }
+function visitsBetween(from, to){ const today = todayIso(); return data.visits.filter(v => v.date >= from && v.date <= to && v.date <= today && (!ui.city || String((aeByName(v.ae)||{}).city || v.city || '').includes(ui.city))); }
 function dashVisits(){ return visitsBetween(ui.range.from, ui.range.to); }
 function aeByName(n){ return data.aes.find(a=>a.name===n); }
 function setHeaderAvatar(){ const h = $('#hav'); if (!h) return; h.innerHTML = ui.me ? avatar(ui.me, 30) : ''; h.style.display = ui.me ? '' : 'none'; }
@@ -1637,15 +1659,15 @@ function activeAEs(){ return data.aes.filter(a => String(a.active||'Y').toUpperC
 const isAdminRole = a => ['admin','manager'].includes(String((a||{}).role||'').toLowerCase());
 function trackedAEs(){
   const from = (ui.range||{}).from || '0000', to = (ui.range||{}).to || '9999';
-  return activeAEs().filter(a => !isAdminRole(a) || data.visits.some(v => v.ae === a.name && v.count && v.date >= from && v.date <= to));
+  return activeAEs().filter(a => !isAdminRole(a) || data.visits.some(v => v.ae === a.name && splitAccts(v.accounts).length && v.date >= from && v.date <= to && v.date <= todayIso()));
 }
 function aesInCity(){ return trackedAEs().filter(a => !ui.city || String(a.city).includes(ui.city)); }
 function aesInScope(){ return aesInCity().filter(a => !ui.aeSel.size || ui.aeSel.has(a.name)); }
 function monthRange(){ const end = monthEnd(ui.month), today = todayIso(); return {from: ui.month + '-01', to: end > today ? today : end}; }
-function visitsInMonth(){ return data.visits.filter(v => monthOf(v.date) === ui.month && (!ui.city || (aeByName(v.ae)||{}).city && String((aeByName(v.ae)||{}).city).includes(ui.city) || v.city === ui.city)); }
+function visitsInMonth(){ const today = todayIso(); return data.visits.filter(v => monthOf(v.date) === ui.month && v.date <= today && (!ui.city || (aeByName(v.ae)||{}).city && String((aeByName(v.ae)||{}).city).includes(ui.city) || v.city === ui.city)); }
 function assignedFor(ae, asOf){ // the AE's book: tiers A/B/C (+ net-new not yet tiered), as of a date — each account once
   const end = asOf || monthEnd(ui.month), rank = t => ({A:0, B:1, C:2}[t] ?? 3), seen = new Map();
-  data.accounts.forEach(a => { if (a.ae !== ae || (a.addedOn && a.addedOn > end)) return; const k = norm(a.account), cur = seen.get(k); if (!cur || rank(a.tier) < rank(cur.tier)) seen.set(k, a); });
+  data.accounts.forEach(a => { if (a.ae !== ae || (a.addedOn && a.addedOn > end)) return; const k = canon(a.account), cur = seen.get(k); if (!cur || rank(a.tier) < rank(cur.tier) || (rank(a.tier) === rank(cur.tier) && (!a.addedOn || a.addedOn < (cur.addedOn || '9')) && cur.addedOn)) seen.set(k, a); });
   return [...seen.values()];
 }
 // Exact match first, then alias, then a strong fuzzy match (≥0.85) — so "Al-Ghazi" still counts as Sofia's "Al-Ghazi Tractors Ltd".
@@ -1708,7 +1730,7 @@ function visitDatesFor(ae){
   const idx = new Map(), today = todayIso();
   data.visits.forEach(v => {
     if (v.ae !== ae || !v.date || v.date > today) return;
-    splitAccts(v.accounts).forEach(n => { const r = accountRow(ae, n); if (!r) return; const k = norm(r.account); if (!idx.has(k)) idx.set(k, new Set()); idx.get(k).add(v.date); });
+    splitAccts(v.accounts).forEach(n => { const r = accountRow(ae, n); const k = canon(r ? r.account : n); if (!idx.has(k)) idx.set(k, new Set()); idx.get(k).add(v.date); });
   });
   _covIndex.set(key, idx); return idx;
 }
@@ -1720,9 +1742,10 @@ function coverageFor(ae, from, to){
   const tiers = {}; TIERS.forEach(tr => tiers[tr] = {due:0, met:0, needed:0, done:0, accounts:0, pct:null});
   const accts = [];
   book.forEach(a => {
-    const rule = COVER[a.tier], dates = idx.get(norm(a.account)) || new Set();
+    const rule = COVER[a.tier], dates = idx.get(canon(a.account)) || new Set();
     const since = accountSince(a);
-    const wins = periodsBetween(rule.per, from, end).filter(w => (!since || since <= w.start) && (!started || w.end >= started)).map(w => {
+    const wins = (end < from ? [] : periodsBetween(rule.per, from, end)).filter(   // a range that starts after today judges nothing yet
+w => (!since || since <= w.start) && (!started || w.end >= started)).map(w => {
       let got = 0; dates.forEach(d => { if (d >= w.start && d <= w.end && d <= today) got++; });
       return {...w, need: rule.need, got, met: got >= rule.need, open: w.end >= today};
     });
@@ -1749,14 +1772,14 @@ function statsFor(ae, mv, asOf){
   // a visit belongs to a book entry when it resolves to that account (any duplicate row of it, any spelling or alias).
   // Each visited name is resolved once, then looked up by account — not re-resolved for every account in the book.
   const byAccount = new Map();
-  Object.keys(counts).forEach(n => { const r = accountRow(ae, n); if (!r) return; const k = norm(r.account); byAccount.set(k, (byAccount.get(k) || 0) + counts[n]); });
-  const visitsOf = a => byAccount.get(norm(a.account)) || 0;
-  const distinct = new Set(Object.keys(counts).map(n => { const r = accountRow(ae, n) || accountRow('', n); return r ? 'a|' + norm(r.account) : 'n|' + norm(n); }));
+  Object.keys(counts).forEach(n => { const r = accountRow(ae, n); const k = canon(r ? r.account : n); byAccount.set(k, (byAccount.get(k) || 0) + counts[n]); });
+  const visitsOf = a => byAccount.get(canon(a.account)) || 0;
+  const distinct = new Set(Object.keys(counts).map(n => { const r = accountRow(ae, n) || accountRow('', n); return canon(r ? r.account : n); }));
   const range = arguments[3] || {from: ui.range.from, to: asOf || ui.range.to};
   const cov = coverageFor(ae, range.from, range.to);
   const tiers = {}; TIERS.forEach(t => { const c = cov.tiers[t]; tiers[t] = {assigned: c.due, visited: c.met, pct: c.pct, needed: c.needed, accounts: c.accounts}; });
   const nn = book.filter(a=>a.netNew==='Y' && visitsOf(a)>0);
-  const other = Object.keys(counts).filter(n => !book.some(a=>norm(a.account)===norm(n)));
+  const bookKeys = new Set(book.map(a => canon(a.account))); const other = Object.keys(counts).filter(n => { const r = accountRow(ae, n); return !bookKeys.has(canon(r ? r.account : n)); });
   const info = aeByName(ae) || {};
   const measured = String(info.coverageMeasured||'Y').toUpperCase() !== 'N';
   return {
@@ -2032,14 +2055,14 @@ function renderLog(){
 function lineLoc(l){ if (l.loc && !isNaN(l.loc.lat)) return l.loc; const a = accountRow(ui.me, l.client); return located(a) ? {lat:Number(a.lat), lng:Number(a.lng), address: a.located || a.address || '', saved:true} : null; }
 // The purpose this AE gave the last time they visited this client (the most useful default there is).
 function lastVisitFor(client){
-  const k = norm(client); let best = null;
-  data.visits.filter(v => v.ae === ui.me && v.count).forEach(v => dayDetails(v).forEach(d => { if (norm(d.client) === k && (!best || v.date > best.date)) best = {date: v.date, purpose: d.purpose}; }));
+  const k = canon(client); let best = null;
+  data.visits.filter(v => v.ae === ui.me && splitAccts(v.accounts).length).forEach(v => dayDetails(v).forEach(d => { if (canon(d.client) === k && (!best || v.date > best.date)) best = {date: v.date, purpose: d.purpose}; }));
   return best;
 }
 function agoText(d){ const n = Math.round((new Date(todayIso()+'T00:00:00') - new Date(d+'T00:00:00')) / 864e5); return n <= 0 ? 'today' : n === 1 ? 'yesterday' : n < 14 ? `${n} days ago` : n < 60 ? `${Math.round(n/7)} weeks ago` : `${Math.round(n/30)} months ago`; }
 function lastPurposeFor(client){
-  const k = norm(client); let best = null;
-  data.visits.filter(v => v.ae === ui.me && v.count).forEach(v => dayDetails(v).forEach(d => { if (norm(d.client) === k && d.purpose && (!best || v.date > best.date)) best = {date: v.date, purpose: d.purpose}; }));
+  const k = canon(client); let best = null;
+  data.visits.filter(v => v.ae === ui.me && splitAccts(v.accounts).length).forEach(v => dayDetails(v).forEach(d => { if (canon(d.client) === k && d.purpose && (!best || v.date > best.date)) best = {date: v.date, purpose: d.purpose}; }));
   return best ? best.purpose : '';
 }
 // "Good morning" / "Good evening", and a one-line pulse comparing this month so far with the same days last month.
@@ -2144,9 +2167,9 @@ function monthPulse(){
   return ` · <b>${now}</b> visit${now===1?'':'s'} so far this month${before ? ` (${diff>0?'+':''}${diff} vs the same days in ${MONTHS[prev.getMonth()]})` : ''}`;
 }
 function dupNote(l){
-  const others = form.lines.filter(x => x!==l && x.date===l.date && norm(x.client)===norm(l.client)).length;
+  const others = form.lines.filter(x => x!==l && x.date===l.date && x.client && canon(x.client)===canon(l.client)).length;
   const ex = !form.editId ? dayEntry(ui.me, l.date) : null;
-  const already = ex ? dayDetails(ex).filter(d => norm(d.client)===norm(l.client)).length : 0;
+  const already = ex ? dayDetails(ex).filter(d => canon(d.client)===canon(l.client)).length : 0;
   if (others) return 'Also on another line for this date — it will be saved once.';
   if (already) return `Already logged for ${fmtDate(l.date)} — it won’t be added twice.`;
   return '';
@@ -2312,7 +2335,7 @@ function daySheet({date, details, legs, totalKm, totalMins, office, kmMode, note
   const nLegs = legs.length, last = nLegs ? legs[nLegs-1] : null;
   const back = last && (!office || norm(last.to) === norm(office) || /office/i.test(last.to)) ? last : null;
   const pool = back ? legs.slice(0, -1) : legs.slice(); let p = 0;
-  const legFor = d => { for (let k = p; k < pool.length; k++) if (norm(pool[k].to) === norm(d.client)) { p = k + 1; return pool[k]; } return null; };
+  const legFor = d => { for (let k = p; k < pool.length; k++) if (canon(pool[k].to) === canon(d.client)) { p = k + 1; return pool[k]; } return null; };
   const hasLegs = nLegs > 0;
   const rows = details.map((d, i) => { const lg = hasLegs ? legFor(d) : null; return `<tr><td class="ds-n"><span class="seq sm">${i+1}</span></td><td class="ds-c"><b>${esc(d.client)}</b>${d.purpose ? `<span>${esc(d.purpose)}</span>` : ''}<em class="ds-cat-in">${catBadge(ui.me, d.client).replace('other AE','other AE’s')}</em></td><td class="ds-cat">${catBadge(ui.me, d.client).replace('other AE','other')}</td><td class="ds-k">${lg ? `${num(lg.km)}<small> km</small>${lg.mins?`<em>${lg.mins} min</em>`:''}` : '<span class="hint">—</span>'}</td></tr>`; }).join('');
   const total = totalKm !== '' && totalKm != null && !isNaN(totalKm) ? +totalKm : null;
@@ -2545,7 +2568,7 @@ function renderDash(){
   const cities = [...new Set(activeAEs().flatMap(a=>String(a.city).split('/').map(s=>s.trim())))].filter(Boolean).sort();
   const noData = mv.length === 0;
   const today = new Date();
-  const fieldDays = new Set(mv.filter(v=>v.count>0).map(v=>v.date)).size, aeDays = mv.filter(v=>v.count>0).length;
+  const fieldDays = new Set(mv.filter(v=>splitAccts(v.accounts).length).map(v=>v.date)).size, aeDays = mv.filter(v=>splitAccts(v.accounts).length).length;
   const measured = rows.filter(r=>r.measured);
   const leader = rows.slice().filter(r=>r.totalVisits>0).sort((a,b)=>b.totalVisits-a.totalVisits).slice(0,3);
   const byDay = {}; mv.forEach(v => { byDay[v.date] = (byDay[v.date]||0) + v.count; });
@@ -2682,7 +2705,7 @@ function renderDrill(el, rows, mv){
       <div class="tw"><table><thead><tr><th>Account</th><th>Cat.</th><th>Rule</th><th>Period</th><th class="num">Visits</th><th>Status</th></tr></thead><tbody>
       ${r.cov.accts.slice().sort((x,y)=>x.tier.localeCompare(y.tier)||x.a.account.localeCompare(y.a.account)).flatMap(x => x.wins.map((w,k) => `<tr>${k===0?`<td rowspan="${x.wins.length}"><b>${esc(x.a.account)}</b></td><td rowspan="${x.wins.length}"><span class="badge ${x.tier}">${x.tier}</span></td><td rowspan="${x.wins.length}" class="hint">${esc(x.rule)}</td>`:''}<td>${esc(w.label)}</td><td class="num">${w.got}/${w.need}</td><td>${w.met ? '<span class="st ok">✓ met</span>' : w.open ? `<span class="st due">due · ${w.need - w.got} more</span>` : '<span class="st miss">missed</span>'}</td></tr>`)).join('')}
       </tbody></table></div>
-      ${(() => { const book = new Set(assignedFor(ae,'9999-12-31').map(b=>norm(b.account))); const out = new Map(); days.forEach(v => splitAccts(v.accounts).forEach(n => { const ownr = accountRow(ae, n); if (ownr && book.has(norm(ownr.account))) return; const g = accountRow('', n); out.set(norm(g ? g.account : n), (g ? g.account + (TIERS.includes(g.tier) ? ` (${g.ae.split(' ')[0]}’s ${g.tier})` : ` (${g.ae.split(' ')[0]}’s)`) : n + ' (not in any book)')); })); return out.size ? `<p class="hint" style="margin-top:8px"><b>Visited, but not in ${esc(shortName(ae))}’s book</b> (no category for ${esc(shortName(ae))} — it counts for the colleague only when they log the visit too): ${[...out.values()].map(esc).join(', ')}</p>` : ''; })()}
+      ${(() => { const book = new Set(assignedFor(ae,'9999-12-31').map(b=>canon(b.account))); const out = new Map(); days.forEach(v => splitAccts(v.accounts).forEach(n => { const ownr = accountRow(ae, n); if (book.has(canon(ownr ? ownr.account : n))) return; const g = accountRow('', n); out.set(norm(g ? g.account : n), (g ? g.account + (TIERS.includes(g.tier) ? ` (${g.ae.split(' ')[0]}’s ${g.tier})` : ` (${g.ae.split(' ')[0]}’s)`) : n + ' (not in any book)')); })); return out.size ? `<p class="hint" style="margin-top:8px"><b>Visited, but not in ${esc(shortName(ae))}’s book</b> (no category for ${esc(shortName(ae))} — it counts for the colleague only when they log the visit too): ${[...out.values()].map(esc).join(', ')}</p>` : ''; })()}
     </details>` : ''}
     <div class="tw"><table class="daytbl"><thead><tr><th>Date</th><th>Client visited</th><th>Category</th><th>Opportunity / purpose</th><th class="num">KM (day)</th>${ui.mgr?'<th></th>':''}</tr></thead><tbody>
       ${days.map(v => { const det = v.count ? dayDetails(v) : [{client:'', purpose: v.purpose||'No visits'}]; const n = det.length; return det.map((x,i) => `<tr>${i===0?`<td rowspan="${n}" class="day"><b>${fmtDate(v.date)}</b> <span class="hint">${dayName(v.date)}</span><div class="hint">${v.count} visit${v.count===1?'':'s'}</div>${v.note?`<div class="mnote">📝 ${esc(v.note)}</div>`:''}</td>`:''}<td class="wrap">${x.client ? `<span class="seq sm">${i+1}</span>${esc(x.client)}` : `<span class="badge no">${esc(String(x.purpose).split(' — ')[0])}</span>`}</td><td>${x.client ? catBadge(ae, x.client) : ''}</td><td class="wrap hint">${x.client ? esc(x.purpose||'') : ''}</td>${i===0?`<td rowspan="${n}" class="num day">${kmCell(v)}${v.route?`<div class="hint" style="white-space:normal;font-weight:400;max-width:260px;margin-top:4px">${esc(v.route)}${routeMapLink(v)}</div>`:''}</td>${ui.mgr?`<td rowspan="${n}" class="day"><div class="rowact" style="flex-direction:column;align-items:flex-start"><button data-me="${v.id}">Edit</button><button class="del" data-md="${v.id}">Delete</button></div></td>`:''}`:''}</tr>`).join(''); }).join('') || `<tr><td colspan="${ui.mgr?6:5}" class="empty">No visits this month</td></tr>`}
@@ -3319,8 +3342,8 @@ function importPreviewRows(rows){
     const why = !client ? 'no client' : !date ? `date “${esc(String(r[c.date]))}” not understood` : date > todayIso() ? 'date is in the future' : !ae ? `AE “${esc(String(r[c.ae]))}” is not on the team` : (ae !== ui.me && !isMgr()) ? 'only admins can upload for someone else' : '';
     if (why) { bad.push({line, why}); return; }
     const best = matchAccounts(client, ae)[0], matched = best && best.s >= 0.6 ? best.a.account : client;
-    const ex = dayEntry(ae, date), dupKey = ae + '|' + date + '|' + norm(matched);
-    if ((ex && dayDetails(ex).some(d => norm(d.client) === norm(matched))) || seenRows.has(dupKey)) { bad.push({line, why: `${esc(matched)} is already logged for ${fmtLong(date)}${ae !== ui.me ? ' (' + esc(ae) + ')' : ''}`, dup: true}); return; }
+    const ex = dayEntry(ae, date), dupKey = ae + '|' + date + '|' + canon(matched);
+    if ((ex && dayDetails(ex).some(d => canon(d.client) === canon(matched))) || seenRows.has(dupKey)) { bad.push({line, why: `${esc(matched)} is already logged for ${fmtLong(date)}${ae !== ui.me ? ' (' + esc(ae) + ')' : ''}`, dup: true}); return; }
     seenRows.add(dupKey);
     items.push({line, date, ae, typed: client, client: matched, corrected: norm(matched) !== norm(client), isNew: !(best && best.s >= 0.6), purpose: String(r[c.purpose] ?? '').trim().slice(0, 120), order: Number(r[c.order]) || (i + 1)});
   });
@@ -3368,18 +3391,20 @@ function dataAudit(){
   rows.forEach(v => { if (!team.has(v.ae)) return; const m = v.date.slice(0,7), o = months.get(m) || {days:0, visits:0, km:0, people:new Set()}; const n = splitAccts(v.accounts).length; o.km += Number(v.km)||0; if (n) { o.days++; o.visits += n; o.people.add(v.ae); } months.set(m, o); });   // km includes travel days without client visits, as the dashboard does
   const today = todayIso().slice(0,7), recent = []; for (let i = 5; i >= 0; i--) { const d = new Date(+today.slice(0,4), +today.slice(5,7)-1-i, 1); recent.push(`${d.getFullYear()}-${pad(d.getMonth()+1)}`); }
   const monthList = [...new Set([...recent, ...months.keys()])].sort().reverse();
-  const repeats = rows.map(v => { const c = {}; splitAccts(v.accounts).forEach(n => { const k = norm(n); c[k] = (c[k]||0) + 1; }); const extra = Object.values(c).reduce((s,x)=>s+Math.max(0,x-1),0); return extra ? {v, extra} : null; }).filter(Boolean);
-  const miscount = rows.filter(v => Number(v.count) !== splitAccts(v.accounts).length);
+  const repeats = rows.map(v => { const c = {}; splitAccts(v.accounts).forEach(n => { const k = canon(n); c[k] = (c[k]||0) + 1; }); const extra = Object.values(c).reduce((s,x)=>s+Math.max(0,x-1),0); return extra ? {v, extra} : null; }).filter(Boolean);
+  const miscount = rows.filter(v => Number(v.storedCount ?? v.count) !== splitAccts(v.accounts).length);
   const bookDup = []; const seen = new Map(); data.accounts.forEach(a => { const k = a.ae + '|' + norm(a.account); seen.set(k, (seen.get(k)||[]).concat(a)); }); seen.forEach(list => { if (list.length > 1) bookDup.push(list); });
   const kmCheck = rows.filter(v => splitAccts(v.accounts).length && (v.kmMode === 'pending' || Number(v.km) > 300));
   const strangers = rows.filter(v => !team.has(v.ae));
   const future = rows.filter(v => v.date > todayIso());
-  const unmatched = new Map(); rows.forEach(v => splitAccts(v.accounts).forEach(n => { if (!accountRow(v.ae, n) && !accountRow('', n)) unmatched.set(norm(n), n); }));
+  const unmatched = new Map(); rows.forEach(v => splitAccts(v.accounts).forEach(n => { if (!accountRow(v.ae, n) && !accountRow('', n)) unmatched.set(canon(n), n); }));
   const byDay = new Map(); rows.forEach(v => { const k = v.ae + '|' + v.date; byDay.set(k, (byDay.get(k) || []).concat(v)); });
   const splitDays = [...byDay.values()].filter(l => l.length > 1);
-  const catMap = new Map(); data.accounts.forEach(x => { if (!TIERS.includes(x.tier)) return; const k = x.ae + '|' + norm(x.account); if (!catMap.has(k)) catMap.set(k, {name: x.account, ae: x.ae, cats: new Set()}); catMap.get(k).cats.add(x.tier); });
+  const catMap = new Map(); data.accounts.forEach(x => { if (!TIERS.includes(x.tier)) return; const k = x.ae + '|' + canon(x.account); if (!catMap.has(k)) catMap.set(k, {name: x.account, ae: x.ae, cats: new Set()}); catMap.get(k).cats.add(x.tier); });
   const catConflict = [...catMap.values()].filter(x => x.cats.size > 1);
-  return {months, monthList, repeats, miscount, bookDup, kmCheck, strangers, future, unmatched, catConflict, splitDays};
+  const spell = new Map(); data.accounts.forEach(x => { const k = x.ae + '|' + canon(x.account); if (!spell.has(k)) spell.set(k, new Map()); spell.get(k).set(norm(x.account), x); });
+  const twoSpellings = [...spell.values()].filter(m => m.size > 1).map(m => [...m.values()]);
+  return {months, monthList, repeats, miscount, bookDup, kmCheck, strangers, future, unmatched, catConflict, splitDays, twoSpellings};
 }
 async function dataCheckDialog(){
   const a = dataAudit();
@@ -3393,9 +3418,10 @@ async function dataCheckDialog(){
       <h4>Things that change the numbers</h4>
       ${issue(a.splitDays.length, 'Days split into more than one row (office kilometres counted twice)', a.splitDays.slice(0,8).map(l => `${fmtLong(l[0].date)} · ${esc(l[0].ae)}: ${l.length} rows`).join('<br>'), 'merge')}
       ${issue(a.repeats.reduce((s,x)=>s+x.extra,0), 'Same client logged twice on the same day', a.repeats.slice(0,8).map(x => `${fmtLong(x.v.date)} · ${esc(x.v.ae)}`).join('<br>') + (a.repeats.length > 8 ? '<br>…' : ''), 'repeats')}
-      ${issue(a.miscount.length, 'Days whose visit count doesn’t match the clients listed', a.miscount.slice(0,8).map(v => `${fmtLong(v.date)} · ${esc(v.ae)}: says ${v.count}, lists ${splitAccts(v.accounts).length}`).join('<br>'), 'recount')}
+      ${issue(a.miscount.length, 'Days whose visit count doesn’t match the clients listed', a.miscount.slice(0,8).map(v => `${fmtLong(v.date)} · ${esc(v.ae)}: says ${v.storedCount ?? v.count}, lists ${splitAccts(v.accounts).length}`).join('<br>'), 'recount')}
       ${issue(a.bookDup.length, 'Accounts listed twice in someone’s book', a.bookDup.slice(0,10).map(l => `${esc(l[0].ae)}: ${esc(l[0].account)} ×${l.length}`).join('<br>') + '<br><span class="hint">The dashboard now counts each once. To tidy the sheet, delete the extra row in the <b>Categories</b> tab.</span>', '')}
       ${issue(a.kmCheck.length, 'Days with kilometres to check (pending, or over 300 km)', a.kmCheck.slice(0,8).map(v => `${fmtLong(v.date)} · ${esc(v.ae)}: ${v.kmMode === 'pending' ? 'pending' : num(v.km) + ' km'}`).join('<br>'), 'km')}
+      ${issue(a.twoSpellings.length, 'The same company under two spellings in one person’s list (counted as one)', a.twoSpellings.slice(0,10).map(l => `${esc(l[0].ae)}: ${l.map(x => `${esc(x.account)}${TIERS.includes(x.tier) ? ' <b>' + x.tier + '</b>' : x.netNew === 'Y' ? ' (net new)' : ''}`).join(' · ')}`).join('<br>') + '<br><span class="hint">Visits to either spelling count for the company. To tidy up, add the other spelling in the <b>Aliases</b> tab.</span>', '')}
       ${issue(a.catConflict.length, 'The same account twice in one person’s list with different categories', a.catConflict.slice(0,10).map(x => `${esc(x.ae)}: ${esc(x.name)} — ${[...x.cats].sort().join(' and ')} → counted as <b>${[...x.cats].sort()[0]}</b>`).join('<br>') + '<br><span class="hint">Keep one row per account for each person in the Categories tab.</span>', '')}
       ${(() => { let cs = {}; try { cs = JSON.parse(data.settings.categoriesSync||'{}'); } catch(e){} const un = cs.unreadCategories || {}, n = Object.values(un).reduce((s,x)=>s+x,0); return issue(n, 'Categories tab: category values the app can’t read', Object.entries(un).slice(0,8).map(([v,c]) => `“${esc(v)}” ×${c}`).join(', ') + '<br><span class="hint">Use A, B or C (also fine: “Cat A”, “Category B”, “Tier C”). Blank or “None” means no category.</span>', ''); })()}
       ${issue((() => { let cs = {}; try { cs = JSON.parse(data.settings.categoriesSync||'{}'); } catch(e){} return (cs.unknownAEs||[]).length; })(), 'Categories tab: names that don’t match anyone on the team', (() => { let cs = {}; try { cs = JSON.parse(data.settings.categoriesSync||'{}'); } catch(e){} return (cs.unknownAEs||[]).map(esc).join(', ') + '<br><span class="hint">Those rows aren’t in anyone’s book. Fix the spelling in the Categories tab, or add the person in Settings → Team.</span>'; })(), '')}
@@ -3436,7 +3462,7 @@ async function dataFix(kind, btn){
     btn.textContent = `Fixing ${done + failed + 1} of ${list.length}…`;
     try {
       let row = {...v}, autoKm = false;
-      if (kind === 'repeats') { const seen = new Set(); const det = dayDetails(v).filter(d => { const k = norm(d.client); if (seen.has(k)) return false; seen.add(k); return true; }); row.details = JSON.stringify(det); row.accounts = det.map(d => d.client).join('; '); row.count = det.length; autoKm = String(data.settings.autoKm||'Y').toUpperCase() !== 'N'; }
+      if (kind === 'repeats') { const seen = new Set(); const det = dayDetails(v).filter(d => { const k = canon(d.client); if (seen.has(k)) return false; seen.add(k); return true; }); row.details = JSON.stringify(det); row.accounts = det.map(d => d.client).join('; '); row.count = det.length; autoKm = String(data.settings.autoKm||'Y').toUpperCase() !== 'N'; }
       if (kind === 'recount') row.count = splitAccts(v.accounts).length;
       if (kind === 'km') { const r = await callApi({action:'recalcKm', id: v.id, adminPin:getAdminPin()}); upsertLocal('visits', normVisits([r.row])[0]); done++; continue; }
       const r = await callApi({action:'upsertVisit', row, autoKm, adminPin:getAdminPin(), mode:'replace', baseTs: v.ts || ''}); upsertLocal('visits', normVisits([r.row])[0]); done++;
