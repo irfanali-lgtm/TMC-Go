@@ -1077,6 +1077,12 @@ body .modal .dialog.wide{max-width:min(1040px,96vw)!important;width:min(1040px,9
 .drl th{position:sticky;top:0;z-index:1}
 .drl td,.drl th{padding:8px 10px;white-space:nowrap}
 @media (max-width:760px){ .drl{max-height:none;border:0;border-radius:0;margin:0 -16px} .drl td,.drl th{padding:8px 8px} }
+/* ── account notes ── */
+body .notecell{background:var(--n-0);border:1px dashed var(--n-300);border-radius:var(--r-sm);padding:4px 8px;font:inherit;font-size:12.5px;color:var(--n-700);text-align:left;max-width:320px;white-space:normal;cursor:pointer;line-height:1.35}
+body .notecell:hover{border-color:var(--b-500);background:var(--b-50)}
+body .notecell.empty{color:var(--n-500)}
+body .notecell.inline{max-width:100%}
+body #anText{width:100%;min-height:120px;resize:vertical}
 /* ── tables ── */
 body .tw{border-radius:0 0 var(--r-xl) var(--r-xl)}
 body table th{background:var(--n-50)!important;color:var(--n-500)!important;font-size:11.5px!important;font-weight:650!important;text-transform:uppercase;letter-spacing:.04em;border-color:var(--n-200)!important}
@@ -1253,7 +1259,7 @@ body .kpi svg.spark{position:static!important;display:block;width:100%!important
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-20 08:00 · production';
+const BUILD = '2026-10-20 08:35 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -2005,6 +2011,7 @@ function renderLog(){
             ${l.client ? `<div class="chips one"><span class="chip ${chipCls(ui.me,l.client)}${wasCorrected(l)?' fixed':''}">${esc(l.client)}${chipTag(ui.me,l.client)}${l.forced ? ' <span class="badge N" title="Saved exactly as you typed it">as typed</span>' : ''}<button type="button" title="Change" aria-label="Change client" data-lx="${l.key}">×</button></span></div>` : `<div class="picker"><input placeholder="Search your clients, or type a new name" autocomplete="off" id="lin-${l.key}" ${l.err?'class="bad"':''}><div class="menu" id="lmn-${l.key}"></div></div>`}
             ${l.client && !ui.demo ? (() => { const loc = lineLoc(l); if (loc) return `<span class="hint locline">📍 ${esc(loc.address || (loc.lat.toFixed(4)+', '+loc.lng.toFixed(4)))}${loc.saved?' <span class="badge ok" style="height:16px;font-size:10px;padding:0 5px">saved</span>':''} · <a href="#" data-pin="${l.key}">${loc.saved ? 'use another office' : 'change'}</a></span>`; const c = _placeCache.get(norm(l.client)); if (c === undefined) { prefetchPlaces(l); return `<span class="hint">📍 Finding ${esc(l.client)} on the map…</span>`; } if (c === null) return `<span class="hint">📍 Finding ${esc(l.client)} on the map…</span>`; if (!c.length) return `<span class="hint">📍 Not found on the map by name — <a href="#" data-pin="${l.key}">search or paste a Maps link</a></span>`; return `<div class="placepick"><span class="hint">📍 Which ${esc(l.client)}?</span>${c.slice(0,3).map((p,i)=>`<button type="button" class="place" data-pp="${l.key}" data-pi="${i}" title="${esc(p.address||'')}">${esc((p.address||p.name||'').split(',').slice(0,2).join(','))}</button>`).join('')}${c.length>3?`<a href="#" data-pin="${l.key}">${c.length-3} more…</a>`:`<a href="#" data-pin="${l.key}">other</a>`}</div>`; })() : ''}
             ${l.client && !form.editId ? (() => { const lv = lastVisitFor(l.client); return lv && lv.date < l.date ? `<span class="hint lastv">🕑 Last visit ${agoText(lv.date)}${lv.purpose ? ' — ' + esc(lv.purpose) : ''}${l.prefilled ? ' · purpose filled in, change it if today was different' : ''}</span>` : (l.client && !lv ? `<span class="hint lastv">✨ First visit you’ve logged here</span>` : ''); })() : ''}
+            ${l.client && !form.editId ? (() => { const a = accountRow(ui.me, l.client); if (!a || !canNote(a)) return ''; const n = String(a.aeNotes||'').trim(); return `<span class="hint lastv"><button type="button" class="notecell inline${n?'':' empty'}" data-anote="${esc(a.id)}" title="${n ? 'Edit your note about this account' : 'Add a note about this account'}">${n ? '📝 ' + esc(n.length > 90 ? n.slice(0, 90) + '…' : n) : '📝 Add a note'}</button></span>`; })() : ''}
             ${l.date && [0,6].includes(new Date(l.date+'T00:00:00').getDay()) ? `<span class="hint">${dayName(l.date)} is a day off — fine if you did visit, just checking the date.</span>` : ''}
             ${wasCorrected(l) ? `<span class="hint fix">✎ Auto-corrected from “${esc(l.typed)}”. Not right? <a href="#" data-lf="${l.key}">Use “${esc(l.typed)}” as typed</a></span>` : ''}
             ${l.client && dupNote(l) ? `<span class="hint warn">${dupNote(l)}</span>` : ''}
@@ -2023,7 +2030,7 @@ function renderLog(){
         <span class="hint" id="fMsg"></span>
         ${editing ? `<span style="margin-left:auto"><button type="button" class="dellink${ui.pendingDelete===form.editId?' arm':''}" id="fDel">${ui.pendingDelete===form.editId ? 'Click again to remove this day' : 'Remove this day…'}</button></span>` : ''}
       </div>
-      ${!editing ? `<div class="logextra"><button class="btn quiet" id="fVoice" title="Log your visits by talking" aria-label="Log by voice"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Log by voice</button>${!ui.demo ? `<button class="btn quiet" id="fImport" title="Upload an Excel or CSV file with many visits at once"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Upload Excel</button>` : ''}</div>` : ''}
+      ${!editing ? `<div class="logextra"><button class="btn quiet" id="fMyAccounts" title="Everyone on your list, with your notes"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h12a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2z"/><path d="M8 8h6M8 12h6"/></svg>My accounts</button><button class="btn quiet" id="fVoice" title="Log your visits by talking" aria-label="Log by voice"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Log by voice</button>${!ui.demo ? `<button class="btn quiet" id="fImport" title="Upload an Excel or CSV file with many visits at once"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Upload Excel</button>` : ''}</div>` : ''}
       <div id="untouchedSlot" class="uslot"></div>
       <div id="routeBox" style="margin-top:12px"></div>
     </div>
@@ -2054,6 +2061,8 @@ function renderLog(){
   $$('select[data-ord]').forEach(s => s.onchange = () => { const i = form.lines.findIndex(x => x.key === s.dataset.ord), to = +s.value; if (i < 0 || to === i) return; const [it] = form.lines.splice(i, 1); form.lines.splice(to, 0, it); renderLog(); toast(`${it.client || 'Visit'} is now visit ${to+1}`); });
   if ($('#goDash')) $('#goDash').onclick = () => { ui.tab = 'dash'; localStorage.setItem('vi.tab','dash'); countUpArmed = true; render(); };
   if ($('#fImport')) $('#fImport').onclick = importDialog;
+  if ($('#fMyAccounts')) $('#fMyAccounts').onclick = () => kpiDrill('myaccounts', 'month');
+  wireNotes($('#v-log'), () => renderLog());
   $('#fAdd').onclick = () => { form.lines.push(newLine(formDate())); renderLog(); const l = form.lines[form.lines.length-1]; const i = $('#lin-'+l.key); if (i) i.focus(); };
   $('#fSave').onclick = saveVisit;
   if ($('#fVoice')) $('#fVoice').onclick = vlStart;
@@ -2460,7 +2469,7 @@ function renderMyMonth(){
       <div class="kpi drillable k-purple" data-drill="netnew" data-scope="month" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><div class="l">Net new</div><div class="v">${s.netNew.accounts}</div><div class="d">${s.netNew.visits} visits</div></div>
       <div class="kpi drillable k-amber" data-drill="km" data-scope="month" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/></svg></span><div class="l">Kilometres</div><div class="v">${num(s.km)}</div><div class="d">${mine.length} day${mine.length===1?'':'s'} logged</div></div>
     </div>
-    ${notV.length && !$('#untouchedSlot') ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>Still due</b><span class="ut-n">${notV.length}</span></span><span class="hint ut-h">tap a client to add it to today</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,14).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="Add ${esc(a.account)} as a visit">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span></button>`).join('')}${notV.length>14?`<span class="hint">and ${notV.length-14} more</span>`:''}</div></details>`:''}
+    ${notV.length && !$('#untouchedSlot') ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>Still due</b><span class="ut-n">${notV.length}</span></span><span class="hint ut-h">tap a client to add it to today</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,14).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="Add ${esc(a.account)} as a visit${String(a.aeNotes||'').trim() ? ' — note: ' + esc(String(a.aeNotes).trim().slice(0,120)) : ''}">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span></button>`).join('')}${notV.length>14?`<span class="hint">and ${notV.length-14} more</span>`:''}</div></details>`:''}
     <div class="feed">${mine.map(v => { const det = v.count ? dayDetails(v) : []; return `<article class="post${v.id===form.editId?' hi':''}" data-day="${v.date}">
       <div class="ph"><span class="pdate"><b>${fmtDate(v.date)}</b><span>${dayName(v.date)}</span></span><span class="pmeta">${v.count} visit${v.count===1?'':'s'}${v.km!=='' && v.count ? ` · <b>${num(v.km)} km</b>` : ''}${v.kmMode==='pending'?' · <span class="badge pend">km pending</span>':''}</span></div>
       ${v.note ? `<div class="mnote" style="margin:0 14px 6px">📝 ${esc(v.note)}</div>` : ''}
@@ -2477,7 +2486,7 @@ function renderMyMonth(){
   wireRowActions(el); countUpNumbers(el);
   // the "not yet visited" list sits under the log form, where tapping a client adds it
   const slot = $('#untouchedSlot');
-  if (slot) { slot.innerHTML = notV.length ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>${curOpen ? 'Still due' : 'Missed in ' + MONTHS_LONG[+ui.month.slice(5)-1]}</b><span class="ut-n">${notV.length}</span></span><span class="hint ut-h">${curOpen ? 'A: every month · B: 2× a quarter · C: every quarter' : 'rule not met'}</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,40).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="${esc(a._need.rule)} — ${esc(needText(a._need))}">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span><small class="uneed">${esc(curOpen ? needText(a._need) : (a._need.cur.got + ' of ' + a._need.cur.need))}</small></button>`).join('')}${notV.length>40?`<span class="hint">and ${notV.length-40} more</span>`:''}</div></details>` : `<div class="allclear">✓ Every account is on track — A this month, B and C this quarter</div>`; wireRowActions(slot); }
+  if (slot) { slot.innerHTML = notV.length ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>${curOpen ? 'Still due' : 'Missed in ' + MONTHS_LONG[+ui.month.slice(5)-1]}</b><span class="ut-n">${notV.length}</span></span><span class="hint ut-h">${curOpen ? 'A: every month · B: 2× a quarter · C: every quarter' : 'rule not met'}</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,40).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="${esc(a._need.rule)} — ${esc(needText(a._need))}${String(a.aeNotes||'').trim() ? ' — note: ' + esc(String(a.aeNotes).trim().slice(0,120)) : ''}">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span><small class="uneed">${esc(curOpen ? needText(a._need) : (a._need.cur.got + ' of ' + a._need.cur.need))}</small></button>`).join('')}${notV.length>40?`<span class="hint">and ${notV.length-40} more</span>`:''}</div></details>` : `<div class="allclear">✓ Every account is on track — A this month, B and C this quarter</div>`; wireRowActions(slot); }
   quietZeros($('#myMonth')); wireDrills($('#myMonth'));
 }
 function wireRowActions(el){
@@ -2573,6 +2582,32 @@ document.addEventListener('keydown', e => {
   if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
   else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
+function canNote(a){ return !!a && (a.ae === ui.me || isMgr()); }
+function noteCell(a){   // a table cell: the note, or "+ note"; clickable when allowed
+  if (!a) return {text:'', html:''};
+  const txt = String(a.aeNotes || '').trim();
+  if (!canNote(a)) return {text: txt, html: txt ? esc(txt) : ''};
+  return {text: txt, html: `<button type="button" class="notecell${txt?'':' empty'}" data-anote="${esc(a.id)}" title="${txt ? 'Edit this note' : 'Add a note about this account'}">${txt ? esc(txt) : '+ note'}</button>`};
+}
+function wireNotes(root, after){ (root || document).querySelectorAll('[data-anote]').forEach(b => b.onclick = e => { e.stopPropagation(); accountNoteDialog(b.dataset.anote, after); }); }
+function accountNoteDialog(id, after){
+  const a = data.accounts.find(x => x.id === id); if (!a) { toast('That account is no longer in the list'); return; }
+  if (!canNote(a)) { toast('You can only add notes to accounts in your own list'); return; }
+  const cur = String(a.aeNotes || '');
+  openModal(`Note · ${a.account}`, `<p class="hint" style="margin-top:0">${esc(a.ae === ui.me ? 'Only you and admins can see this.' : `${esc(shortName(a.ae))}’s account — only ${esc(shortName(a.ae))} and admins can see this.`)} Up to 600 characters.</p>
+    <textarea id="anText" rows="6" maxlength="600" placeholder="e.g. Decision maker is Mr Khan (procurement). Prefers mornings. Renewal due in March." aria-label="Note about ${esc(a.account)}">${esc(cur)}</textarea>
+    <div class="hint" style="text-align:right"><span id="anCount">${cur.length}</span>/600</div>`, async () => {
+      const note = $('#anText').value.trim();
+      let r;
+      try { r = await callApi({action:'setAccountNote', id: a.id, note}); }
+      catch (e) { if (navigator.onLine === false || /offline|Failed to fetch|NetworkError|Load failed/i.test(String(e && e.message || e))) { const err = new Error('You’re offline — this note isn’t saved yet. Keep it open and tap Save again when you have signal.'); err.friendly = true; throw err; } throw e; }
+      upsertLocal('accounts', {...a, aeNotes: r.aeNotes || ''});
+      toast(note ? 'Note saved' : 'Note removed');
+      render(); if (after) after();
+    }, 'Save note');
+  $('#anText').oninput = () => { $('#anCount').textContent = $('#anText').value.length; };
+  setTimeout(() => { const ta = $('#anText'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }, 50);
+}
 function wireDrills(root){
   (root || document).querySelectorAll('[data-drill]').forEach(el => {
     if (el.__drill) return; el.__drill = true;
@@ -2596,8 +2631,8 @@ function kpiDrill(kind, scope){
     title = `Visits`; cols = ['Date','AE','Client','Cat.','Purpose','Day km','Map']; note = 'One line per client visited (a day with 3 clients is 3 visits).';
   } else if (kind === 'accounts') {
     rows.forEach(r => { const seen = new Map(); mv.filter(v => v.ae === r.ae).forEach(v => dayDetails(v).forEach(d => { const a = accountRow(r.ae, d.client) || accountRow('', d.client); const k = canon(a ? a.account : d.client); const cur = seen.get(k) || {name: a ? a.account : d.client, n: 0, last: '', first: ''}; cur.n++; if (!cur.last || v.date > cur.last) cur.last = v.date; if (!cur.first || v.date < cur.first) cur.first = v.date; seen.set(k, cur); }));
-      [...seen.values()].sort((a,b) => b.n - a.n || a.name.localeCompare(b.name)).forEach(x => out.push([shortName(r.ae), x.name, cat(r.ae, x.name), x.n, fmtDate(x.first), fmtDate(x.last)])); });
-    title = `Accounts visited`; cols = ['AE','Account','Cat.','Visits','First','Last']; note = 'Each company once per person, whatever spelling was typed. "None" = not in that person’s list.';
+      [...seen.values()].sort((a,b) => b.n - a.n || a.name.localeCompare(b.name)).forEach(x => out.push([shortName(r.ae), x.name, cat(r.ae, x.name), x.n, fmtDate(x.first), fmtDate(x.last), noteCell(accountRow(r.ae, x.name))])); });
+    title = `Accounts visited`; cols = ['AE','Account','Cat.','Visits','First','Last','Note']; note = 'Each company once per person, whatever spelling was typed. "None" = not in that person’s list.';
   } else if (kind === 'netnew') {
     rows.forEach(r => (r.netNew.list || []).forEach(a => { const vs = mv.filter(v => v.ae === r.ae && dayDetails(v).some(d => { const x = accountRow(r.ae, d.client); return canon(x ? x.account : d.client) === canon(a.account); })); out.push([shortName(r.ae), a.account, vs.length, vs.length ? fmtDate(vs.map(v=>v.date).sort()[0]) : '', vs.length ? fmtDate(vs.map(v=>v.date).sort().slice(-1)[0]) : '']); }));
     title = `Net new accounts`; cols = ['AE','Account','Visits','First','Last']; note = 'Companies that are in nobody’s Categories list (new to the company) and were visited in the period.';
@@ -2609,28 +2644,35 @@ function kpiDrill(kind, scope){
     rows.filter(r => r.measured).forEach(r => r.cov.accts.forEach(x => x.wins.forEach(w => out.push([shortName(r.ae), x.a.account, x.tier, w.label || w.key, `${w.got} of ${w.need}`, w.met ? 'met' : (w.open ? `due · ${w.need - w.got} more` : 'missed'), w.met ? 'met' : 'unmet']))));
     title = kind === 'stilldue' ? 'Still due' : 'Team coverage'; cols = ['AE','Account','Cat.','Period','Visits','Status']; note = 'One line per account per calendar period (A: month · B, C: quarter). Only people whose coverage is measured.';
     out.__filter = state.filter;
+  } else if (kind === 'myaccounts') {
+    const me = ui.me, cov = coverageFor(me, monthRange().from, monthRange().to), st = new Map(cov.accts.map(x => [canon(x.a.account), x]));
+    const last = new Map(); data.visits.filter(v => v.ae === me && v.date <= todayIso()).forEach(v => splitAccts(v.accounts).forEach(n => { const r = accountRow(me, n); const k = canon(r ? r.account : n); if (!last.has(k) || v.date > last.get(k)) last.set(k, v.date); }));
+    assignedFor(me, '9999-12-31').sort((a,b) => (TIERS.indexOf(a.tier)+1 || 9) - (TIERS.indexOf(b.tier)+1 || 9) || a.account.localeCompare(b.account)).forEach(a => { const x = st.get(canon(a.account)); const k = canon(a.account);
+      out.push([a.account, TIERS.includes(a.tier) ? a.tier : (a.netNew === 'Y' ? 'New' : 'None'), a.city || '', last.has(k) ? fmtDate(last.get(k)) : '—', x ? (x.cur.met ? 'met' : (x.cur.open ? `due · ${x.cur.need - x.cur.got} more` : 'missed')) : '', noteCell(a), x ? (x.cur.met ? 'met' : 'unmet') : 'none']); });
+    title = 'My accounts'; cols = ['Account','Cat.','City','Last visit','Status','Note']; note = 'Everyone on your list. Tap a note to add or change it — only you and admins can read your notes.'; label = `${MONTHS_LONG[+ui.month.slice(5,7)-1]} ${ui.month.slice(0,4)}`; who = shortName(me);
   } else if (kind === 'leader') {
     rows.slice().sort((a,b) => b.totalVisits - a.totalVisits || a.ae.localeCompare(b.ae)).forEach((r, i) => out.push([i + 1, shortName(r.ae), r.totalVisits, r.totalAccounts, r.netNew.accounts, num(r.km), r.measured ? (r.overall.pct === null ? '—' : r.overall.pct + '%') : 'not measured']));
     title = 'Most visits'; cols = ['#','AE','Visits','Accounts','Net new','Km','Coverage'];
   }
-  drillTable(title, `${label} · ${who}`, cols, out, note, kind);
+  drillTable(title, `${label} · ${who}`, cols, out, note, kind, scope);
 }
-function drillTable(title, sub, cols, out, note, kind){
+function drillTable(title, sub, cols, out, note, kind, scope){
   const statusCol = cols.indexOf('Status');
   const flt = out.__filter || 'all';
   const rowsOf = () => { const q = norm($('#drQ') ? $('#drQ').value : ''); const f = $('#drF') ? $('#drF').value : flt;
-    return out.filter(r => (f === 'all' || r[r.length - 1] === f) && (!q || norm(r.slice(0, statusCol === -1 ? r.length : statusCol + 1).join(' ')).includes(q))); };
+    const plain = c => (c && typeof c === 'object') ? c.text : String(c);
+    return out.filter(r => (f === 'all' || r[r.length - 1] === f) && (!q || norm((statusCol === -1 ? r : r.slice(0, -1)).map(plain).join(' ')).includes(q))); };   // search every visible cell, incl. notes
   const shown = () => rowsOf().map(r => statusCol === -1 ? r : r.slice(0, -1));
-  const table = () => { const rs = shown(); return `<div class="tw drl"><table><thead><tr>${cols.map(c => `<th${typeof (out[0]||[])[cols.indexOf(c)] === 'number' ? ' class="num"' : ''}>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rs.slice(0, 600).map(r => `<tr>${r.map((c, i) => cols[i] === 'Cat.' ? `<td><span class="badge ${/^[ABC]$/.test(c)?c:'N'}">${esc(c)}</span></td>` : cols[i] === 'Map' ? `<td>${c}</td>` : cols[i] === 'Status' ? `<td><span class="st ${/^met/.test(c)?'ok':/^due/.test(c)?'due':'miss'}">${esc(c)}</span></td>` : `<td${typeof c === 'number' ? ' class="num"' : ''}>${esc(String(c))}</td>`).join('')}</tr>`).join('')}</tbody></table>${rs.length > 600 ? `<p class="hint">Showing the first 600 of ${rs.length} — narrow with the search box or download the CSV.</p>` : ''}${rs.length ? '' : '<p class="hint">Nothing matches.</p>'}</div>`; };
+  const table = () => { const rs = shown(); return `<div class="tw drl"><table><thead><tr>${cols.map(c => `<th${typeof (out[0]||[])[cols.indexOf(c)] === 'number' ? ' class="num"' : ''}>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rs.slice(0, 600).map(r => `<tr>${r.map((c, i) => cols[i] === 'Cat.' ? `<td><span class="badge ${/^[ABC]$/.test(c)?c:'N'}">${esc(c)}</span></td>` : cols[i] === 'Map' ? `<td>${c}</td>` : cols[i] === 'Note' ? `<td class="wrap">${c && typeof c === 'object' ? c.html : esc(String(c ?? ''))}</td>` : cols[i] === 'Status' ? `<td><span class="st ${/^met/.test(c)?'ok':/^due/.test(c)?'due':'miss'}">${esc(c)}</span></td>` : `<td${typeof c === 'number' ? ' class="num"' : ''}>${esc(String(c))}</td>`).join('')}</tr>`).join('')}</tbody></table>${rs.length > 600 ? `<p class="hint">Showing the first 600 of ${rs.length} — narrow with the search box or download the CSV.</p>` : ''}${rs.length ? '' : '<p class="hint">Nothing matches.</p>'}</div>`; };
   const count = () => { const rs = rowsOf(); const met = statusCol === -1 ? null : rs.filter(r => r[r.length - 1] === 'met').length; return statusCol === -1 ? `${rs.length}` : `${rs.length} requirement${rs.length===1?'':'s'}${$('#drF') && $('#drF').value === 'all' ? ` · ${met} met · ${rs.length - met} not met` : ''}`; };
   openModal(title, `<div class="drhead"><span class="hint">${esc(sub)}</span><b id="drN"></b></div>
     <div class="drbar"><input type="search" id="drQ" placeholder="Search…" aria-label="Search this list">${statusCol === -1 ? '' : `<select id="drF" aria-label="Show"><option value="all"${flt==='all'?' selected':''}>All</option><option value="unmet"${flt==='unmet'?' selected':''}>Not met</option><option value="met"${flt==='met'?' selected':''}>Met</option></select>`}<button type="button" class="btn sm" id="drCsv">⤓ CSV</button></div>
     ${note ? `<p class="hint" style="margin:6px 0 10px">${esc(note)}</p>` : ''}<div id="drT"></div>`, null, 'Close');
   $('#modal .dialog').classList.add('wide');
-  const paint = () => { $('#drT').innerHTML = table(); $('#drN').textContent = count(); quietZeros($('#drT')); };
+  const paint = () => { $('#drT').innerHTML = table(); $('#drN').textContent = count(); quietZeros($('#drT')); wireNotes($('#drT'), () => kpiDrill(kind, scope)); };
   paint();
   $('#drQ').oninput = paint; if ($('#drF')) $('#drF').onchange = paint;
-  $('#drCsv').onclick = () => downloadCsv(`tmc-go-${kind}-${ui.range.from}-to-${ui.range.to}`, [cols.filter(c => c !== 'Map'), ...shown().map(r => r.filter((c, i) => cols[i] !== 'Map'))]);
+  $('#drCsv').onclick = () => downloadCsv(`tmc-go-${kind}-${ui.range.from}-to-${ui.range.to}`, [cols.filter(c => c !== 'Map'), ...shown().map(r => r.filter((c, i) => cols[i] !== 'Map').map(c => (c && typeof c === 'object') ? c.text : c))]);
 }
 // companies that are in anyone's A/B/C list (one key per company) — cached per redraw
 function categorisedCompanies(){ if (!_covIndex.has('#listed')) { const s = new Set(); data.accounts.forEach(a => { if (TIERS.includes(a.tier)) s.add(canon(a.account)); }); _covIndex.set('#listed', s); } return _covIndex.get('#listed'); }
