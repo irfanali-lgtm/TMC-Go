@@ -1105,9 +1105,15 @@ body .todobtn.on{background:var(--b-50)!important;border-color:var(--b-200)!impo
 .tnote{color:var(--n-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:420px}
 .tact{display:flex;gap:6px}
 .tdonebox{margin-top:12px} .tdonebox summary{cursor:pointer;color:var(--n-500);font-size:13px;font-weight:600}
-.fu2{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end} .chk{display:flex!important;align-items:center;gap:10px;min-height:40px;font-weight:500;cursor:pointer;margin:0!important}
+.fu2{display:grid;grid-template-columns:1.4fr 1fr;gap:10px;align-items:end;margin-top:8px} .chk{display:flex!important;align-items:center;gap:10px;min-height:40px;font-weight:500;cursor:pointer;margin:0!important}
 body .chk input[type=checkbox]{width:18px!important;height:18px!important;min-height:0!important;min-width:0!important;flex:none;margin:0;padding:0;accent-color:var(--b-600);box-shadow:none!important}
-@media (max-width:760px){ .fu2{grid-template-columns:1fr} .tnote{max-width:100%;white-space:normal} .todo{grid-template-columns:30px minmax(0,1fr) auto} }
+@media (max-width:760px){ .tnote{max-width:100%;white-space:normal} .todo{grid-template-columns:30px minmax(0,1fr) auto} }
+.fuquick{display:flex;flex-wrap:wrap;gap:6px}
+.chipq{height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--n-300);background:var(--n-0);font:inherit;font-size:13px;font-weight:600;color:var(--n-700);cursor:pointer}
+.chipq:hover{border-color:var(--b-500);background:var(--b-50)} .chipq.on{background:var(--b-600);border-color:var(--b-600);color:#fff}
+.fuhint{margin:10px 0 0;font-size:13px;color:var(--n-700);background:var(--n-50);border:1px solid var(--n-200);border-radius:var(--r-md);padding:10px 12px;line-height:1.45}
+.funudge{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--b-50);border:1px solid var(--b-200);border-radius:var(--r-lg);padding:8px 12px;margin-bottom:8px;font-size:13.5px;color:var(--b-800)}
+.logcard .todopanel{border:1px solid var(--n-200)!important;box-shadow:none!important;margin:0 0 14px}
 /* ── account notes ── */
 body .notecell{background:var(--n-0);border:1px dashed var(--n-300);border-radius:var(--r-sm);padding:4px 8px;font:inherit;font-size:12.5px;color:var(--n-700);text-align:left;max-width:320px;white-space:normal;cursor:pointer;line-height:1.35}
 body .notecell:hover{border-color:var(--b-500);background:var(--b-50)}
@@ -1290,7 +1296,7 @@ body .kpi svg.spark{position:static!important;display:block;width:100%!important
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-20 10:35 · production';
+const BUILD = '2026-10-20 11:12 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -1612,7 +1618,7 @@ function applyData(res){
   ui.session = res.session || ui.session || null;
   if (ui.session) { ui.me = ui.session.ae; try { localStorage.setItem('vi.me', ui.me); } catch(e){} }
   const d = res.data || {};
-  data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.followups = (d.followups||[]).map(f => ({...f, dueDate: isoDay(f.dueDate)})); data.aliases = (d.aliases||[]).map(x => ({...x, ae: x.ae ? teamName(x.ae) : ''})); data.settings = d.settings || data.settings || {};
+  data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.followups = (d.followups||[]).map(normFollowup); data.aliases = (d.aliases||[]).map(x => ({...x, ae: x.ae ? teamName(x.ae) : ''})); data.settings = d.settings || data.settings || {};
 }
 async function load(first){
   window.__booted = true;
@@ -1638,9 +1644,9 @@ async function load(first){
       ui.session = res.session || null;
       if (ui.session) { ui.me = ui.session.ae; try { localStorage.setItem('vi.me', ui.me); } catch(e){} }
       const d = res.data || {};
-      const sig = JSON.stringify([d.visits, d.accounts, d.aes, d.aliases]).length + ':' + (d.visits||[]).length + ':' + (d.accounts||[]).length + ':' + (d.aes||[]).length;
+      const sig = fingerprint(JSON.stringify([d.visits, d.accounts, d.aes, d.aliases, d.followups, d.opportunities, d.settings]));
       const changed = sig !== ui.dataSig; ui.dataSig = sig;
-      data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.followups = (d.followups||[]).map(f => ({...f, dueDate: isoDay(f.dueDate)})); data.aliases = (d.aliases||[]).map(x => ({...x, ae: x.ae ? teamName(x.ae) : ''})); data.settings = d.settings || data.settings;
+      data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.followups = (d.followups||[]).map(normFollowup); data.aliases = (d.aliases||[]).map(x => ({...x, ae: x.ae ? teamName(x.ae) : ''})); data.settings = d.settings || data.settings;
       ui.lastSync = new Date(); setConn('ok', 'Live · ' + ui.lastSync.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
       hideBanner();
       if (!first && !changed && ui.tab==='dash') { const rb = $('#dRefresh'); if (rb) { rb.disabled = false; const tt = 'updated ' + ui.lastSync.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); rb.title = 'Refresh now · ' + tt; rb.setAttribute('aria-label', 'Refresh now — ' + tt); } return; }
@@ -2030,8 +2036,9 @@ function renderLog(){
   el.innerHTML = `
   <div class="card logcard">
     <div class="head hello"><div class="who">${avatar(ui.me, 44)}<div><div class="eyebrow">${esc(fmtLong(todayIso()))} · ${esc(['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()])}</div><h2>${esc(greeting())}, ${esc(shortName(ui.me).split(' ')[0])} ${greetEmoji()}</h2><div class="hint">${esc([aeByName(ui.me)?.title, city].filter(Boolean).join(' · '))}${monthPulse()}</div></div></div><span class="sub">${editing ? `Editing ${fmtDate(editDay ? editDay.date : '')} — change the visits below and save; the day\u2019s kilometres are recalculated.` : 'Add your visits in the order you made them — kilometres follow that order.'}</span>
-      <span class="spacer"></span>${editing ? '<button class="btn sm" id="fCancel">Cancel</button>' : ''}</div>
+      <span class="spacer"></span>${editing ? '<button class="btn sm" id="fCancel">Cancel</button>' : todoButton()}</div>
     <div class="body">
+      ${!editing ? todoPanel() : ''}
       ${!editing ? weekStrip() : ''}
       ${!mixedDates() ? dayPill(editing) : ''}
       ${form.lines.length > 1 ? `<div class="ordhint">🧭 Number your visits <b>in the order you made them</b> — kilometres are calculated office → visit 1 → visit 2 → … → office.</div>` : ''}
@@ -2093,6 +2100,8 @@ function renderLog(){
   if ($('#goDash')) $('#goDash').onclick = () => { ui.tab = 'dash'; localStorage.setItem('vi.tab','dash'); countUpArmed = true; render(); };
   if ($('#fImport')) $('#fImport').onclick = importDialog;
   if ($('#fMyAccounts')) $('#fMyAccounts').onclick = () => kpiDrill('myaccounts', 'month');
+  wireTodo($('#v-log'));
+
   wireNotes($('#v-log'), () => renderLog());
   $('#fAdd').onclick = () => { form.lines.push(newLine(formDate())); renderLog(); const l = form.lines[form.lines.length-1]; const i = $('#lin-'+l.key); if (i) i.focus(); };
   $('#fSave').onclick = saveVisit;
@@ -2421,7 +2430,7 @@ function renderRouteBox(){
   setTimeout(() => $$('button[data-goday]', box).forEach(b => b.onclick = () => goDay(b.dataset.goday)), 0);
   if (ui.routeBusy) { box.innerHTML = `<div class="hint">Saving and working out kilometres on Google Maps… ${esc(ui.routeBusy===true?'':ui.routeBusy)}</div>`; return; }
   if (form.results && form.results.length) {
-    box.innerHTML = form.results.map(r => r.error ? `<div class="banner err" style="margin-bottom:8px"><b>${fmtDate(r.date)}</b> — not saved: ${esc(r.error)}</div>` : r.pending ? `<div class="banner" style="margin-bottom:8px"><b>${fmtDate(r.date)}</b> saved, kilometres pending — ${esc(r.pending)} Use “Recalculate km” on the day below once it is fixed.</div>` : (r.route ? `<button type="button" class="savedbar" data-goday="${r.date}"><span class="sv-ok">✓</span><span><b>${fmtLong(r.date)} saved</b> · ${(r.route.legs||[]).length-1} visit${(r.route.legs||[]).length-1===1?'':'s'} · <b>${num(r.route.totalKm)} km</b>${r.route.totalMins?` · ${r.route.totalMins>=60?Math.floor(r.route.totalMins/60)+' h ':''}${r.route.totalMins%60} min`:''}</span><span class="sv-go">See the day ↓</span></button>` : `<div class="hint" style="margin-bottom:6px"><b>${fmtDate(r.date)}</b> saved — ${r.count} visit${r.count===1?'':'s'}${ui.demo?'. Kilometres are worked out automatically once connected to the sheet.':''}</div>`)).join('<div style="height:8px"></div>');
+    box.innerHTML = form.results.map(r => r.error ? `<div class="banner err" style="margin-bottom:8px"><b>${fmtDate(r.date)}</b> — not saved: ${esc(r.error)}</div>` : r.pending ? `<div class="banner" style="margin-bottom:8px"><b>${fmtDate(r.date)}</b> saved, kilometres pending — ${esc(r.pending)} Use “Recalculate km” on the day below once it is fixed.</div>` : (r.route ? `${followupNudge(r.date)}<button type="button" class="savedbar" data-goday="${r.date}"><span class="sv-ok">✓</span><span><b>${fmtLong(r.date)} saved</b> · ${(r.route.legs||[]).length-1} visit${(r.route.legs||[]).length-1===1?'':'s'} · <b>${num(r.route.totalKm)} km</b>${r.route.totalMins?` · ${r.route.totalMins>=60?Math.floor(r.route.totalMins/60)+' h ':''}${r.route.totalMins%60} min`:''}</span><span class="sv-go">See the day ↓</span></button>` : `<div class="hint" style="margin-bottom:6px"><b>${fmtDate(r.date)}</b> saved — ${r.count} visit${r.count===1?'':'s'}${ui.demo?'. Kilometres are worked out automatically once connected to the sheet.':''}</div>`)).join('<div style="height:8px"></div>');
     return;
   }
   const ed = form.editId ? data.visits.find(v=>v.id===form.editId) : null;
@@ -2614,13 +2623,19 @@ document.addEventListener('keydown', e => {
   else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
 /* ───────────── Follow-ups (dated notes with an optional email reminder) and the To-do panel ───────────── */
-const myFollowups = () => (data.followups || []).filter(f => f.ae === ui.me);
-const dueLabel = f => { if (!f.dueDate) return {t:'no date', k:'none'}; const d = f.dueDate, today = todayIso(); if (d < today) return {t:`overdue · ${fmtDate(d)}`, k:'over'}; if (d === today) return {t:'today', k:'today'}; const n = Math.round((new Date(d+'T00:00:00') - new Date(today+'T00:00:00'))/864e5); return {t: n === 1 ? 'tomorrow' : fmtDate(d), k: n <= 7 ? 'soon' : 'later'}; };
+const DEFAULT_TIME = '09:30';
+const hhmm = v => { const m = /^(\d{1,2}):(\d{2})/.exec(String(v ?? '').replace(/^'/, '')); return m && +m[1] < 24 && +m[2] < 60 ? `${String(+m[1]).padStart(2,'0')}:${m[2]}` : ''; };
+const normFollowup = f => ({...f, dueDate: isoDay(f.dueDate), dueTime: f.dueDate ? (hhmm(f.dueTime) || DEFAULT_TIME) : ''});
+// reminders go out Monday–Friday: a Saturday/Sunday date is emailed on the Monday after, at the same time
+function sendDay(iso){ if (!iso) return ''; const d = new Date(iso + 'T00:00:00'), wd = d.getDay(); if (wd === 6) d.setDate(d.getDate() + 2); else if (wd === 0) d.setDate(d.getDate() + 1); return isoD(d); }
+const meName = () => (ui.session && ui.session.ae) || ui.me;            // the signed-in person — to-dos are always their own
+const myFollowups = () => (data.followups || []).filter(f => f.ae === meName());
+const dueLabel = f => { if (!f.dueDate) return {t:'no date', k:'none'}; const d = f.dueDate, tm = f.dueTime || DEFAULT_TIME, today = todayIso(); if (d < today) return {t:`overdue · ${fmtDate(d)} ${tm}`, k:'over'}; if (d === today) return {t:`today ${tm}`, k:'today'}; const n = Math.round((new Date(d+'T00:00:00') - new Date(today+'T00:00:00'))/864e5); return {t: (n === 1 ? 'tomorrow' : `${dayName(d)} ${fmtDate(d)}`) + ' ' + tm, k: n <= 7 ? 'soon' : 'later'}; };
 function todoCounts(){ const open = myFollowups().filter(f => f.status !== 'done'), today = todayIso(); return {open: open.length, overdue: open.filter(f => f.dueDate && f.dueDate < today).length, today: open.filter(f => f.dueDate === today).length}; }
-function todoButton(){ const c = todoCounts(); const say = c.open ? `${c.open} open${c.overdue ? `, ${c.overdue} overdue` : ''}${c.today ? `, ${c.today} due today` : ''}` : 'nothing pending'; return `<button type="button" class="btn sm todobtn${ui.todoOpen?' on':''}" id="dTodo" aria-expanded="${ui.todoOpen?'true':'false'}" aria-controls="todoPanel" title="To-do: ${say}" aria-label="To-do: ${say}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>To-do${c.open ? ` <span class="tcount${c.overdue?' over':''}">${c.overdue || c.open}</span>` : ''}</button>`; }
+function todoButton(){ const c = todoCounts(); const say = c.open ? `${c.open} open${c.overdue ? `, ${c.overdue} overdue` : ''}${c.today ? `, ${c.today} due today` : ''}` : 'nothing pending'; return `<button type="button" class="btn sm todobtn${ui.todoOpen?' on':''}" id="lTodo" aria-expanded="${ui.todoOpen?'true':'false'}" aria-controls="todoPanel" title="To-do: ${say}" aria-label="To-do: ${say}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>To-do${c.open ? ` <span class="tcount${c.overdue?' over':''}">${c.overdue || c.open}</span>` : ''}</button>`; }
 function todoPanel(){
   if (!ui.todoOpen) return '';
-  const all = myFollowups(), today = todayIso(), open = all.filter(f => f.status !== 'done').sort((a,b) => (a.dueDate||'9999').localeCompare(b.dueDate||'9999') || String(a.account).localeCompare(b.account));
+  const all = myFollowups(), today = todayIso(), open = all.filter(f => f.status !== 'done').sort((a,b) => ((a.dueDate||'9999') + (a.dueTime||'')).localeCompare((b.dueDate||'9999') + (b.dueTime||'')) || String(a.account).localeCompare(b.account));
   const done = all.filter(f => f.status === 'done').sort((a,b) => String(b.doneAt||'').localeCompare(a.doneAt||'')).slice(0, 10);
   const groups = [['Overdue', open.filter(f => f.dueDate && f.dueDate < today)], ['Today', open.filter(f => f.dueDate === today)], ['Upcoming', open.filter(f => f.dueDate && f.dueDate > today)], ['No date', open.filter(f => !f.dueDate)]];
   const item = f => { const dl = dueLabel(f); return `<li class="todo${f.status==='done'?' done':''}" data-fid="${esc(f.id)}">
@@ -2633,11 +2648,12 @@ function todoPanel(){
 }
 function wireTodo(root){
   const r = root || document;
-  const btn = r.querySelector('#dTodo'); if (btn) btn.onclick = () => { ui.todoOpen = !ui.todoOpen; renderDash(); if (ui.todoOpen) setTimeout(() => { const p = $('#todoPanel'); if (p) p.scrollIntoView({block:'nearest', behavior:'smooth'}); }, 50); };
-  const cl = r.querySelector('#todoClose'); if (cl) cl.onclick = () => { ui.todoOpen = false; renderDash(); $('#dTodo') && $('#dTodo').focus(); };
-  const add = r.querySelector('#todoAdd'); if (add) add.onclick = () => followupDialog({}, () => renderDash());
-  r.querySelectorAll('[data-fedit]').forEach(b => b.onclick = () => { const f = data.followups.find(x => x.id === b.dataset.fedit); if (f) followupDialog(f, () => renderDash()); });
-  r.querySelectorAll('[data-fdone]').forEach(b => b.onclick = () => toggleFollowup(b.dataset.fdone, () => renderDash()));
+  const redraw = () => renderLog();
+  const btn = r.querySelector('#lTodo'); if (btn) btn.onclick = () => { ui.todoOpen = !ui.todoOpen; redraw(); if (ui.todoOpen) setTimeout(() => { const p = $('#todoPanel'); if (p) p.scrollIntoView({block:'nearest', behavior:'smooth'}); }, 50); else setTimeout(() => { const b = $('#lTodo'); if (b) b.focus({preventScroll:true}); }, 0); };
+  const cl = r.querySelector('#todoClose'); if (cl) cl.onclick = () => { ui.todoOpen = false; redraw(); setTimeout(() => { const b = $('#lTodo'); if (b) b.focus({preventScroll:true}); }, 0); };
+  const add = r.querySelector('#todoAdd'); if (add) add.onclick = () => followupDialog({}, redraw);
+  r.querySelectorAll('[data-fedit]').forEach(b => b.onclick = () => { const f = data.followups.find(x => x.id === b.dataset.fedit); if (f) followupDialog(f, redraw); });
+  r.querySelectorAll('[data-fdone]').forEach(b => b.onclick = () => toggleFollowup(b.dataset.fdone, redraw));
 }
 async function toggleFollowup(id, after){
   const f = data.followups.find(x => x.id === id); if (!f) return;
@@ -2648,32 +2664,62 @@ async function toggleFollowup(id, after){
 }
 function followupDialog(f, after){
   f = f || {}; const editing = !!f.id;
-  const book = assignedFor(ui.me, '9999-12-31').slice().sort((a,b) => a.account.localeCompare(b.account));
+  const book = assignedFor(meName(), '9999-12-31').slice().sort((a,b) => a.account.localeCompare(b.account));
   const acc = f.accountId ? data.accounts.find(a => a.id === f.accountId) : null;
-  const min = f.dueDate && f.dueDate < todayIso() ? f.dueDate : todayIso();   // an overdue item keeps its date until you change it
-  openModal(editing ? `Edit follow-up · ${f.account}` : (acc ? `Follow-up · ${acc.account}` : 'New task'), `
-    ${acc ? '' : `<div class="f"><label for="fuAcc">Account</label><select id="fuAcc" required><option value="">Choose an account from your list…</option>${book.map(a => `<option value="${esc(a.id)}">${esc(a.account)}${TIERS.includes(a.tier) ? ' · ' + a.tier : ''}</option>`).join('')}</select></div>`}
-    <div class="f"><label for="fuNote">Meeting details (optional)</label><textarea id="fuNote" rows="3" maxlength="2000" placeholder="e.g. Met Mr Khan on 15 Oct — wants a quote for 200 units by month end.">${esc(f.note || '')}</textarea></div>
-    <div class="f"><label for="fuTask">Next step</label><input id="fuTask" type="text" maxlength="300" required placeholder="e.g. Send the quote and call to confirm" value="${esc(f.task || '')}"></div>
-    <div class="fu2"><div class="f"><label for="fuDate">Follow-up date (optional)</label><input id="fuDate" type="date" min="${min}" value="${esc(f.dueDate || '')}"></div>
-    <div class="f"><label class="chk" for="fuRemind"><input type="checkbox" id="fuRemind" ${f.remind === 'N' ? '' : 'checked'}> Email me on that day</label></div></div>
-    <p class="hint" id="fuHint" style="margin:0"></p>`, async () => {
-      const accountId = acc ? acc.id : $('#fuAcc').value, task = $('#fuTask').value.trim(), note = $('#fuNote').value.trim(), dueDate = $('#fuDate').value, remind = $('#fuRemind').checked ? 'Y' : 'N';
+  const today = todayIso(), min = f.dueDate && f.dueDate < today ? f.dueDate : today;      // an overdue item keeps its date until you change it
+  const nextMon = (() => { const d = new Date(today + 'T00:00:00'); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); return isoD(d); })();
+  const quick = [['Tomorrow', addDays(today, 1)], ['In 3 days', addDays(today, 3)], ['Next Monday', nextMon], ['In a week', addDays(today, 7)]];
+  openModal(editing ? `Edit follow-up · ${f.account}` : (acc ? `Follow-up · ${acc.account}` : 'New follow-up'), `
+    ${acc ? '' : `<div class="f"><label for="fuAcc">Account</label><select id="fuAcc"><option value="">Choose an account from your list…</option>${book.map(a => `<option value="${esc(a.id)}"${f.preselect === a.id ? ' selected' : ''}>${esc(a.account)}${TIERS.includes(a.tier) ? ' · ' + a.tier : ''}</option>`).join('')}</select></div>`}
+    <div class="f"><label for="fuTask">Next step</label><input id="fuTask" type="text" maxlength="300" placeholder="e.g. Send the quote and call to confirm" value="${esc(f.task || '')}"></div>
+    <div class="f"><label for="fuNote">Meeting details <span class="hint">(optional)</span></label><textarea id="fuNote" rows="3" maxlength="2000" placeholder="e.g. Met Mr Khan — wants a quote for 200 units by month end.">${esc(f.note || '')}</textarea></div>
+    <div class="f"><label>When</label><div class="fuquick" role="group" aria-label="Quick dates">${quick.map(([l, d]) => `<button type="button" class="chipq" data-qd="${d}">${l}</button>`).join('')}<button type="button" class="chipq" data-qd="">No date</button></div>
+      <div class="fu2"><input id="fuDate" type="date" min="${min}" value="${esc(f.dueDate || '')}" aria-label="Follow-up date"><input id="fuTime" type="time" step="900" value="${esc(f.dueTime || DEFAULT_TIME)}" aria-label="Follow-up time"></div></div>
+    <label class="chk" for="fuRemind"><input type="checkbox" id="fuRemind" ${f.remind === 'N' ? '' : 'checked'}> Email me a reminder at that time</label>
+    <p class="fuhint" id="fuHint"></p>`, async () => {
+      const accountId = acc ? acc.id : $('#fuAcc').value, task = $('#fuTask').value.trim(), note = $('#fuNote').value.trim(), dueDate = $('#fuDate').value, dueTime = dueDate ? (hhmm($('#fuTime').value) || DEFAULT_TIME) : '', remind = dueDate && $('#fuRemind').checked ? 'Y' : 'N';
       if (!accountId) throw Object.assign(new Error('Choose an account.'), {friendly:true});
       if (!task) throw Object.assign(new Error('Type the next step.'), {friendly:true});
-      if (dueDate && dueDate < todayIso() && dueDate !== f.dueDate) throw Object.assign(new Error('Pick today or a later date.'), {friendly:true});
+      const changedWhen = !editing || dueDate !== (f.dueDate || '') || dueTime !== (f.dueTime || '');
+      if (dueDate && changedWhen && (dueDate < today || (dueDate === today && dueTime <= nowHM()))) throw Object.assign(new Error('That time has already passed — pick a later time.'), {friendly:true});
       let r;
-      try { r = await callApi({action:'upsertFollowup', row:{id: f.id || null, accountId, note, task, dueDate, remind}}); }
+      try { r = await callApi({action:'upsertFollowup', row:{id: f.id || null, accountId, note, task, dueDate, dueTime, remind}}); }
       catch (e) { if (navigator.onLine === false || /offline|Failed to fetch|NetworkError|Load failed/i.test(String(e && e.message || e))) throw Object.assign(new Error('You’re offline — this isn’t saved yet. Keep it open and tap Save again when you have signal.'), {friendly:true}); throw e; }
-      upsertLocal('followups', {...r.row, dueDate: isoDay(r.row.dueDate)});
-      toast(r.warning ? r.warning : (dueDate ? `Saved · ${remind === 'Y' ? 'you’ll get an email on ' + fmtLong(dueDate) : 'due ' + fmtLong(dueDate)}` : 'Task saved'));
+      upsertLocal('followups', normFollowup(r.row));
+      toast((dueDate ? (remind === 'Y' ? `Saved · email on ${dayName(sendDay(dueDate))} ${fmtLong(sendDay(dueDate))} at ${dueTime}` : `Saved · due ${fmtLong(dueDate)} ${dueTime}`) : 'Saved · in your To-do under “No date”') + (r.warning ? ' — ' + r.warning : ''));
       render(); if (after) after();
     }, editing ? 'Save changes' : 'Save');
-  const sync = () => { const d = $('#fuDate').value, cb = $('#fuRemind'); cb.disabled = !d; if (!d) cb.checked = false; else if (!cb.dataset.touched) cb.checked = f.remind !== 'N'; const me = aeByName(ui.me) || {}; $('#fuHint').textContent = d && cb.checked ? (String(me.email||'').trim() ? `An email will go to ${me.email} on the morning of ${fmtLong(d)}.` : 'Add your email in Settings so the reminder can be sent.') : (d ? 'No email — it will just show in your To-do list.' : 'Without a date it stays in your To-do list under “No date”.'); };
-  $('#fuDate').onchange = sync; $('#fuRemind').onchange = () => { $('#fuRemind').dataset.touched = '1'; sync(); }; sync();
+  const cb = $('#fuRemind'), dt = $('#fuDate'), tm = $('#fuTime');
+  const sync = () => {
+    const d = dt.value, t2 = hhmm(tm.value) || DEFAULT_TIME, me = aeByName(meName()) || {}, hasMail = !!String(me.email || '').trim();
+    tm.disabled = !d; cb.disabled = !d; if (!d) cb.checked = false; else if (!cb.dataset.touched && !editing) cb.checked = true;
+    $$('.chipq').forEach(b => b.classList.toggle('on', b.dataset.qd === d));
+    let msg = '';
+    if (!d) msg = 'No date — it stays in your To-do under “No date”, without an email.';
+    else { const sd = sendDay(d), wk = sd !== d;
+      msg = cb.checked ? `📧 Reminder email ${hasMail ? `to ${esc(me.email)} ` : ''}on <b>${esc(dayName(sd))} ${esc(fmtLong(sd))} at ${t2}</b>${wk ? ` <span class="hint">(${esc(dayName(d))} is a weekend — reminders go out Monday–Friday)</span>` : ''}.${hasMail ? '' : '<br>⚠️ Add your email in Settings first, otherwise it can’t be sent.'}`
+                       : `Due <b>${esc(dayName(d))} ${esc(fmtLong(d))} at ${t2}</b> — shown in your To-do, no email.`; }
+    $('#fuHint').innerHTML = msg;
+  };
+  dt.onchange = dt.oninput = sync; tm.onchange = tm.oninput = sync; cb.onchange = () => { cb.dataset.touched = '1'; sync(); };
+  $$('.chipq').forEach(b => b.onclick = () => { dt.value = b.dataset.qd; if (b.dataset.qd && !tm.value) tm.value = DEFAULT_TIME; sync(); });
+  sync();
   if (editing && f.id) { const foot = $('#mFoot'); const del = document.createElement('button'); del.type = 'button'; del.className = 'btn sm'; del.style.marginRight = 'auto'; del.textContent = 'Delete'; del.onclick = async () => { if (!(await confirmModal('Delete this follow-up?', `${f.task} — ${f.account}`, 'Delete'))) return; try { await callApi({action:'deleteFollowup', id: f.id}); removeLocal('followups', f.id); toast('Follow-up deleted'); $('#modal').classList.remove('open'); render(); if (after) after(); } catch(e) { toast(friendly(e)); } }; foot.insertBefore(del, foot.firstChild); }
-  setTimeout(() => { const el = acc ? $('#fuTask') : $('#fuAcc'); if (el) el.focus(); }, 40);
+  setTimeout(() => { const el = acc || f.preselect ? $('#fuTask') : $('#fuAcc'); if (el) el.focus(); }, 40);
 }
+// after saving a day: one tap to plan the next step for a client you just visited (your own accounts only)
+function followupNudge(date){ const v = data.visits.find(x => x.ae === meName() && x.date === date); if (!v) return ''; const own = [...new Map(splitAccts(v.accounts).map(n => accountRow(meName(), n)).filter(Boolean).map(a => [a.id, a])).values()]; if (!own.length) return '';
+  return `<div class="funudge"><span>Next step for ${own.length === 1 ? `<b>${esc(own[0].account)}</b>` : 'one of these clients'}?</span><button type="button" class="btn sm" data-funudge="${esc(own.length === 1 ? own[0].id : '')}" data-funudgeday="${esc(date)}">+ Follow-up</button></div>`; }
+// one listener for the "+ Follow-up" shortcut, whenever and wherever it is drawn
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-funudge]'); if (!b) return;
+  e.preventDefault(); const id = b.dataset.funudge;
+  if (id) { const a = data.accounts.find(x => x.id === id); if (a) followupDialog({accountId: a.id, account: a.account}, () => renderLog()); return; }
+  const v = data.visits.find(x => x.ae === meName() && x.date === b.dataset.funudgeday); const first = v && splitAccts(v.accounts).map(n => accountRow(meName(), n)).find(Boolean);
+  followupDialog({preselect: first ? first.id : ''}, () => renderLog());
+});
+function nowHM(){ const d = new Date(); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+
 function canNote(a){ return !!a && (a.ae === ui.me || isMgr()); }
 function noteCell(a){   // a table cell: the note, or "+ note"; clickable when allowed
   if (!a) return {text:'', html:''};
@@ -2686,10 +2732,10 @@ function accountNoteDialog(id, after){
   const a = data.accounts.find(x => x.id === id); if (!a) { toast('That account is no longer in the list'); return; }
   if (!canNote(a)) { toast('You can only add notes to accounts in your own list'); return; }
   const cur = String(a.aeNotes || '');
-  const fus = (data.followups || []).filter(x => x.accountId === a.id && x.ae === ui.me).sort((x,y) => (x.status==='done') - (y.status==='done') || (x.dueDate||'9999').localeCompare(y.dueDate||'9999'));
+  const fus = (data.followups || []).filter(x => x.accountId === a.id && x.ae === meName()).sort((x,y) => (x.status==='done') - (y.status==='done') || (x.dueDate||'9999').localeCompare(y.dueDate||'9999'));
   openModal(`Notes · ${a.account}`, `<p class="hint" style="margin-top:0">${esc(a.ae === ui.me ? 'Only you and admins can see this.' : `${esc(shortName(a.ae))}’s account — only ${esc(shortName(a.ae))} and admins can see this.`)}</p>
     <div class="f"><label for="anText">About this account <span class="hint">(up to 600 characters)</span></label><textarea id="anText" rows="4" maxlength="600" placeholder="e.g. Decision maker is Mr Khan (procurement). Prefers mornings. Renewal due in March.">${esc(cur)}</textarea><div class="hint" style="text-align:right"><span id="anCount">${cur.length}</span>/600</div></div>
-    ${a.ae === ui.me ? `<div class="f"><label>Follow-ups <span class="hint">(a dated next step — with an email reminder if you want one)</span></label>
+    ${a.ae === meName() ? `<div class="f"><label>Follow-ups <span class="hint">(a dated next step — with an email reminder if you want one)</span></label>
       ${fus.length ? `<ul class="todos compact">${fus.slice(0, 8).map(x => { const dl = dueLabel(x); return `<li class="todo${x.status==='done'?' done':''}"><button type="button" class="tdone" data-fdone2="${esc(x.id)}" title="${x.status==='done'?'Reopen':'Mark done'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg></button><div class="tbody"><div class="ttask">${esc(x.task)}</div><div class="tmeta"><span class="tdue ${dl.k}">${esc(dl.t)}</span>${x.note ? `<span class="tnote">${esc(x.note.length>60?x.note.slice(0,60)+'…':x.note)}</span>` : ''}</div></div><div class="tact"><button type="button" class="btn sm" data-fedit2="${esc(x.id)}">Edit</button></div></li>`; }).join('')}</ul>` : '<p class="hint" style="margin:0 0 8px">None yet.</p>'}
       <button type="button" class="btn sm" id="anAddFu">+ Add a follow-up</button></div>` : ''}`, async () => {
       const note = $('#anText').value.trim();
@@ -2775,6 +2821,8 @@ function drillTable(title, sub, cols, out, note, kind, scope){
 }
 // companies that are in anyone's A/B/C list (one key per company) — cached per redraw
 function categorisedCompanies(){ if (!_covIndex.has('#listed')) { const s = new Set(); data.accounts.forEach(a => { if (TIERS.includes(a.tier)) s.add(canon(a.account)); }); _covIndex.set('#listed', s); } return _covIndex.get('#listed'); }
+// FNV-1a over the whole payload: any change at all (not just a change of length) counts as a change
+function fingerprint(s){ let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36) + ':' + s.length; }
 function quietZeros(root){ (root || document).querySelectorAll('table td.num').forEach(td => { const v = td.textContent.trim(); td.classList.toggle('z', v === '0' || v === '—' || v === '0.0'); }); }
 function renderDash(){
   const {rows, total, mv} = teamStats();
@@ -2804,7 +2852,6 @@ function renderDash(){
     <span class="spacer"></span>
     <span class="tools">
       ${ui.demo ? '' : `<button type="button" class="ib" id="dRefresh" title="Refresh now · ${esc(syncTxt.replace(/^Live · /, 'updated '))}" aria-label="Refresh now — ${esc(syncTxt.replace(/^Live · /, 'updated '))}"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></button>`}
-      ${todoButton()}
       ${isMgr() ? '<button type="button" class="ib" id="dCheck" title="Check the numbers" aria-label="Check the numbers"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>' : ''}
       <button type="button" class="ib" id="dCsv" title="Download this view as CSV" aria-label="Download CSV"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
       ${isMgr() || ui.demo ? `<button type="button" class="ib${ui.mgr?' on':''}" id="dMgr" title="${ui.mgr ? 'Admin mode on — click to turn off' : 'Admin mode: notes, edit and delete'}" aria-label="Admin mode"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="${ui.mgr ? 'M8 11V8a4 4 0 0 1 7.5-2' : 'M8 11V8a4 4 0 0 1 8 0v3'}"/></svg></button>` : ''}
@@ -2816,7 +2863,6 @@ function renderDash(){
   </div>
   ${noData ? `<div class="card"><div class="empty"><svg class="eart" viewBox="0 0 120 80" aria-hidden="true"><rect x="14" y="16" width="92" height="52" rx="12" fill="#E0E7FF"/><rect x="60" y="16" width="46" height="52" rx="12" fill="#EDE4FE" opacity=".8"/><path d="M30 56l14-14 10 10 18-20 18 18" fill="none" stroke="#6366F1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="92" cy="22" r="8" fill="#FDE68A"/></svg><b>No visits logged for ${rangeLabel()}${ui.city?' in '+esc(ui.city):''}</b>Pick another period above, or wait for the first visits to land — this page updates on its own.</div></div>` : ''}
 
-  ${todoPanel()}
   <div class="hero">
     <div class="card gauge drillable" data-drill="coverage" role="button" tabindex="0" title="See every account requirement">
       <div class="gl">Team coverage</div>
@@ -2897,7 +2943,7 @@ function renderDash(){
   $$('button[data-note]', el).forEach(b => b.onclick = () => noteDialog(b.dataset.note));
   $('#dCsv').onclick = () => downloadCsv(`visits-${ui.range.from}_${ui.range.to}${ui.city?'-'+ui.city:''}.csv`, [['AE','Date','Day','City','Client','Category','Purpose','Visits (day)','KM (day)','KM source','Route'], ...mv.slice().sort((a,b)=>a.ae.localeCompare(b.ae)||a.date.localeCompare(b.date)).flatMap(v => { const det = v.count ? dayDetails(v) : [{client:'', purpose:v.purpose}]; return det.map((d,i) => [v.ae, v.date, dayName(v.date), v.city, d.client, d.client ? catFor(v.ae, d.client).replace('—','Other AE') : '', d.purpose, i===0?v.count:'', i===0?v.km:'', i===0?(v.kmMode||''):'', i===0?(v.route||''):'']); })]);
   renderDrill(el, rows, mv);
-  quietZeros($('#v-dash')); wireDrills($('#v-dash')); wireTodo($('#v-dash'));
+  quietZeros($('#v-dash')); wireDrills($('#v-dash'));
 }
 window.__parts = Object.assign(window.__parts || {}, { App2: true });
 function sparkline(vals){
