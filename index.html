@@ -1253,7 +1253,7 @@ body .kpi svg.spark{position:static!important;display:block;width:100%!important
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-20 07:42 · production';
+const BUILD = '2026-10-20 08:00 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -1794,7 +1794,8 @@ function statsFor(ae, mv, asOf){
   const range = arguments[3] || {from: ui.range.from, to: asOf || ui.range.to};
   const cov = coverageFor(ae, range.from, range.to);
   const tiers = {}; TIERS.forEach(t => { const c = cov.tiers[t]; tiers[t] = {assigned: c.due, visited: c.met, pct: c.pct, needed: c.needed, accounts: c.accounts}; });
-  const nn = book.filter(a=>a.netNew==='Y' && visitsOf(a)>0);
+  const listedAnywhere = categorisedCompanies();
+  const nn = book.filter(a => a.netNew==='Y' && !TIERS.includes(a.tier) && !listedAnywhere.has(canon(a.account)) && visitsOf(a)>0);   // new to the company, not just to this person
   const bookKeys = new Set(book.map(a => canon(a.account))); const other = Object.keys(counts).filter(n => { const r = accountRow(ae, n); return !bookKeys.has(canon(r ? r.account : n)); });
   const info = aeByName(ae) || {};
   const measured = String(info.coverageMeasured||'Y').toUpperCase() !== 'N';
@@ -2599,7 +2600,7 @@ function kpiDrill(kind, scope){
     title = `Accounts visited`; cols = ['AE','Account','Cat.','Visits','First','Last']; note = 'Each company once per person, whatever spelling was typed. "None" = not in that person’s list.';
   } else if (kind === 'netnew') {
     rows.forEach(r => (r.netNew.list || []).forEach(a => { const vs = mv.filter(v => v.ae === r.ae && dayDetails(v).some(d => { const x = accountRow(r.ae, d.client); return canon(x ? x.account : d.client) === canon(a.account); })); out.push([shortName(r.ae), a.account, vs.length, vs.length ? fmtDate(vs.map(v=>v.date).sort()[0]) : '', vs.length ? fmtDate(vs.map(v=>v.date).sort().slice(-1)[0]) : '']); }));
-    title = `Net new accounts`; cols = ['AE','Account','Visits','First','Last']; note = 'Accounts in a person’s own list marked net new (not in the Categories tab) that were visited in the period.';
+    title = `Net new accounts`; cols = ['AE','Account','Visits','First','Last']; note = 'Companies that are in nobody’s Categories list (new to the company) and were visited in the period.';
   } else if (kind === 'km') {
     mv.slice().sort((a,b) => b.date.localeCompare(a.date) || a.ae.localeCompare(b.ae)).forEach(v => out.push([fmtDate(v.date), shortName(v.ae), splitAccts(v.accounts).length, kmTxt(v), v.kmMode === 'auto' ? 'Google Maps' : v.kmMode === 'pending' ? 'pending' : 'typed', mapCell(v)]));
     title = `Kilometres`; cols = ['Date','AE','Visits','Km','Source','Map']; note = 'One line per person per day: office → visits in order → office.';
@@ -2631,6 +2632,8 @@ function drillTable(title, sub, cols, out, note, kind){
   $('#drQ').oninput = paint; if ($('#drF')) $('#drF').onchange = paint;
   $('#drCsv').onclick = () => downloadCsv(`tmc-go-${kind}-${ui.range.from}-to-${ui.range.to}`, [cols.filter(c => c !== 'Map'), ...shown().map(r => r.filter((c, i) => cols[i] !== 'Map'))]);
 }
+// companies that are in anyone's A/B/C list (one key per company) — cached per redraw
+function categorisedCompanies(){ if (!_covIndex.has('#listed')) { const s = new Set(); data.accounts.forEach(a => { if (TIERS.includes(a.tier)) s.add(canon(a.account)); }); _covIndex.set('#listed', s); } return _covIndex.get('#listed'); }
 function quietZeros(root){ (root || document).querySelectorAll('table td.num').forEach(td => { const v = td.textContent.trim(); td.classList.toggle('z', v === '0' || v === '—' || v === '0.0'); }); }
 function renderDash(){
   const {rows, total, mv} = teamStats();
@@ -2688,23 +2691,6 @@ function renderDash(){
     </div>
   </div>
 
-  data-drill="leader" role="button" tabindex="0" title="See the list behind this number"<div class="hero">
-    <div class="card gauge drillable" data-drill="coverage" role="button" tabindex="0" title="See every account requirement">
-      <div class="gl">Team coverage</div>
-      <div class="ring"><canvas id="cGauge"></canvas><div class="rc"><div class="rv">${total.overall.pct??0}%</div><div class="rl">${total.overall.visited} of ${total.overall.assigned}</div><div class="rl2">on track</div></div></div>
-      <div class="gsub">${rangeLabel()} · ${cityTxt}${ui.aeSel.size?` · ${ui.aeSel.size} AE${ui.aeSel.size===1?'':'s'}`:''}</div>
-      <div class="tiers">${TIERS.map(tr=>`<div><span class="badge ${tr}">${tr}</span><b>${total.tiers[tr].pct??0}%</b><span class="hint">${total.tiers[tr].visited}/${total.tiers[tr].assigned}</span></div>`).join('')}</div>
-    </div>
-    <div class="kpis hk">
-      <div class="kpi drillable k-blue" data-drill="visits" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><div class="l">Visits</div><div class="v">${total.totalVisits}</div><div class="d">${aeDays} visit day${aeDays===1?'':'s'}${aeDays!==fieldDays?` · ${fieldDays} dates`:''}</div>${sparkline(days.map(d=>byDay[d]))}</div>
-      <div class="kpi drillable k-blue" data-drill="accounts" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6"/></svg></span><div class="l">Accounts visited</div><div class="v">${total.totalAccounts}</div><div class="d">incl. net new &amp; shared</div></div>
-      <div class="kpi drillable k-purple" data-drill="netnew" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><div class="l">Net new accounts</div><div class="v">${total.netNew.accounts}</div><div class="d">${total.netNew.visits} visit${total.netNew.visits===1?'':'s'}</div></div>
-      <div class="kpi drillable k-amber" data-drill="km" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/></svg></span><div class="l">Kilometres</div><div class="v">${num(total.km,0)}</div><div class="d">${total.totalVisits? num(total.km/total.totalVisits,1):0} km per visit</div></div>
-      <div class="kpi drillable k-rose" data-drill="stilldue" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div class="l">Still due</div><div class="v">${total.overall.assigned-total.overall.visited}</div><div class="d">${total.overall.needed} visit${total.overall.needed===1?'':'s'} still needed</div></div>
-      <div class="kpi drillable lead k-amber" data-drill="leader" role="button" tabindex="0" title="See the full ranking"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span><div class="l">Most visits</div>${leader.length ? `<ol>${leader.map((r,i)=>`<li><span class="rk">${['🥇','🥈','🥉'][i]}</span>${avatar(r.ae, 22)}<span class="nm">${esc(shortName(r.ae))}</span><b>${r.totalVisits}</b></li>`).join('')}</ol>` : '<div class="hint">No visits yet</div>'}</div>
-    </div>
-  </div>
-
   <div class="card">
     <div class="head"><h2>Category performance</h2><span class="sub">Accounts meeting their rule · A: 1 visit every month · B: 2 every quarter · C: 1 every quarter · ${rangeLabel()}</span><span class="spacer"></span>
       <div class="legend"><span><i style="background:#DCFCE7"></i>≥70%</span><span><i style="background:#FEF3C7"></i>40–69%</span><span><i style="background:#FEE2E2"></i>&lt;40%</span></div></div>
@@ -2738,7 +2724,7 @@ function renderDash(){
     <div class="card chart"><div class="ch"><h3>Visits by category</h3><p>Where the time went</p></div><div class="cv"><canvas id="c4"></canvas></div></div>
     <div class="card chart tall"><div class="ch"><h3>Category coverage by AE</h3><p>% of A / B / C accounts visited</p></div><div class="cv"><canvas id="c5"></canvas></div></div>
     <div class="card chart tall"><div class="ch"><h3>Kilometres by AE</h3><p>Road distance, office to office</p></div><div class="cv"><canvas id="c6"></canvas></div></div>
-    <div class="card chart"><div class="ch"><h3>Net-new accounts by AE</h3><p>Accounts outside the book that were visited</p></div><div class="cv"><canvas id="c7"></canvas></div></div>
+    <div class="card chart"><div class="ch"><h3>Net-new accounts by AE</h3><p>Companies in nobody’s category list that were visited</p></div><div class="cv"><canvas id="c7"></canvas></div></div>
     <div class="card chart"><div class="ch"><h3>Coverage by city</h3><p>On track vs still due</p></div><div class="cv"><canvas id="c8"></canvas></div></div>
   </div>`;
   drawCharts(rows, total, mv, {byDay, days, catCount});
