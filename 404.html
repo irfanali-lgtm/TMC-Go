@@ -1077,6 +1077,37 @@ body .modal .dialog.wide{max-width:min(1040px,96vw)!important;width:min(1040px,9
 .drl th{position:sticky;top:0;z-index:1}
 .drl td,.drl th{padding:8px 10px;white-space:nowrap}
 @media (max-width:760px){ .drl{max-height:none;border:0;border-radius:0;margin:0 -16px} .drl td,.drl th{padding:8px 8px} }
+/* ── to-do & follow-ups ── */
+body .todobtn{gap:6px}
+body .todobtn.on{background:var(--b-50)!important;border-color:var(--b-200)!important;color:var(--b-800)!important}
+.tcount{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--b-100);color:var(--b-800);font-size:12px;font-weight:700}
+.tcount.over{background:var(--bad);color:#fff}
+.overtxt{color:var(--bad)}
+.todopanel .head{flex-wrap:nowrap;align-items:center}
+.todopanel .head .sub{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:480px){ .todopanel .lbl-l{display:none} }
+.tgroup+.tgroup{margin-top:14px}
+.tg{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--n-500);margin-bottom:6px}
+.tg span{color:var(--n-400);font-weight:600}
+.todos{list-style:none;margin:0;padding:0}
+.todo{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--n-100)}
+.todo:first-child{border-top:0}
+.todo.done .ttask{text-decoration:line-through;color:var(--n-500)}
+.tdone{width:28px;height:28px;border-radius:999px;border:2px solid var(--n-300);background:var(--n-0);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-top:1px;transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease)}
+.tdone svg{width:16px;height:16px;fill:none;stroke:var(--n-0);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.tdone:hover{border-color:var(--ok);background:var(--ok-bg)}
+.tdone:hover svg{stroke:var(--ok)}
+.todo.done .tdone{background:var(--ok);border-color:var(--ok)}
+.ttask{font-weight:600;color:var(--n-900);line-height:1.35;overflow-wrap:anywhere}
+.tmeta{display:flex;flex-wrap:wrap;gap:6px 10px;margin-top:3px;font-size:12.5px;color:var(--n-600);align-items:center}
+.tdue{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:999px;font-weight:600;background:var(--n-100);color:var(--n-600)}
+.tdue.over{background:var(--bad-bg);color:var(--bad)} .tdue.today{background:var(--warn-bg);color:var(--warn)} .tdue.soon{background:var(--b-50);color:var(--b-700)}
+.tnote{color:var(--n-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:420px}
+.tact{display:flex;gap:6px}
+.tdonebox{margin-top:12px} .tdonebox summary{cursor:pointer;color:var(--n-500);font-size:13px;font-weight:600}
+.fu2{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end} .chk{display:flex!important;align-items:center;gap:10px;min-height:40px;font-weight:500;cursor:pointer;margin:0!important}
+body .chk input[type=checkbox]{width:18px!important;height:18px!important;min-height:0!important;min-width:0!important;flex:none;margin:0;padding:0;accent-color:var(--b-600);box-shadow:none!important}
+@media (max-width:760px){ .fu2{grid-template-columns:1fr} .tnote{max-width:100%;white-space:normal} .todo{grid-template-columns:30px minmax(0,1fr) auto} }
 /* ── account notes ── */
 body .notecell{background:var(--n-0);border:1px dashed var(--n-300);border-radius:var(--r-sm);padding:4px 8px;font:inherit;font-size:12.5px;color:var(--n-700);text-align:left;max-width:320px;white-space:normal;cursor:pointer;line-height:1.35}
 body .notecell:hover{border-color:var(--b-500);background:var(--b-50)}
@@ -1259,7 +1290,7 @@ body .kpi svg.spark{position:static!important;display:block;width:100%!important
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-20 08:35 · production';
+const BUILD = '2026-10-20 10:35 · production';
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -1388,7 +1419,7 @@ function catBadge(ae, name){ const c = catFor(ae, name); if (c==='—') { const 
 
 /* ============================ STATE ============================ */
 const OFFICES = {"Lahore": "Floor No. 10, Zone B, DHA Business Hub, D.H.A. Commercial Broadway, DHA Phase 8, Lahore, Pakistan", "Karachi": "1st Floor, Nasreen Building, Main Shaheed-e-Millat Road, Block 7/8 Bangalore Town, Karachi, Pakistan", "Islamabad": "4th Floor, SNC Center, AKM Fazl-ul-Haq Road, Block D G-6/2, Blue Area, Islamabad, Pakistan"};
-const data = { aes:[], accounts:[], visits:[], opportunities:[], aliases:[], settings:{autoKm:'Y', offices:Object.fromEntries(Object.keys(OFFICES).map(c=>[c,{address:OFFICES[c], latlng:''}]))} };
+const data = { aes:[], accounts:[], visits:[], opportunities:[], aliases:[], followups:[], settings:{autoKm:'Y', offices:Object.fromEntries(Object.keys(OFFICES).map(c=>[c,{address:OFFICES[c], latlng:''}]))} };
 const ui = {
   tab: location.hash === '#dashboard' ? 'dash' : location.hash === '#log' ? 'log' : (['log','dash'].includes(localStorage.getItem('vi.tab')) ? localStorage.getItem('vi.tab') : 'log'),   // a link to #dashboard / #log wins
   month: '', city: '', me: localStorage.getItem('vi.me') || '',
@@ -1581,7 +1612,7 @@ function applyData(res){
   ui.session = res.session || ui.session || null;
   if (ui.session) { ui.me = ui.session.ae; try { localStorage.setItem('vi.me', ui.me); } catch(e){} }
   const d = res.data || {};
-  data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.aliases = (d.aliases||[]).map(x => ({...x, ae: x.ae ? teamName(x.ae) : ''})); data.settings = d.settings || data.settings || {};
+  data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.followups = (d.followups||[]).map(f => ({...f, dueDate: isoDay(f.dueDate)})); data.aliases = (d.aliases||[]).map(x => ({...x, ae: x.ae ? teamName(x.ae) : ''})); data.settings = d.settings || data.settings || {};
 }
 async function load(first){
   window.__booted = true;
@@ -1609,7 +1640,7 @@ async function load(first){
       const d = res.data || {};
       const sig = JSON.stringify([d.visits, d.accounts, d.aes, d.aliases]).length + ':' + (d.visits||[]).length + ':' + (d.accounts||[]).length + ':' + (d.aes||[]).length;
       const changed = sig !== ui.dataSig; ui.dataSig = sig;
-      data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.aliases = (d.aliases||[]).map(x => ({...x, ae: x.ae ? teamName(x.ae) : ''})); data.settings = d.settings || data.settings;
+      data.aes = d.aes||[]; data.accounts = normAccounts(d.accounts||[]); data.visits = normVisits(d.visits||[]); data.opportunities = d.opportunities||[]; data.followups = (d.followups||[]).map(f => ({...f, dueDate: isoDay(f.dueDate)})); data.aliases = (d.aliases||[]).map(x => ({...x, ae: x.ae ? teamName(x.ae) : ''})); data.settings = d.settings || data.settings;
       ui.lastSync = new Date(); setConn('ok', 'Live · ' + ui.lastSync.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
       hideBanner();
       if (!first && !changed && ui.tab==='dash') { const rb = $('#dRefresh'); if (rb) { rb.disabled = false; const tt = 'updated ' + ui.lastSync.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); rb.title = 'Refresh now · ' + tt; rb.setAttribute('aria-label', 'Refresh now — ' + tt); } return; }
@@ -2582,6 +2613,67 @@ document.addEventListener('keydown', e => {
   if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
   else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
+/* ───────────── Follow-ups (dated notes with an optional email reminder) and the To-do panel ───────────── */
+const myFollowups = () => (data.followups || []).filter(f => f.ae === ui.me);
+const dueLabel = f => { if (!f.dueDate) return {t:'no date', k:'none'}; const d = f.dueDate, today = todayIso(); if (d < today) return {t:`overdue · ${fmtDate(d)}`, k:'over'}; if (d === today) return {t:'today', k:'today'}; const n = Math.round((new Date(d+'T00:00:00') - new Date(today+'T00:00:00'))/864e5); return {t: n === 1 ? 'tomorrow' : fmtDate(d), k: n <= 7 ? 'soon' : 'later'}; };
+function todoCounts(){ const open = myFollowups().filter(f => f.status !== 'done'), today = todayIso(); return {open: open.length, overdue: open.filter(f => f.dueDate && f.dueDate < today).length, today: open.filter(f => f.dueDate === today).length}; }
+function todoButton(){ const c = todoCounts(); const say = c.open ? `${c.open} open${c.overdue ? `, ${c.overdue} overdue` : ''}${c.today ? `, ${c.today} due today` : ''}` : 'nothing pending'; return `<button type="button" class="btn sm todobtn${ui.todoOpen?' on':''}" id="dTodo" aria-expanded="${ui.todoOpen?'true':'false'}" aria-controls="todoPanel" title="To-do: ${say}" aria-label="To-do: ${say}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>To-do${c.open ? ` <span class="tcount${c.overdue?' over':''}">${c.overdue || c.open}</span>` : ''}</button>`; }
+function todoPanel(){
+  if (!ui.todoOpen) return '';
+  const all = myFollowups(), today = todayIso(), open = all.filter(f => f.status !== 'done').sort((a,b) => (a.dueDate||'9999').localeCompare(b.dueDate||'9999') || String(a.account).localeCompare(b.account));
+  const done = all.filter(f => f.status === 'done').sort((a,b) => String(b.doneAt||'').localeCompare(a.doneAt||'')).slice(0, 10);
+  const groups = [['Overdue', open.filter(f => f.dueDate && f.dueDate < today)], ['Today', open.filter(f => f.dueDate === today)], ['Upcoming', open.filter(f => f.dueDate && f.dueDate > today)], ['No date', open.filter(f => !f.dueDate)]];
+  const item = f => { const dl = dueLabel(f); return `<li class="todo${f.status==='done'?' done':''}" data-fid="${esc(f.id)}">
+      <button type="button" class="tdone" data-fdone="${esc(f.id)}" title="${f.status==='done'?'Reopen':'Mark done'}" aria-label="${f.status==='done'?'Reopen':'Mark done'}: ${esc(f.task)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg></button>
+      <div class="tbody"><div class="ttask">${esc(f.task)}</div><div class="tmeta"><b>${esc(f.account)}</b><span class="tdue ${dl.k}">${esc(dl.t)}${f.remind==='Y' && f.dueDate && f.status!=='done' ? (f.sentAt ? ' · emailed' : ' · email') : ''}</span>${f.note ? `<span class="tnote" title="${esc(f.note)}">${esc(f.note.length > 70 ? f.note.slice(0,70)+'…' : f.note)}</span>` : ''}</div></div>
+      <div class="tact"><button type="button" class="btn sm" data-fedit="${esc(f.id)}">Edit</button></div></li>`; };
+  return `<div class="card todopanel" id="todoPanel"><div class="head"><h2>To-do</h2><span class="sub">${open.length ? `${open.length} open${todoCounts().overdue ? ` · <b class="overtxt">${todoCounts().overdue} overdue</b>` : ''}` : 'Nothing pending'}</span><span class="spacer"></span><button type="button" class="btn sm primary" id="todoAdd" aria-label="Add a task">+ Add<span class="lbl-l"> task</span></button><button type="button" class="ib" id="todoClose" title="Close" aria-label="Close the to-do list"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="body">${open.length ? groups.filter(([,l]) => l.length).map(([g, l]) => `<div class="tgroup"><div class="tg">${g} <span>${l.length}</span></div><ul class="todos">${l.map(item).join('')}</ul></div>`).join('') : '<p class="hint" style="margin:0">No follow-ups yet. Add one here, or from the 📝 note under a client on the Log tab.</p>'}
+    ${done.length ? `<details class="tdonebox"><summary>Done recently (${done.length})</summary><ul class="todos">${done.map(item).join('')}</ul></details>` : ''}</div></div>`;
+}
+function wireTodo(root){
+  const r = root || document;
+  const btn = r.querySelector('#dTodo'); if (btn) btn.onclick = () => { ui.todoOpen = !ui.todoOpen; renderDash(); if (ui.todoOpen) setTimeout(() => { const p = $('#todoPanel'); if (p) p.scrollIntoView({block:'nearest', behavior:'smooth'}); }, 50); };
+  const cl = r.querySelector('#todoClose'); if (cl) cl.onclick = () => { ui.todoOpen = false; renderDash(); $('#dTodo') && $('#dTodo').focus(); };
+  const add = r.querySelector('#todoAdd'); if (add) add.onclick = () => followupDialog({}, () => renderDash());
+  r.querySelectorAll('[data-fedit]').forEach(b => b.onclick = () => { const f = data.followups.find(x => x.id === b.dataset.fedit); if (f) followupDialog(f, () => renderDash()); });
+  r.querySelectorAll('[data-fdone]').forEach(b => b.onclick = () => toggleFollowup(b.dataset.fdone, () => renderDash()));
+}
+async function toggleFollowup(id, after){
+  const f = data.followups.find(x => x.id === id); if (!f) return;
+  const done = f.status !== 'done';
+  try { const r = await callApi({action:'setFollowupStatus', id, status: done ? 'done' : 'open'}); upsertLocal('followups', {...f, ...r.row, dueDate: isoDay(r.row.dueDate || f.dueDate)}); toast(done ? `Done · ${f.account}` : `Reopened · ${f.account}`, done ? 'Undo' : null, done ? () => toggleFollowup(id, after) : null); }
+  catch(e) { toast(friendly(e)); }
+  if (after) after();
+}
+function followupDialog(f, after){
+  f = f || {}; const editing = !!f.id;
+  const book = assignedFor(ui.me, '9999-12-31').slice().sort((a,b) => a.account.localeCompare(b.account));
+  const acc = f.accountId ? data.accounts.find(a => a.id === f.accountId) : null;
+  const min = f.dueDate && f.dueDate < todayIso() ? f.dueDate : todayIso();   // an overdue item keeps its date until you change it
+  openModal(editing ? `Edit follow-up · ${f.account}` : (acc ? `Follow-up · ${acc.account}` : 'New task'), `
+    ${acc ? '' : `<div class="f"><label for="fuAcc">Account</label><select id="fuAcc" required><option value="">Choose an account from your list…</option>${book.map(a => `<option value="${esc(a.id)}">${esc(a.account)}${TIERS.includes(a.tier) ? ' · ' + a.tier : ''}</option>`).join('')}</select></div>`}
+    <div class="f"><label for="fuNote">Meeting details (optional)</label><textarea id="fuNote" rows="3" maxlength="2000" placeholder="e.g. Met Mr Khan on 15 Oct — wants a quote for 200 units by month end.">${esc(f.note || '')}</textarea></div>
+    <div class="f"><label for="fuTask">Next step</label><input id="fuTask" type="text" maxlength="300" required placeholder="e.g. Send the quote and call to confirm" value="${esc(f.task || '')}"></div>
+    <div class="fu2"><div class="f"><label for="fuDate">Follow-up date (optional)</label><input id="fuDate" type="date" min="${min}" value="${esc(f.dueDate || '')}"></div>
+    <div class="f"><label class="chk" for="fuRemind"><input type="checkbox" id="fuRemind" ${f.remind === 'N' ? '' : 'checked'}> Email me on that day</label></div></div>
+    <p class="hint" id="fuHint" style="margin:0"></p>`, async () => {
+      const accountId = acc ? acc.id : $('#fuAcc').value, task = $('#fuTask').value.trim(), note = $('#fuNote').value.trim(), dueDate = $('#fuDate').value, remind = $('#fuRemind').checked ? 'Y' : 'N';
+      if (!accountId) throw Object.assign(new Error('Choose an account.'), {friendly:true});
+      if (!task) throw Object.assign(new Error('Type the next step.'), {friendly:true});
+      if (dueDate && dueDate < todayIso() && dueDate !== f.dueDate) throw Object.assign(new Error('Pick today or a later date.'), {friendly:true});
+      let r;
+      try { r = await callApi({action:'upsertFollowup', row:{id: f.id || null, accountId, note, task, dueDate, remind}}); }
+      catch (e) { if (navigator.onLine === false || /offline|Failed to fetch|NetworkError|Load failed/i.test(String(e && e.message || e))) throw Object.assign(new Error('You’re offline — this isn’t saved yet. Keep it open and tap Save again when you have signal.'), {friendly:true}); throw e; }
+      upsertLocal('followups', {...r.row, dueDate: isoDay(r.row.dueDate)});
+      toast(r.warning ? r.warning : (dueDate ? `Saved · ${remind === 'Y' ? 'you’ll get an email on ' + fmtLong(dueDate) : 'due ' + fmtLong(dueDate)}` : 'Task saved'));
+      render(); if (after) after();
+    }, editing ? 'Save changes' : 'Save');
+  const sync = () => { const d = $('#fuDate').value, cb = $('#fuRemind'); cb.disabled = !d; if (!d) cb.checked = false; else if (!cb.dataset.touched) cb.checked = f.remind !== 'N'; const me = aeByName(ui.me) || {}; $('#fuHint').textContent = d && cb.checked ? (String(me.email||'').trim() ? `An email will go to ${me.email} on the morning of ${fmtLong(d)}.` : 'Add your email in Settings so the reminder can be sent.') : (d ? 'No email — it will just show in your To-do list.' : 'Without a date it stays in your To-do list under “No date”.'); };
+  $('#fuDate').onchange = sync; $('#fuRemind').onchange = () => { $('#fuRemind').dataset.touched = '1'; sync(); }; sync();
+  if (editing && f.id) { const foot = $('#mFoot'); const del = document.createElement('button'); del.type = 'button'; del.className = 'btn sm'; del.style.marginRight = 'auto'; del.textContent = 'Delete'; del.onclick = async () => { if (!(await confirmModal('Delete this follow-up?', `${f.task} — ${f.account}`, 'Delete'))) return; try { await callApi({action:'deleteFollowup', id: f.id}); removeLocal('followups', f.id); toast('Follow-up deleted'); $('#modal').classList.remove('open'); render(); if (after) after(); } catch(e) { toast(friendly(e)); } }; foot.insertBefore(del, foot.firstChild); }
+  setTimeout(() => { const el = acc ? $('#fuTask') : $('#fuAcc'); if (el) el.focus(); }, 40);
+}
 function canNote(a){ return !!a && (a.ae === ui.me || isMgr()); }
 function noteCell(a){   // a table cell: the note, or "+ note"; clickable when allowed
   if (!a) return {text:'', html:''};
@@ -2594,9 +2686,12 @@ function accountNoteDialog(id, after){
   const a = data.accounts.find(x => x.id === id); if (!a) { toast('That account is no longer in the list'); return; }
   if (!canNote(a)) { toast('You can only add notes to accounts in your own list'); return; }
   const cur = String(a.aeNotes || '');
-  openModal(`Note · ${a.account}`, `<p class="hint" style="margin-top:0">${esc(a.ae === ui.me ? 'Only you and admins can see this.' : `${esc(shortName(a.ae))}’s account — only ${esc(shortName(a.ae))} and admins can see this.`)} Up to 600 characters.</p>
-    <textarea id="anText" rows="6" maxlength="600" placeholder="e.g. Decision maker is Mr Khan (procurement). Prefers mornings. Renewal due in March." aria-label="Note about ${esc(a.account)}">${esc(cur)}</textarea>
-    <div class="hint" style="text-align:right"><span id="anCount">${cur.length}</span>/600</div>`, async () => {
+  const fus = (data.followups || []).filter(x => x.accountId === a.id && x.ae === ui.me).sort((x,y) => (x.status==='done') - (y.status==='done') || (x.dueDate||'9999').localeCompare(y.dueDate||'9999'));
+  openModal(`Notes · ${a.account}`, `<p class="hint" style="margin-top:0">${esc(a.ae === ui.me ? 'Only you and admins can see this.' : `${esc(shortName(a.ae))}’s account — only ${esc(shortName(a.ae))} and admins can see this.`)}</p>
+    <div class="f"><label for="anText">About this account <span class="hint">(up to 600 characters)</span></label><textarea id="anText" rows="4" maxlength="600" placeholder="e.g. Decision maker is Mr Khan (procurement). Prefers mornings. Renewal due in March.">${esc(cur)}</textarea><div class="hint" style="text-align:right"><span id="anCount">${cur.length}</span>/600</div></div>
+    ${a.ae === ui.me ? `<div class="f"><label>Follow-ups <span class="hint">(a dated next step — with an email reminder if you want one)</span></label>
+      ${fus.length ? `<ul class="todos compact">${fus.slice(0, 8).map(x => { const dl = dueLabel(x); return `<li class="todo${x.status==='done'?' done':''}"><button type="button" class="tdone" data-fdone2="${esc(x.id)}" title="${x.status==='done'?'Reopen':'Mark done'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg></button><div class="tbody"><div class="ttask">${esc(x.task)}</div><div class="tmeta"><span class="tdue ${dl.k}">${esc(dl.t)}</span>${x.note ? `<span class="tnote">${esc(x.note.length>60?x.note.slice(0,60)+'…':x.note)}</span>` : ''}</div></div><div class="tact"><button type="button" class="btn sm" data-fedit2="${esc(x.id)}">Edit</button></div></li>`; }).join('')}</ul>` : '<p class="hint" style="margin:0 0 8px">None yet.</p>'}
+      <button type="button" class="btn sm" id="anAddFu">+ Add a follow-up</button></div>` : ''}`, async () => {
       const note = $('#anText').value.trim();
       let r;
       try { r = await callApi({action:'setAccountNote', id: a.id, note}); }
@@ -2606,6 +2701,10 @@ function accountNoteDialog(id, after){
       render(); if (after) after();
     }, 'Save note');
   $('#anText').oninput = () => { $('#anCount').textContent = $('#anText').value.length; };
+  const again = () => accountNoteDialog(id, after);
+  if ($('#anAddFu')) $('#anAddFu').onclick = () => followupDialog({accountId: a.id, account: a.account}, again);
+  $$('[data-fedit2]').forEach(b => b.onclick = () => { const x = data.followups.find(y => y.id === b.dataset.fedit2); if (x) followupDialog(x, again); });
+  $$('[data-fdone2]').forEach(b => b.onclick = () => toggleFollowup(b.dataset.fdone2, again));
   setTimeout(() => { const ta = $('#anText'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }, 50);
 }
 function wireDrills(root){
@@ -2705,6 +2804,7 @@ function renderDash(){
     <span class="spacer"></span>
     <span class="tools">
       ${ui.demo ? '' : `<button type="button" class="ib" id="dRefresh" title="Refresh now · ${esc(syncTxt.replace(/^Live · /, 'updated '))}" aria-label="Refresh now — ${esc(syncTxt.replace(/^Live · /, 'updated '))}"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></button>`}
+      ${todoButton()}
       ${isMgr() ? '<button type="button" class="ib" id="dCheck" title="Check the numbers" aria-label="Check the numbers"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>' : ''}
       <button type="button" class="ib" id="dCsv" title="Download this view as CSV" aria-label="Download CSV"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
       ${isMgr() || ui.demo ? `<button type="button" class="ib${ui.mgr?' on':''}" id="dMgr" title="${ui.mgr ? 'Admin mode on — click to turn off' : 'Admin mode: notes, edit and delete'}" aria-label="Admin mode"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="${ui.mgr ? 'M8 11V8a4 4 0 0 1 7.5-2' : 'M8 11V8a4 4 0 0 1 8 0v3'}"/></svg></button>` : ''}
@@ -2716,6 +2816,7 @@ function renderDash(){
   </div>
   ${noData ? `<div class="card"><div class="empty"><svg class="eart" viewBox="0 0 120 80" aria-hidden="true"><rect x="14" y="16" width="92" height="52" rx="12" fill="#E0E7FF"/><rect x="60" y="16" width="46" height="52" rx="12" fill="#EDE4FE" opacity=".8"/><path d="M30 56l14-14 10 10 18-20 18 18" fill="none" stroke="#6366F1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="92" cy="22" r="8" fill="#FDE68A"/></svg><b>No visits logged for ${rangeLabel()}${ui.city?' in '+esc(ui.city):''}</b>Pick another period above, or wait for the first visits to land — this page updates on its own.</div></div>` : ''}
 
+  ${todoPanel()}
   <div class="hero">
     <div class="card gauge drillable" data-drill="coverage" role="button" tabindex="0" title="See every account requirement">
       <div class="gl">Team coverage</div>
@@ -2796,7 +2897,7 @@ function renderDash(){
   $$('button[data-note]', el).forEach(b => b.onclick = () => noteDialog(b.dataset.note));
   $('#dCsv').onclick = () => downloadCsv(`visits-${ui.range.from}_${ui.range.to}${ui.city?'-'+ui.city:''}.csv`, [['AE','Date','Day','City','Client','Category','Purpose','Visits (day)','KM (day)','KM source','Route'], ...mv.slice().sort((a,b)=>a.ae.localeCompare(b.ae)||a.date.localeCompare(b.date)).flatMap(v => { const det = v.count ? dayDetails(v) : [{client:'', purpose:v.purpose}]; return det.map((d,i) => [v.ae, v.date, dayName(v.date), v.city, d.client, d.client ? catFor(v.ae, d.client).replace('—','Other AE') : '', d.purpose, i===0?v.count:'', i===0?v.km:'', i===0?(v.kmMode||''):'', i===0?(v.route||''):'']); })]);
   renderDrill(el, rows, mv);
-  quietZeros($('#v-dash')); wireDrills($('#v-dash'));
+  quietZeros($('#v-dash')); wireDrills($('#v-dash')); wireTodo($('#v-dash'));
 }
 window.__parts = Object.assign(window.__parts || {}, { App2: true });
 function sparkline(vals){
@@ -2959,7 +3060,7 @@ function settingsDialog(tab){
           <div class="form" style="margin-top:8px">
             <div class="f c6"><label>Title</label><input id="pTitle" value="${esc(me.title||'')}" placeholder="e.g. Account Executive"></div>
             <div class="f c6"><label>Phone</label><input id="pPhone" type="tel" value="${esc(me.phone||'')}" placeholder="03xx-xxxxxxx"></div>
-            <div class="f c12"><label>Email <span class="hint">(sign-in codes go here)</span></label>${ui.demo || isMgr() ? `<input id="pEmail" type="email" value="${esc(me.email||'')}" placeholder="name@tmcltd.com">` : `<div class="hint" style="padding:10px 0">${me.email ? esc(me.email) : 'Not set'} · an admin can change it</div><input id="pEmail" type="hidden" value="${esc(me.email||'')}">`}</div>
+            <div class="f c12"><label>Email <span class="hint">(sign-in codes and follow-up reminders go here)</span></label>${ui.demo || isMgr() ? `<input id="pEmail" type="email" value="${esc(me.email||'')}" placeholder="name@tmcltd.com">` : `<div class="hint" style="padding:10px 0">${me.email ? esc(me.email) : 'Not set'} · an admin can change it</div><input id="pEmail" type="hidden" value="${esc(me.email||'')}">`}</div>${me.email ? `<div style="margin-top:6px"><button type="button" class="btn sm" id="mTestMail">Send me a test reminder email</button></div>` : ''}
             <div class="f c12"><label>How Go talks to you <span class="hint">(only you see this)</span></label>
               <div class="prefchips">${['Reply in Roman Urdu','Reply in English','Keep answers short','Be more formal','More jokes 😄','Use bullet points'].map(p => `<button type="button" data-pref="${esc(p)}">${esc(p)}</button>`).join('')}</div>
               <textarea id="pGo" rows="2" maxlength="600" placeholder="e.g. Call me Irfan bhai, reply in Roman Urdu, keep it short, remind me about A accounts">${esc(me.goPrefs||'')}</textarea></div>
@@ -2993,6 +3094,7 @@ function settingsDialog(tab){
   wireProfile(me);
   if ($('#mInstall')) $('#mInstall').onclick = () => { $('#modal').classList.remove('open'); installApp(); };
   if ($('#mMyPin')) $('#mMyPin').onclick = () => { $('#modal').classList.remove('open'); setMyPin(false); };
+  if ($('#mTestMail')) $('#mTestMail').onclick = async () => { const b = $('#mTestMail'); b.disabled = true; try { await callApi({action:'testReminderEmail'}); toast('Test email sent — check your inbox'); } catch(e) { toast(friendly(e)); } b.disabled = false; };
   if ($('#mForgetMe')) $('#mForgetMe').onclick = async () => { if (!(await confirmModal('Sign out?', 'You’ll need a code to sign in again on this device. Unsaved drafts here are cleared; everything saved stays in the sheet.', 'Sign out'))) return; $('#modal').classList.remove('open'); try { Object.keys(localStorage).filter(k=>k.startsWith('vi.draft')).forEach(k=>localStorage.removeItem(k)); sessionStorage.clear(); } catch(e){} if (ui.demo) return location.reload(); signOut(); };
   if ($('#mUnlock')) $('#mUnlock').onclick = async () => { $('#modal').classList.remove('open'); if (await ensureAdmin()) settingsDialog('team'); else settingsDialog(); };
   if ($('#mLock')) $('#mLock').onclick = () => { setAdminPin(''); ui.mgrTab = null; settingsDialog(); };
@@ -3034,6 +3136,7 @@ function mgrPane(tab){
   if (tab === 'data') {
     return `<div class="form">
       <div class="f c12"><label>Data connection</label>${hasGs() ? '<div class="hint">Served by Apps Script — the page and the sheet are the same deployment.</div>' : `<input id="mApi" value="${esc(apiUrl())}" placeholder="https://script.google.com/macros/s/…/exec"><span class="hint">The Apps Script web-app link this device uses. Share the app as <code>…?connect=&lt;link&gt;</code> so AEs never see a connect screen.</span>`}</div>
+      <div class="f c12"><label>Reminder emails</label><div id="remBox" class="hint">Checking…</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn sm" id="remInstall">Set up the daily run</button><button type="button" class="btn sm" id="remRun">Send today’s now</button></div><p class="hint" style="margin:6px 0 0">Follow-up reminders are emailed every morning at 08:00 (Pakistan) by Apps Script, whether or not anyone opens the app. If the status says “not set up”, run <b>checkSetup</b> once in Apps Script (or tap the button above).</p></div>
       <div class="f c12"><label>Check the numbers</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="btn sm" id="mDataCheck">🔎 Check the numbers</button><span class="hint">Months in the sheet, duplicates, counts and kilometres — with one-tap fixes.</span></div></div>
       <div class="f c12"><label>Build</label><div class="hint">${esc(BUILD)}</div></div>
       <div class="f c12"><label>Updating</label><div class="hint">New page → upload it where the app is hosted. New Code.gs → paste into Apps Script → Deploy → Manage deployments → ✎ → New version. The link never changes. The admin PIN itself lives in the sheet (<b>adminPin</b>). <a href="#" id="mForgetPin">Forget admin PIN on this device</a></div></div>
@@ -3070,6 +3173,12 @@ function wireMgrPane(tab){
     btn.disabled = false;
   };
   if (tab === 'data' && $('#mDataCheck')) $('#mDataCheck').onclick = () => { $('#modal').classList.remove('open'); dataCheckDialog(); };
+  if (tab === 'data' && $('#remBox')) {
+    const paintRem = info => { $('#remBox').innerHTML = info ? `${info.installed ? '<span class="st ok">daily run set up</span>' : '<span class="st miss">not set up</span>'} · ${esc(info.time)}${info.lastRun ? ` · last run ${esc(String(info.lastRun).split(' ')[0])}` : ' · never run yet'}<br>${info.openFollowups} open follow-up${info.openFollowups===1?'':'s'}${info.dueUnsent ? ` · <b>${info.dueUnsent} due and not yet emailed</b>` : ''}${info.remindersWithoutEmail ? ` · ${info.remindersWithoutEmail} reminder${info.remindersWithoutEmail===1?'':'s'} for people with no email on their profile` : ''}` : 'Could not read the status.'; };
+    callApi({action:'reminderStatus', adminPin:getAdminPin()}).then(r => paintRem(r.info)).catch(e => { if ($('#remBox')) $('#remBox').textContent = friendly(e); });
+    $('#remInstall').onclick = async () => { try { const r = await callApi({action:'installReminders', adminPin:getAdminPin()}); paintRem(r.info); toast(r.info.installed ? 'Daily reminder run is set up' : 'Could not set it up — run checkSetup in Apps Script'); } catch(e) { toast(friendly(e)); } };
+    $('#remRun').onclick = async () => { try { const r = await callApi({action:'runReminders', adminPin:getAdminPin()}); toast(`Sent ${r.result.sent||0}${r.result.noEmail ? ` · ${r.result.noEmail} without an email` : ''}${r.result.failed ? ` · ${r.result.failed} failed` : ''}`); const s = await callApi({action:'reminderStatus', adminPin:getAdminPin()}); paintRem(s.info); } catch(e) { toast(friendly(e)); } };
+  }
   if (tab === 'data' && $('#mForgetPin')) $('#mForgetPin').onclick = e => { e.preventDefault(); setAdminPin(''); toast('Admin PIN forgotten on this device'); settingsDialog(); };
 }
 async function saveMgrPane(tab){
