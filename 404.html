@@ -2342,7 +2342,7 @@ html.dark .segpick button.on{background:#3B49D6!important;color:#fff!important;b
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-24 14:00 · production';
+const BUILD = '2026-10-24 14:30 · production';
 const NEEDS_BACKEND = 40;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
@@ -5065,7 +5065,7 @@ function mgrPane(tab){
   if (tab === 'km') {
     const nf = a => /^NOT FOUND/.test(String(a.located || '')), nMissing = data.accounts.filter(a=>!located(a) && !nf(a)).length, nNotFound = data.accounts.filter(nf).length;
     return `<div class="form">
-      <div class="f c12"><label class="switch"><input type="checkbox" id="mAutoKm" ${String(data.settings.autoKm||'Y').toUpperCase()!=='N'?'checked':''}> Work out kilometres from Google Maps when visits are saved (office → clients in the order entered → office)</label></div>
+      <div class="f c12"><label class="switch"><input type="checkbox" id="mAutoKm" ${String(data.settings.autoKm||'Y').toUpperCase()!=='N'?'checked':''}> Work out kilometres from Google Maps when visits are saved (2 × office → each client)</label></div>
       <div class="f c12"><label>Google Maps key <span class="hint">(optional)</span></label><input id="mMapsKey" type="password" autocomplete="new-password" value="" placeholder="${data.settings.maps==='platform' ? '•••••••• — a key is set; type to replace, or type none to remove' : 'Leave blank to use the built-in Maps service'}"><span class="hint">${data.settings.maps==='platform' ? 'Using <b>Google Maps Platform</b>: branch-level location search, traffic-aware routes, your own quota.' : 'Using the <b>built-in Maps service</b>: no key, Workspace daily quota, no live traffic. A Platform key adds branch-level search and traffic.'}</span></div>
       <div class="f c12"><label>Client locations</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="btn sm" id="mLocate">📍 Locate missing accounts (${nMissing})</button><span class="hint">${nNotFound ? `${nNotFound} not found by name — add a street address in the Accounts tab, then locate again.` : 'Pins every account once; AEs can still pick a different office per visit.'}</span></div></div>
       ${officeCities().map(c => { const o = (data.settings.offices||{})[c] || {}; return `<div class="f c12"><label>${esc(c)} office</label><input id="mOff-${esc(c)}" data-city="${esc(c)}" value="${esc(o.address||'')}" placeholder="Street address of the ${esc(c)} office"><span class="hint">${o.latlng ? `Pinned — <a href="https://www.google.com/maps/search/?api=1&query=${esc(o.latlng)}" target="_blank" rel="noopener">check on Google Maps</a>` : (o.address ? 'Pinned on first use' : 'Needed before km can be calculated for AEs in this city')}</span></div>`; }).join('')}
@@ -5513,7 +5513,7 @@ function importFromText(text){ importDialog(); const d = $('.imp-paste'); if (d)
 function importDialog(){
   openModal('Upload visits from Excel', `
     <div class="imp">
-      <p>One row per visit. Columns: <b>Date</b>, <b>Client</b>, <b>Purpose</b> (required — several allowed, separated by “;”)${isMgr() ? ', and optionally <b>Order</b> and <b>AE</b> (admins can upload for anyone)' : ' and optionally <b>Order</b>'}. Visits on the same day are routed in the order of the rows (or the Order column).</p>
+      <p>One row per visit. Columns: <b>Date</b>, <b>Client</b>, <b>Purpose</b> (required — several allowed, separated by “;”)${isMgr() ? ', and optionally <b>Order</b> and <b>AE</b> (admins can upload for anyone)' : ' and optionally <b>Order</b>'}. Visits on the same day keep the order of the rows (or the Order column); kilometres are 2 × office → each client.</p>
       <label class="dropzone" id="impDrop"><input type="file" id="impFile" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"><span class="dz-i">⤒</span><b>Choose an Excel or CSV file</b><small>or drop it here · up to ${IMPORT_MAX} rows</small></label>
       <button type="button" class="si-link" id="impTpl">Download a template</button>
       <details class="imp-paste"><summary>…or paste rows instead</summary><textarea id="impText" rows="5" placeholder="13/10/2026	Ghani Glass	SAP&#10;13/10/2026	Dawn Foods	Follow-up"></textarea><button type="button" class="btn sm" id="impTextGo">Preview</button></details>
@@ -5681,7 +5681,7 @@ async function dataFix(kind, btn){
   const list = kind === 'repeats' ? a.repeats.map(x => x.v) : kind === 'recount' ? a.miscount : a.kmCheck;
   if (kind === 'km' && (ui.backendV || 0) < NEEDS_BACKEND) { toast(`Nothing changed: the server is still the old version${ui.backendV ? ' (v' + ui.backendV + ')' : ''}. Deploy the new Code.gs first — then Fix recalculates every day as 2 × office → each client.`); return; }
   if (!(await confirmModal(kind === 'repeats' ? `Remove ${a.repeats.reduce((s,x)=>s+x.extra,0)} repeated visits?` : kind === 'recount' ? `Recount ${list.length} days?` : `Recalculate kilometres for ${list.length} days?`,
-      kind === 'repeats' ? 'On each affected day the client is kept once (the first time it appears); that day’s kilometres are recalculated.' : kind === 'recount' ? 'Each day’s visit count is set to the number of clients actually listed.' : 'Kilometres are worked out again from Google Maps, in the order of the visits.', 'Go ahead'))) { btn.disabled = false; return; }
+      kind === 'repeats' ? 'On each affected day the client is kept once (the first time it appears); that day’s kilometres are recalculated.' : kind === 'recount' ? 'Each day’s visit count is set to the number of clients actually listed.' : 'Kilometres are worked out again from Google Maps: 2 × office → each client.', 'Go ahead'))) { btn.disabled = false; return; }
   for (const v of list) {
     btn.textContent = `Fixing ${done + failed + 1} of ${list.length}…`;
     try {
