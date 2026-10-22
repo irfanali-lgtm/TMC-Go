@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TMC Go</title>
 <meta name="theme-color" content="#1E2867">
-<script>(function(){try{var t=localStorage.getItem('vi.theme')||'auto';if(t==='dark'||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark');}catch(e){}})();</script>
+<script>(function(){try{var t=localStorage.getItem('vi.theme')||'light';if(t==='dark'||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark');}catch(e){}})();</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2347,8 +2347,8 @@ html.dark .segpick button.on{background:#3B49D6!important;color:#fff!important;b
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-24 22:00 · production';
-const NEEDS_BACKEND = 46;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
+const BUILD = '2026-10-24 23:30 · production';
+const NEEDS_BACKEND = 47;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -4834,7 +4834,7 @@ const mgrUnlocked = () => isMgr() || !!getAdminPin();
 // Menu (Meta-style): your profile on top, then short grouped rows; each row opens one focused sheet.
 function settingsDialog(tab){ if (typeof tab === 'string' && tab) return adminSheet(tab); goTab('menu'); }
 // Appearance: 'auto' follows the phone/computer setting; 'light' / 'dark' are fixed. Stored on this device only.
-function themePref(){ try { return localStorage.getItem('vi.theme') || 'auto'; } catch(e){ return 'auto'; } }
+function themePref(){ try { return localStorage.getItem('vi.theme') || 'light'; } catch(e){ return 'light'; } }   // Light unless the person chose otherwise
 const isDark = () => document.documentElement.classList.contains('dark');
 function applyTheme(){
   const t = themePref(), dark = t === 'dark' || (t === 'auto' && !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches));
@@ -4850,13 +4850,15 @@ function themeSheet(){
   $$('#mBody [data-th]').forEach(b => b.onclick = () => { try { localStorage.setItem('vi.theme', b.dataset.th); } catch(e){} $$('#mBody [data-th]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); }); applyTheme(); if (ui.tab === 'menu') { const keep = $('#modal').classList.contains('open'); renderMenu(); if (keep) $('#modal').classList.add('open'); } });
 }
 // ── Automations (switches are the person's own; the backend reads the same AEs.autoPrefs) ──
-const AUTO_DEFAULTS = {visits: true, cal: false, prep: false, draft: false, nudge: true, early: true, plan: true};
+const AUTO_DEFAULTS = {wrap: true, focus: true, visits: false, cal: false, prep: false, draft: false, nudge: false, early: false, plan: false};   // owner 24 Oct: only the weekly emails on
 function myAuto(){ const me = aeByName(ui.me) || {}; let raw = me.autoPrefs; if (typeof raw === 'string') { try { raw = JSON.parse(raw || '{}'); } catch(e){ raw = {}; } }
   const o = {}; Object.keys(AUTO_DEFAULTS).forEach(k => o[k] = raw && raw[k] !== undefined ? !!raw[k] : AUTO_DEFAULTS[k]); return o; }
 const distKm = (a, b, c, d) => { const r = x => x * Math.PI / 180, h = Math.sin(r(c - a) / 2) ** 2 + Math.cos(r(a)) * Math.cos(r(c)) * Math.sin(r(d - b) / 2) ** 2; return 12742 * Math.asin(Math.sqrt(h)); };
 async function automationsSheet(){
   const me = aeByName(ui.me); if (!me) return; const p = myAuto();
   const rows = [
+    ['W', 'wrap', 'Friday wrap-up', 'Fridays at 5:30 pm: your week in one friendly email — who you met, your notes, what got done, what’s waiting and what needs attention.'],
+    ['M', 'focus', 'Monday focus', 'Mondays at 9:30 am: your plan for the week — meetings, follow-ups due and overdue, opportunities and where to start.'],
     ['A', 'visits', 'Calendar visit reminder', 'At 5:00 pm, the client meetings in your Google Calendar that you haven’t logged yet.'],
     ['G', 'nudge', 'Evening nudge', 'At 5:40 pm, a reminder if you haven’t logged anything today.'],
     ['J', 'early', 'Early warning', 'When one of your A accounts has had no visit for 3 weeks — before it becomes a miss.'],
@@ -5013,7 +5015,7 @@ function renderMenu(){
     <div class="mgroup"><h3>Settings</h3><div class="card mlist">
       ${row('mnGo', 'spark', 'How Go talks to you', me.goPrefs ? esc(String(me.goPrefs).slice(0, 60)) + (String(me.goPrefs).length > 60 ? '…' : '') : 'Language, tone, length — only you see this')}
       ${ui.demo ? '' : row('mnPin', 'lock', 'Change my PIN', 'Used on any new phone or computer')}
-      ${ui.demo ? '' : row('mnAuto', 'auto', 'Automations', (() => { const p = myAuto(), on = Object.keys(p).filter(k => p[k]).length; return `${on} of 7 switched on`; })())}
+      ${ui.demo ? '' : row('mnAuto', 'auto', 'Automations', (() => { const p = myAuto(), on = Object.keys(p).filter(k => p[k]).length; return `${on} of ${Object.keys(p).length} switched on`; })())}
       ${ui.demo ? '' : row('mnRem', 'bell', 'Reminders', (() => { const pr = reachProblems(); return `By ${esc(viaLabel(myRemindVia()))}` + (pr.length ? ` · <span class="overtxt">can’t reach you yet</span>` : ''); })())}
       ${row('mnInstall', 'phone', isStandalone() ? 'TMC Go is installed' : 'Install TMC Go as an app', isStandalone() ? 'You’re using the home-screen app' : 'Home-screen icon, full screen, opens instantly')}
       ${row('mnTheme', 'moon', 'Appearance', {auto: 'Automatic — follows your phone', light: 'Light', dark: 'Dark'}[themePref()])}
@@ -5054,13 +5056,15 @@ function remindersSheet(){
       <div class="mrow">${ico('wa')}<span class="mtx"><b>WhatsApp</b><small>${!waOn() ? 'Not switched on yet — your admin connects it' : n ? '+' + n : 'Add your mobile number in Edit profile'}</small></span>${waOn() ? (n ? '<button type="button" class="btn sm" id="rTestWa">Test</button>' : '<button type="button" class="btn sm" id="rAddNum">Add number</button>') : ''}</div>
     </div>
     <p class="fuhint" id="rWarn"></p>
-    <div class="wrapnote"><span class="mic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg></span><span class="mtx"><b>Friday wrap-up</b><small>Every Friday afternoon: your visits and kilometres for the week, the month so far, what’s still due and next week’s follow-ups${isMgr() ? ' — and, for admins, the whole team' : ''}. By email (or WhatsApp, once your admin has set it up).</small></span><button type="button" class="btn sm" id="rWrap">Send me this week’s</button></div>`, async () => { await saveProfile(me, {remindVia: v}); render(); }, 'Save');
+    <div class="wrapnote"><span class="mic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg></span><span class="mtx"><b>Friday wrap-up · 5:30 pm</b><small>Your week in one friendly email: who you met, your notes, what got done, what’s waiting and what needs attention${isMgr() ? ' — and, for admins, the whole team' : ''}.</small></span><button type="button" class="btn sm" id="rWrap">Send me this week’s</button></div>
+    <div class="wrapnote"><span class="mic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class="mtx"><b>Monday focus · 9:30 am</b><small>Your plan for the week: meetings, follow-ups due and overdue, opportunities and where to start. Pakistan time; switch either off in Menu → Automations.</small></span><button type="button" class="btn sm" id="rFocus">Send me one now</button></div>`, async () => { await saveProfile(me, {remindVia: v}); render(); }, 'Save');
   const warn = () => { const pr = reachProblems(v, me); $('#rWarn').innerHTML = pr.length ? `⚠️ Reminders can’t reach you yet: ${esc(pr.join(' and '))}.` : `✓ Your reminders will come by <b>${esc(viaLabel(v))}</b>.`; $('#rWarn').classList.toggle('bad', !!pr.length); };
   $$('#mBody [data-via]').forEach(b => b.onclick = () => { v = b.dataset.via; $$('#mBody [data-via]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); }); warn(); });
   if ($('#rTestMail')) $('#rTestMail').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { await callApi({action:'testReminderEmail'}); toast('Test email sent — check your inbox'); } catch(err) { toast(friendly(err)); } b.disabled = false; };
   if ($('#rTestWa')) $('#rTestWa').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { const r = await callApi({action:'testReminderWhatsApp'}); toast(`Test WhatsApp sent to ${r.to || 'your phone'}`); } catch(err) { toast(friendly(err)); } b.disabled = false; };
   if ($('#rAddNum')) $('#rAddNum').onclick = () => profileSheet();
   if ($('#rWrap')) $('#rWrap').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { await callApi({action:'testWeeklyWrap'}); toast('This week’s wrap-up is on its way — check your inbox'); } catch(err) { toast(friendly(err)); } b.disabled = false; };
+  if ($('#rFocus')) $('#rFocus').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { await callApi({action:'testWeeklyFocus'}); toast('Your Monday focus is on its way — check your inbox'); } catch(err) { toast(friendly(err)); } b.disabled = false; };
   warn();
 }
 async function saveProfile(me, prof){
