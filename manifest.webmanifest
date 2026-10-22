@@ -29,5 +29,31 @@
     }
   ],
   "id": "./",
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Log a visit",
+      "short_name": "Log visit",
+      "url": "./#log",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "To-do",
+      "short_name": "To-do",
+      "url": "./#todo",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
 }
