@@ -1424,6 +1424,9 @@ body[data-tab=menu] button.hav .av{box-shadow:0 0 0 2.5px #B7E86A}
 .mrow.danger b{color:var(--bad)} .mrow.danger .mic{background:var(--bad-bg);color:var(--bad)}
 .mnote{width:100%;align-self:stretch;padding:14px 16px!important;background:var(--warn-bg)!important;border-color:#F3D9A6!important;color:#6B4204} .mnote div{margin-top:4px}
 .mfoot{text-align:center;color:var(--n-400);font-size:12px;margin:2px 0 8px}
+/* Menu on laptops: two columns instead of one narrow strip (Your work + Settings | Admin + Sign out) */
+.mcols,.mcol{display:flex;flex-direction:column;gap:16px;min-width:0}
+@media (min-width:1100px){ #v-menu .mpage{max-width:1160px} .mcols{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start} }
 @media (max-width:760px){ .mhero{padding:16px!important} .mhero .btn{display:none} .mhero{cursor:pointer} }
 /* ── peak refinement ── */
 /* Team sheet: tidy action row; person cards on phones */
@@ -2347,7 +2350,7 @@ html.dark .segpick button.on{background:#3B49D6!important;color:#fff!important;b
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-24 23:30 · production';
+const BUILD = '2026-10-24 23:50 · production';
 const NEEDS_BACKEND = 47;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
@@ -5008,6 +5011,7 @@ function renderMenu(){
       <button type="button" class="btn sm" id="mnEdit">Edit profile</button>
     </div>
     ${me.notes ? `<div class="card mnote"><b>Note from your admin</b><div>${esc(me.notes)}</div></div>` : ''}
+    <div class="mcols"><div class="mcol">
     <div class="mgroup"><h3>Your work</h3><div class="card mlist">
       ${row('mnTodo', 'todo', 'To-do', c.open ? `${c.open} open${c.overdue ? ` · <span class="overtxt">${c.overdue} overdue</span>` : ''}` : 'You’re all caught up')}
       ${row('mnAccounts', 'book', 'My accounts', 'Your list, notes and last visits')}
@@ -5020,6 +5024,7 @@ function renderMenu(){
       ${row('mnInstall', 'phone', isStandalone() ? 'TMC Go is installed' : 'Install TMC Go as an app', isStandalone() ? 'You’re using the home-screen app' : 'Home-screen icon, full screen, opens instantly')}
       ${row('mnTheme', 'moon', 'Appearance', {auto: 'Automatic — follows your phone', light: 'Light', dark: 'Dark'}[themePref()])}
     </div></div>
+    </div><div class="mcol">
     ${ui.demo ? '' : `<div class="mgroup"><h3>Admin</h3><div class="card mlist">${admin ? `
       ${row('mnTeam', 'team', 'Team', 'People, roles, PINs, emails, devices')}
       ${row('mnKm', 'map', 'Kilometres & maps', 'Offices, client locations, Maps key')}
@@ -5030,6 +5035,7 @@ function renderMenu(){
       ${isMgr() ? '' : row('mnLock', 'lock', 'Lock admin tools', 'Forget the admin PIN on this device')}`
       : row('mnUnlock', 'unlock', 'Unlock admin tools', 'Team, kilometres & maps, Go and data — needs the admin PIN')}</div></div>`}
     <div class="card mlist">${row('mnOut', 'out', 'Sign out', 'Unsaved drafts on this device are cleared', 'danger')}</div>
+    </div></div>
     <p class="mfoot">TMC Go · ${esc(BUILD)}</p>
   </div>`;
   const on = (id, fn) => { const b = $('#' + id); if (b) b.onclick = fn; };
