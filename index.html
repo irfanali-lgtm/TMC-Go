@@ -2342,8 +2342,8 @@ html.dark .segpick button.on{background:#3B49D6!important;color:#fff!important;b
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-24 13:00 · production';
-const NEEDS_BACKEND = 39;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
+const BUILD = '2026-10-24 14:00 · production';
+const NEEDS_BACKEND = 40;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -2739,7 +2739,7 @@ async function load(first){
 const tierOfText = v => { const t = String(v ?? '').toUpperCase().replace(/CATEGORY|CATEG|CAT\.?|TIER|CLASS|TYPE|GRADE/g, ' ').replace(/^[^A-Z]+/, '').trim(); if (/^PARTNER/.test(t)) return 'Partner'; const m = /^([ABC])(\b|[^A-Z])/.exec(t + ' '); return m ? m[1] : ''; };
 const normAccounts = rows => rows.map(r => ({...r, contactName: String(r.contactName ?? ''), contactRole: String(r.contactRole ?? ''), contactPhone: String(r.contactPhone ?? '').replace(/^'/, ''), contactEmail: String(r.contactEmail ?? ''), ae: teamName(r.ae), account: String(r.account ?? '').trim(), addedOn: isoDay(r.addedOn), tier: tierOfText(r.tier), dormant: /^(y|yes|true|1|dormant)$/i.test(String(r.dormant ?? '').trim()) ? 'Y' : '', netNew: String(r.netNew||'').toUpperCase().startsWith('Y') ? 'Y':'N', lat: r.lat===''||r.lat==null ? '' : Number(r.lat), lng: r.lng===''||r.lng==null ? '' : Number(r.lng)}));
 const AREA_PINS = [[31.5203696, 74.3587473], [24.8607343, 67.0011364], [33.6844202, 73.0478848], [33.5651107, 73.0169135], [31.1704063, 72.7097161], [25.8943018, 68.5247149], [30.375321, 69.345116]];
-const areaPin = (lat, lng) => { lat = Number(lat); lng = Number(lng); return !isNaN(lat) && !isNaN(lng) && AREA_PINS.some(c => Math.abs(c[0] - lat) < 0.0015 && Math.abs(c[1] - lng) < 0.0015); };
+const areaPin = (lat, lng) => { lat = Number(lat); lng = Number(lng); return !isNaN(lat) && !isNaN(lng) && AREA_PINS.some(c => Math.abs(c[0] - lat) < 0.0003 && Math.abs(c[1] - lng) < 0.0003); };   // ~30 m — same as Code.gs
 const located = a => !!a && a.lat !== '' && a.lat != null && !isNaN(a.lat) && !areaPin(a.lat, a.lng);
 // Values typed straight into the sheet: dates as 30/09/2026, 30-Sep-2026 or a timestamp; km as "35.4 km" or "1,061".
 function isoDay(v){
