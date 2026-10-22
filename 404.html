@@ -2347,8 +2347,8 @@ html.dark .segpick button.on{background:#3B49D6!important;color:#fff!important;b
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-24 15:30 · production';
-const NEEDS_BACKEND = 41;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
+const BUILD = '2026-10-24 19:00 · production';
+const NEEDS_BACKEND = 44;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -2835,7 +2835,10 @@ function resolveAccount(ae, name){
   if (_resolveCache.has(key)) { const id = _resolveCache.get(key); return id === null ? null : (ix.byId.get(id) || null); }
   let hit = ae ? ix.byAeNorm.get(ae + '|' + nn) : ix.byNorm.get(nn);
   if (!hit && typeof aliasFor === 'function') { const al = aliasFor(name, ae); if (al) { const na = norm(al); hit = ae ? ix.byAeNorm.get(ae + '|' + na) : ix.byNorm.get(na); } }
-  if (!hit && nn.length >= 4) { const pool = ae ? (ix.byAe.get(ae) || []) : data.accounts; let best=null, bs=0; pool.forEach(x => { const s = scoreName(name, x.account); if (s > bs) { bs = s; best = x; } }); if (bs >= 0.85) hit = best; }
+  // the same company (any legal suffix) on someone else's list beats a close-sounding name in this person's list —
+  // "Engro Corporation" (Kashif's) is not Dawar's "Engro Polymer"
+  const elsewhere = !hit && ae && data.accounts.some(x => x.ae !== ae && canon(x.account) === canon(name)) && !(ix.byAe.get(ae) || []).some(x => canon(x.account) === canon(name));
+  if (!hit && !elsewhere && nn.length >= 4) { const pool = ae ? (ix.byAe.get(ae) || []) : data.accounts; let best=null, bs=0; pool.forEach(x => { const s = scoreName(name, x.account); if (s > bs) { bs = s; best = x; } }); if (bs >= 0.85) hit = best; }
   _resolveCache.set(key, hit ? hit.id : null); return hit || null;
 }
 function ownerOf(accountName){ const a = resolveAccount('', accountName); return a ? a.ae : ''; }
@@ -2848,7 +2851,7 @@ function accountRow(ae, name){ return resolveAccount(ae, name); }
  * Qualifying visit = a visit by the account's own AE, dated today or earlier, to that account (any spelling/alias);
  * the same account twice on the same day counts once. An account added part-way through a period starts counting
  * from the next full period. The account's current category is used for every period. */
-const COVER = {A:{per:'month', need:2, rule:'2 visits every month'}, B:{per:'month', need:1, rule:'1 visit every month'}, C:{per:'quarter', need:1, rule:'1 visit every quarter'}};   // owner's rule from 22 Oct 2026 (Sales_Accounts_Assignment_List)
+const COVER = {A:{per:'month', need:2, rule:'2 visits every month'}, B:{per:'month', need:1, rule:'1 visit every month'}, C:{per:'quarter', need:1, rule:'1 visit every quarter — a third of the C accounts a month'}};   // owner's rule from 22 Oct 2026 (Sales_Accounts_Assignment_List)
 const isoD = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 function periodOf(per, iso){
   const y = +iso.slice(0,4), m = +iso.slice(5,7) - 1;
@@ -2882,12 +2885,28 @@ function visitDatesFor(ae){
 // Tracking starts with the first visit logged by anyone: months/quarters that ended before it have no data to judge.
 function trackingStart(){ if (!_covIndex.has('#start')) { let m = ''; data.visits.forEach(v => { if (v.date && splitAccts(v.accounts).length && (!m || v.date < m)) m = v.date; }); _covIndex.set('#start', m); } return _covIndex.get('#start'); }
 function hasFixedBook(ae){ const key = 'fb|' + ae; if (!_covIndex.has(key)) _covIndex.set(key, data.accounts.some(a => a.ae === ae && TIERS.includes(a.tier) && a.dormant !== 'Y')); return _covIndex.get(key); }
+// C in a month view [owner 24 Oct]: the C accounts are spread over the quarter. Target for a month = C accounts not yet
+// visited this quarter ÷ months left in the quarter (incl. this one), rounded UP to whole visits: 15 C → 5; none visited →
+// 8 next month (7.5 rounded up); none again → 15 in the last month. Never a fraction of a visit. Met = C accounts first visited this quarter in this month, capped at the target (extra visits
+// make later months lighter). A view of more than one month judges C over the whole quarter (visited at least once).
+function cMonthFor(book, idx, from, end, cutoff, started){
+  if (end < from || from.slice(0, 7) !== end.slice(0, 7)) return null;            // not a single-month view
+  const M = periodOf('month', from), Q = periodOf('quarter', from);
+  if (started && M.end < started) return {target: 0, met: 0, n: 0, fresh: 0, prior: 0};   // no data yet for that month
+  const cs = book.filter(a => a.tier === 'C' && (!accountSince(a) || accountSince(a) <= Q.start) && (!started || Q.end >= started));
+  let prior = 0, fresh = 0;
+  cs.forEach(a => { let first = ''; (idx.get(canon(a.account)) || new Set()).forEach(d => { if (d >= Q.start && d <= end && (!cutoff || d <= cutoff) && (!first || d < first)) first = d; });
+    if (first && first < M.start) prior++; else if (first) fresh++; });
+  const left = 3 - (+M.key.slice(5, 7) - 1) % 3, target = cs.length ? Math.ceil((cs.length - prior) / left) : 0;   // whole visits: rounded up (7.5 → 8)
+  return {target, met: Math.min(fresh, target), n: cs.length, fresh, prior, left};
+}
+const r1 = x => Math.round(x * 10) / 10;
 // cutoff (optional): count only visits up to that date — used to compare "the same days" of an earlier period
 function coverageFor(ae, from, to, cutoff){
   const today = todayIso(), end = to > today ? today : to, idx = visitDatesFor(ae), started = trackingStart();
   const book = assignedFor(ae, '9999-12-31').filter(a => TIERS.includes(a.tier) && a.dormant !== 'Y');   // dormant accounts are never due
   const tiers = {}; TIERS.forEach(tr => tiers[tr] = {due:0, met:0, needed:0, done:0, accounts:0, pct:null});
-  const accts = [];
+  const accts = [], cm = cMonthFor(book, idx, from, end, cutoff, started);
   book.forEach(a => {
     const rule = COVER[a.tier], dates = idx.get(canon(a.account)) || new Set();
     const since = accountSince(a);
@@ -2898,13 +2917,17 @@ w => (!since || since <= w.start) && (!started || w.end >= started)).map(w => {
     });
     if (!wins.length) return;                      // new account: counts from its first full period
     const T = tiers[a.tier]; T.accounts++;
-    wins.forEach(w => { T.due++; if (w.met) T.met++; T.done += Math.min(w.got, w.need); T.needed += Math.max(0, w.need - w.got); });
+    if (!(cm && a.tier === 'C')) wins.forEach(w => { T.due++; if (w.met) T.met++; T.done += Math.min(w.got, w.need); T.needed += Math.max(0, w.need - w.got); });
     const cur = wins[wins.length - 1];             // the period containing the end of the range (today for current views)
     accts.push({a, tier: a.tier, rule: rule.rule, wins, cur, ok: wins.every(w => w.met), still: Math.max(0, cur.need - cur.got)});
   });
+  if (cm) { const C = tiers.C; C.due = cm.target; C.met = cm.met; C.done = cm.met; C.needed = Math.max(0, cm.target - cm.fresh); C.monthly = cm; }
   TIERS.forEach(tr => tiers[tr].pct = pct(tiers[tr].met, tiers[tr].due));
   const sum = f => TIERS.reduce((s, tr) => s + tiers[tr][f], 0);
   const overall = {due: sum('due'), met: sum('met'), needed: sum('needed'), done: sum('done')}; overall.pct = pct(overall.met, overall.due);
+  // figures shown with one decimal (a C target can be 7.5 or 5.3); the percentages above use the exact values
+  TIERS.forEach(tr => { tiers[tr].dueX = tiers[tr].due; tiers[tr].metX = tiers[tr].met; }); overall.dueX = overall.due; overall.metX = overall.met;
+  TIERS.forEach(tr => ['due', 'met', 'needed', 'done'].forEach(f => { tiers[tr][f] = r1(tiers[tr][f]); })); ['due', 'met', 'needed', 'done'].forEach(f => { overall[f] = r1(overall[f]); });
   // what to do now: accounts whose current period still needs visits, A first
   const dueNow = accts.filter(x => x.still > 0 && x.cur.open).sort((x, y) => x.tier.localeCompare(y.tier) || y.still - x.still || x.a.account.localeCompare(y.a.account));
   const missed = accts.filter(x => x.wins.some(w => !w.met && !w.open));
@@ -2948,6 +2971,33 @@ function celebrate(key, title, sub){
   $('button', c).onclick = close; setTimeout(close, 6000);
 }
 const needText = x => { const unit = COVER[x.tier].per === 'month' ? 'this month' : 'this quarter'; return x.cur.need > 1 ? (x.cur.got ? `${x.cur.got} of ${x.cur.need} ${unit}` : `${x.cur.need} visits due ${unit}`) : `due ${unit}`; };
+/* Shared and net new [owner 24 Oct]
+ * company of a visited name = the person's own list entry, else anyone's (any spelling/alias) — the key every count uses
+ * shared   = a company visited by two or more people in the period (any day)
+ * net new  = a company on nobody's list whose FIRST visit ever (by anyone) falls in the period; the team counts it once,
+ *            each person who visited it sees it in their own view */
+const companyOf = (ae, n) => { const r = accountRow(ae, n) || accountRow('', n); return {key: canon(r ? r.account : n), name: r ? r.account : n}; };
+function firstVisitEver(){
+  if (_covIndex.has('#first')) return _covIndex.get('#first');
+  const m = new Map(), t = todayIso();
+  data.visits.forEach(v => { if (!v.date || v.date > t) return; splitAccts(v.accounts).forEach(n => { const k = companyOf(v.ae, n).key; if (!m.has(k) || v.date < m.get(k)) m.set(k, v.date); }); });
+  _covIndex.set('#first', m); return m;
+}
+function isNetNew(key, from, to){ const f = firstVisitEver().get(key); return !!f && f >= from && f <= to && !categorisedCompanies().has(key); }
+function sharedCompanies(from, to){
+  const ck = '#shared|' + from + '|' + to; if (_covIndex.has(ck)) return _covIndex.get(ck);
+  const by = new Map(), t = todayIso();
+  data.visits.forEach(v => { if (!v.date || v.date < from || v.date > to || v.date > t) return; splitAccts(v.accounts).forEach(n => { const k = companyOf(v.ae, n).key; if (!by.has(k)) by.set(k, new Set()); by.get(k).add(v.ae); }); });
+  const s = new Set([...by].filter(([, a]) => a.size > 1).map(([k]) => k)); _covIndex.set(ck, s); return s;
+}
+// every company visited by the people in view, in the period: who, how often, first/last, shared / net new
+function companiesVisited(mv, from, to){
+  const m = new Map(), sh = sharedCompanies(from, to);
+  mv.forEach(v => dayDetails(v).forEach(d => { if (!d.client) return; const c = companyOf(v.ae, d.client); const x = m.get(c.key) || {key: c.key, name: c.name, aes: new Set(), visits: 0, first: '', last: ''};
+    x.aes.add(v.ae); x.visits++; if (!x.first || v.date < x.first) x.first = v.date; if (!x.last || v.date > x.last) x.last = v.date; m.set(c.key, x); }));
+  m.forEach(x => { x.shared = sh.has(x.key); x.isNew = isNetNew(x.key, from, to); });
+  return m;
+}
 function statsFor(ae, mv, asOf){
   const mine = mv.filter(v => v.ae === ae);
   const counts = {}; // account name -> visits by this AE in the period
@@ -2961,18 +3011,20 @@ function statsFor(ae, mv, asOf){
   const distinct = new Set(Object.keys(counts).map(n => { const r = accountRow(ae, n) || accountRow('', n); return canon(r ? r.account : n); }));
   const range = arguments[3] || {from: ui.range.from, to: asOf || ui.range.to};
   const cov = coverageFor(ae, range.from, range.to);
-  const tiers = {}; TIERS.forEach(t => { const c = cov.tiers[t]; tiers[t] = {assigned: c.due, visited: c.met, pct: c.pct, needed: c.needed, accounts: c.accounts}; });
-  const listedAnywhere = categorisedCompanies();
-  const nn = book.filter(a => a.netNew==='Y' && !TIERS.includes(a.tier) && !listedAnywhere.has(canon(a.account)) && visitsOf(a)>0);   // new to the company, not just to this person
+  const tiers = {}; TIERS.forEach(t => { const c = cov.tiers[t]; tiers[t] = {assigned: c.due, visited: c.met, pct: c.pct, needed: c.needed, accounts: c.accounts, assignedX: c.dueX, visitedX: c.metX}; });
+  const rTo = range.to > todayIso() ? todayIso() : range.to, comp = companiesVisited(mine, range.from, rTo);
+  const nn = [...comp.values()].filter(x => x.isNew).map(x => ({account: x.name, key: x.key, visits: x.visits}));
+  const shared = [...comp.values()].filter(x => x.shared);
   const bookKeys = new Set(book.map(a => canon(a.account))); const other = Object.keys(counts).filter(n => { const r = accountRow(ae, n); return !bookKeys.has(canon(r ? r.account : n)); });
   const info = aeByName(ae) || {};
   const measured = hasFixedBook(ae);   // anyone with A/B/C accounts (not dormant) is measured — no manual switch
   return {
     ae, info, measured, tiers,
-    overall: {assigned: cov.overall.due, visited: cov.overall.met, pct: cov.overall.pct, needed: cov.overall.needed},
+    overall: {assigned: cov.overall.due, visited: cov.overall.met, pct: cov.overall.pct, needed: cov.overall.needed, assignedX: cov.overall.dueX, visitedX: cov.overall.metX},
     notVisited: cov.overall.due - cov.overall.met,
     cov,
-    netNew: {accounts: nn.length, visits: nn.reduce((s,a)=>s+visitsOf(a),0), list: nn},
+    netNew: {accounts: nn.length, visits: nn.reduce((s,a)=>s+a.visits,0), list: nn},
+    shared: {accounts: shared.length, visits: shared.reduce((s,x)=>s+x.visits,0)},
     totalAccounts: distinct.size,
     totalVisits: mine.reduce((s,v)=>s+splitAccts(v.accounts).length,0),
     km: mine.reduce((s,v)=>s+v.km,0),
@@ -2988,11 +3040,14 @@ function teamStats(){
   const sum = (arr, f) => arr.reduce((s,r)=>s+f(r),0);
   const total = { tiers:{}, measuredCount: measured.length };
   // the team view adds up each person's own requirements (the same company in two books is two requirements)
-  TIERS.forEach(t => { const as=sum(measured,r=>r.tiers[t].assigned), vz=sum(measured,r=>r.tiers[t].visited); total.tiers[t]={assigned:as, visited:vz, pct:pct(vz,as), needed:sum(measured,r=>r.tiers[t].needed||0)}; });
-  const oa=sum(measured,r=>r.overall.assigned), ov=sum(measured,r=>r.overall.visited);
-  total.overall={assigned:oa, visited:ov, pct:pct(ov,oa), needed:sum(measured,r=>r.overall.needed||0)};
-  total.netNew={accounts:sum(rows,r=>r.netNew.accounts), visits:sum(rows,r=>r.netNew.visits)};
-  total.totalAccounts=sum(rows,r=>r.totalAccounts); total.totalVisits=sum(rows,r=>r.totalVisits); total.km=sum(rows,r=>r.km);
+  const X = (r, k) => r[k] ?? 0;   // exact figures (a C target can be 7.5 or 5.33…); shown figures keep one decimal
+  TIERS.forEach(t => { const as=r1(sum(measured,r=>r.tiers[t].assigned)), vz=r1(sum(measured,r=>r.tiers[t].visited)); total.tiers[t]={assigned:as, visited:vz, pct:pct(sum(measured,r=>X(r.tiers[t],'visitedX')), sum(measured,r=>X(r.tiers[t],'assignedX'))), needed:r1(sum(measured,r=>r.tiers[t].needed||0))}; });
+  const oa=r1(sum(measured,r=>r.overall.assigned)), ov=r1(sum(measured,r=>r.overall.visited));
+  total.overall={assigned:oa, visited:ov, pct:pct(sum(measured,r=>X(r.overall,'visitedX')), sum(measured,r=>X(r.overall,'assignedX'))), needed:r1(sum(measured,r=>r.overall.needed||0))};
+  const tTo = ui.range.to > todayIso() ? todayIso() : ui.range.to, comp = [...companiesVisited(mv, ui.range.from, tTo).values()];   // the team counts each company once
+  total.netNew={accounts:comp.filter(x=>x.isNew).length, visits:comp.filter(x=>x.isNew).reduce((s,x)=>s+x.visits,0)};
+  total.shared={accounts:comp.filter(x=>x.shared).length, visits:comp.filter(x=>x.shared).reduce((s,x)=>s+x.visits,0)};
+  total.totalAccounts=comp.length; total.totalVisits=sum(rows,r=>r.totalVisits); total.km=sum(rows,r=>r.km);
   return {rows, total, mv};
 }
 
@@ -3749,10 +3804,11 @@ function renderMyMonth(){
     ${(() => {   // pace: what the rest of this month needs (current month only)
       if (!curOpen || !s.measured || hiddenToday('pace')) return '';
       const A = s.cov.accts.filter(x => x.tier === 'A' && !x.cur.met), B = s.cov.accts.filter(x => x.tier === 'B' && !x.cur.met), C = s.cov.accts.filter(x => x.tier === 'C' && !x.cur.met);
-      const left = workingDaysLeft(monthRange().to === todayIso() ? monthEnd(ui.month) : todayIso()), need = [...A, ...B].reduce((t, x) => t + x.still, 0);
-      const a2 = A.filter(x => x.cur.got).length, a0 = A.length - a2, qEnd = C[0] ? fmtDate(C[0].cur.end) : '';
-      const parts = [a2 ? `${a2} A account${a2 === 1 ? '' : 's'} need${a2 === 1 ? 's' : ''} a 2nd visit` : '', a0 ? `${a0} A not visited yet` : '', B.length ? `${B.length} B not visited yet` : '', C.length ? `${C.length} C due by ${qEnd}` : ''].filter(Boolean);
-      return `<div class="pace${need ? '' : ' done'}"><span class="pace-ic" aria-hidden="true">${need ? '⏱' : '✓'}</span><span><b>${need ? `${left} working day${left === 1 ? '' : 's'} left` : C.length ? 'A and B are done this month' : 'Everything due this month is done'}</b>${parts.length ? ' · ' + esc(parts.join(' · ')) : ''}${need && left ? ` — <b>about ${Math.ceil(need / left)} visit${Math.ceil(need / left) === 1 ? '' : 's'} a day</b> keeps you on track` : ''}</span><button type="button" class="cardx" data-hide="pace" aria-label="Hide this for today" title="Hide for today">×</button></div>`;
+      const left = workingDaysLeft(monthRange().to === todayIso() ? monthEnd(ui.month) : todayIso()), cm0 = s.cov.tiers.C.monthly, need = [...A, ...B].reduce((t, x) => t + x.still, 0) + (cm0 ? Math.ceil(Math.max(0, cm0.target - cm0.fresh) - 1e-9) : 0);
+      const cm = s.cov.tiers.C.monthly, cNeed = cm ? Math.max(0, cm.target - cm.fresh) : 0, cMore = Math.ceil(cNeed - 1e-9);
+      const a2 = A.filter(x => x.cur.got).length, a0 = A.length - a2;
+      const parts = [a2 ? `${a2} A account${a2 === 1 ? '' : 's'} need${a2 === 1 ? 's' : ''} a 2nd visit` : '', a0 ? `${a0} A not visited yet` : '', B.length ? `${B.length} B not visited yet` : '', cMore ? `${cMore} more C this month (target ${num(cm.target)})` : ''].filter(Boolean);
+      return `<div class="pace${need ? '' : ' done'}"><span class="pace-ic" aria-hidden="true">${need ? '⏱' : '✓'}</span><span><b>${need ? `${left} working day${left === 1 ? '' : 's'} left` : 'Everything due this month is done'}</b>${parts.length ? ' · ' + esc(parts.join(' · ')) : ''}${need && left ? ` — <b>about ${Math.ceil(need / left)} visit${Math.ceil(need / left) === 1 ? '' : 's'} a day</b> keeps you on track` : ''}</span><button type="button" class="cardx" data-hide="pace" aria-label="Hide this for today" title="Hide for today">×</button></div>`;
     })()}
     <div class="mstats">
       <div class="mstat drillable" data-drill="visits" data-scope="month" role="button" tabindex="0" title="See the list behind this number"><div class="l">Visits</div><div class="v">${s.totalVisits}</div><div class="d">${s.totalAccounts} client${s.totalAccounts===1?'':'s'}</div></div>
@@ -3781,7 +3837,7 @@ function renderMyMonth(){
   }
   // the "not yet visited" list sits under the log form, where tapping a client adds it
   const slot = $('#untouchedSlot');
-  if (slot) { slot.innerHTML = notV.length ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>${curOpen ? 'Still due' : 'Missed in ' + MONTHS_LONG[+ui.month.slice(5)-1]}</b><span class="ut-n">${notV.length}</span></span><span class="hint ut-h">${curOpen ? 'A: 2× a month · B: every month · C: every quarter' : 'rule not met'}</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,40).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="${esc(a._need.rule)} — ${esc(needText(a._need))}${String(a.aeNotes||'').trim() ? ' — note: ' + esc(String(a.aeNotes).trim().slice(0,120)) : ''}">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span><small class="uneed">${esc(curOpen ? needText(a._need) : (a._need.cur.got + ' of ' + a._need.cur.need))}</small></button>`).join('')}${notV.length>40?`<span class="hint">and ${notV.length-40} more</span>`:''}</div></details>` : `<div class="allclear">✓ Every account is on track — A this month, B and C this quarter</div>`; wireRowActions(slot); }
+  if (slot) { slot.innerHTML = notV.length ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>${curOpen ? 'Still due' : 'Missed in ' + MONTHS_LONG[+ui.month.slice(5)-1]}</b><span class="ut-n">${notV.length}</span></span><span class="hint ut-h">${curOpen ? 'A: 2× a month · B: every month · C: a third a month' : 'rule not met'}</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,40).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="${esc(a._need.rule)} — ${esc(needText(a._need))}${String(a.aeNotes||'').trim() ? ' — note: ' + esc(String(a.aeNotes).trim().slice(0,120)) : ''}">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span><small class="uneed">${esc(curOpen ? needText(a._need) : (a._need.cur.got + ' of ' + a._need.cur.need))}</small></button>`).join('')}${notV.length>40?`<span class="hint">and ${notV.length-40} more</span>`:''}</div></details>` : `<div class="allclear">✓ Every account is on track — A this month, B and C this quarter</div>`; wireRowActions(slot); }
   quietZeros($('#myMonth')); wireDrills($('#myMonth'));
 }
 // One day in "Your visits": the date, every client in the order visited (category, purpose, km for that leg), the day's km.
@@ -4217,6 +4273,7 @@ function wireDrills(root){
   });
 }
 /* ---------- the list behind a number: built from the same statistics as the card, so the count always matches ---------- */
+function drillRange(scope){ const r = scope === 'month' ? monthRange() : ui.range, t = todayIso(); return {from: r.from, to: r.to > t ? t : r.to}; }
 function kpiDrill(kind, scope){
   let mv, rows, label, who;
   if (scope === 'month') { mv = visitsInMonth().filter(v => v.ae === ui.me); const mr = monthRange(); rows = [statsFor(ui.me, mv, null, mr)]; label = `${MONTHS_LONG[+ui.month.slice(5,7)-1]} ${ui.month.slice(0,4)}`; who = fullName(ui.me); }
@@ -4227,22 +4284,33 @@ function kpiDrill(kind, scope){
   const link = v => routeMapUrl(v); const mapCell = v => link(v) ? `<a href="${esc(link(v))}" target="_blank" rel="noopener">route</a>` : '';
   let title = '', cols = [], out = [], note = '';
   if (kind === 'visits') {
-    mv.slice().sort((a,b) => b.date.localeCompare(a.date) || a.ae.localeCompare(b.ae)).forEach(v => dayDetails(v).forEach(d => out.push([fmtDate(v.date), fullName(v.ae), d.client, cat(v.ae, d.client), d.purpose || '', kmTxt(v), mapCell(v)])));
-    title = `Visits`; cols = ['Date','AE','Client','Cat.','Purpose','Day km','Map']; note = 'One line per client visited (a day with 3 clients is 3 visits).';
+    const R = drillRange(scope), comp = companiesVisited(mv, R.from, R.to);
+    mv.slice().sort((a,b) => b.date.localeCompare(a.date) || a.ae.localeCompare(b.ae)).forEach(v => dayDetails(v).forEach(d => { if (!d.client) return; const x = comp.get(companyOf(v.ae, d.client).key) || {};
+      out.push([fmtDate(v.date), fullName(v.ae), d.client, cat(v.ae, d.client), d.purpose || '', [x.shared ? 'Shared' : '', x.isNew ? 'Net new' : ''].filter(Boolean).join(' · '), kmTxt(v), mapCell(v), [x.shared ? 'shared' : '', x.isNew ? 'new' : ''].join(' ')]); }));
+    title = `Visits`; cols = ['Date','AE','Client','Cat.','Purpose','Type','Day km','Map']; out.__opts = [['all', 'All visits'], ['shared', 'Shared'], ['new', 'Net new']]; out.__unit = 'visit';
+    note = 'Every client visited — a day with 3 clients is 3 visits. Shared: a company two or more people visited in this period. Net new: on nobody’s list and first visited in this period.';
   } else if (kind === 'accounts') {
-    rows.forEach(r => { const seen = new Map(); mv.filter(v => v.ae === r.ae).forEach(v => dayDetails(v).forEach(d => { const a = accountRow(r.ae, d.client) || accountRow('', d.client); const k = canon(a ? a.account : d.client); const cur = seen.get(k) || {name: a ? a.account : d.client, n: 0, last: '', first: ''}; cur.n++; if (!cur.last || v.date > cur.last) cur.last = v.date; if (!cur.first || v.date < cur.first) cur.first = v.date; seen.set(k, cur); }));
-      [...seen.values()].sort((a,b) => b.n - a.n || a.name.localeCompare(b.name)).forEach(x => out.push([fullName(r.ae), x.name, cat(r.ae, x.name), x.n, fmtDate(x.first), fmtDate(x.last), noteCell(accountRow(r.ae, x.name))])); });
-    title = `Accounts visited`; cols = ['AE','Account','Cat.','Visits','First','Last','Note']; note = 'Each company once per person, whatever spelling was typed. "None" = not in that person’s list.';
+    const R = drillRange(scope), one = rows.length === 1;
+    [...companiesVisited(mv, R.from, R.to).values()].sort((a, b) => b.visits - a.visits || a.name.localeCompare(b.name)).forEach(x => out.push([x.name, [...x.aes].map(fullName).join(', '), one ? cat(rows[0].ae, x.name) : (x.aes.size > 1 ? 'Shared' : cat([...x.aes][0], x.name)), x.visits, fmtDate(x.first), fmtDate(x.last), [x.shared ? 'Shared' : '', x.isNew ? 'Net new' : ''].filter(Boolean).join(' · '), [x.shared ? 'shared' : '', x.isNew ? 'new' : ''].join(' ')]));
+    title = `Accounts visited`; cols = ['Account','Visited by','Cat.','Visits','First','Last','Type']; out.__opts = [['all', 'All accounts'], ['shared', 'Shared'], ['new', 'Net new']]; out.__unit = 'account';
+    note = 'Each company once, whatever spelling was typed. Shared: two or more people visited it in this period. Net new: on nobody’s list and first visited in this period.';
   } else if (kind === 'netnew') {
-    rows.forEach(r => (r.netNew.list || []).forEach(a => { const vs = mv.filter(v => v.ae === r.ae && dayDetails(v).some(d => { const x = accountRow(r.ae, d.client); return canon(x ? x.account : d.client) === canon(a.account); })); out.push([fullName(r.ae), a.account, vs.length, vs.length ? fmtDate(vs.map(v=>v.date).sort()[0]) : '', vs.length ? fmtDate(vs.map(v=>v.date).sort().slice(-1)[0]) : '']); }));
-    title = `Net new accounts`; cols = ['AE','Account','Visits','First','Last']; note = 'Companies that are in nobody’s Categories list (new to the company) and were visited in the period.';
+    const R = drillRange(scope);
+    [...companiesVisited(mv, R.from, R.to).values()].filter(x => x.isNew).sort((a, b) => a.first.localeCompare(b.first) || a.name.localeCompare(b.name)).forEach(x => out.push([x.name, [...x.aes].map(fullName).join(', '), x.visits, fmtDate(firstVisitEver().get(x.key)), fmtDate(x.last)]));
+    title = `Net new accounts`; cols = ['Account','Visited by','Visits','First visit ever','Last']; note = 'Companies on nobody’s list whose first visit ever (by anyone) is in this period — each company once, even when two people visited it.';
   } else if (kind === 'km') {
     mv.slice().sort((a,b) => b.date.localeCompare(a.date) || a.ae.localeCompare(b.ae)).forEach(v => out.push([fmtDate(v.date), fullName(v.ae), splitAccts(v.accounts).length, kmTxt(v), v.kmMode === 'auto' ? 'Google Maps' : v.kmMode === 'pending' ? 'pending' : 'typed', mapCell(v)]));
-    title = `Kilometres`; cols = ['Date','AE','Visits','Km','Source','Map']; note = 'One line per person per day: office → visits in order → office.';
+    title = `Kilometres`; cols = ['Date','AE','Visits','Km','Source','Map']; note = 'One line per person per day: 2 × the distance from their office to each client.';
   } else if (kind === 'stilldue' || kind === 'stilldueA' || kind === 'coverage') {
     const state = {filter: kind === 'coverage' ? 'all' : 'unmet'};
     rows.filter(r => r.measured).forEach(r => r.cov.accts.filter(x => kind !== 'stilldueA' || x.tier === 'A').forEach(x => x.wins.forEach(w => out.push([fullName(r.ae), x.a.account, x.tier, w.label || w.key, `${w.got} of ${w.need}`, w.met ? 'met' : (w.open ? `due · ${w.need - w.got} more` : 'missed'), w.met ? 'met' : 'unmet']))));
-    title = kind === 'stilldueA' ? 'A accounts still due' : kind === 'stilldue' ? 'Still due' : 'Team coverage'; cols = ['AE','Account','Cat.','Period','Visits','Status']; note = 'One line per account per calendar period (A: month · B, C: quarter). Only people whose coverage is measured.';
+    title = kind === 'stilldueA' ? 'A accounts still due' : kind === 'stilldue' ? 'Still due' : 'Team coverage'; cols = ['AE','Account','Cat.','Period','Visits','Status']; note = 'One line per account per calendar period (A, B: month · C: quarter). Only people whose coverage is measured.';
+    // a month view: C is a monthly target (a third of the quarter), so the figure on the card = A/B accounts + C visits still needed this month
+    const meas = rows.filter(r => r.measured), cm = meas.some(r => r.cov.tiers.C.monthly);
+    if (cm && kind !== 'stilldueA') { const ab = meas.reduce((t, r) => t + r.cov.accts.filter(x => x.tier !== 'C').reduce((u, x) => u + x.wins.filter(w => !w.met).length, 0), 0), cMore = meas.reduce((t, r) => t + Math.max(0, r.tiers.C.assigned - r.tiers.C.visited), 0);
+      const abDue = meas.reduce((t, r) => t + r.cov.accts.filter(x => x.tier !== 'C').reduce((u, x) => u + x.wins.length, 0), 0), cT = meas.reduce((t, r) => t + r.tiers.C.assigned, 0), cM = meas.reduce((t, r) => t + r.tiers.C.visited, 0);
+      out.__summary = kind === 'stilldue' ? `${ab + cMore} still due = ${ab} A/B account${ab===1?'':'s'} + ${cMore} more C this month` : `${abDue - ab + cM} of ${abDue + cT} on track = A/B ${abDue - ab} of ${abDue} · C ${cM} of ${cT} this month`;
+      note += ' C in a month: the target is the C accounts not yet visited this quarter ÷ the months left (rounded up) — the C lines below are the ones to choose from.'; }
     out.__filter = state.filter;
   } else if (kind === 'myaccounts') {
     const me = ui.me, cov = coverageFor(me, monthRange().from, monthRange().to), st = new Map(cov.accts.map(x => [canon(x.a.account), x]));
@@ -4260,21 +4328,21 @@ function kpiDrill(kind, scope){
   drillTable(title, `${label} · ${who}`, cols, out, note, kind, scope);
 }
 function drillTable(title, sub, cols, out, note, kind, scope){
-  const statusCol = cols.indexOf('Status');
+  const statusCol = out.__opts ? -2 : cols.indexOf('Status'), tagged = statusCol !== -1;   // -2: a hidden last column with tags (shared / new)
   const flt = out.__filter || 'all';
   const rowsOf = () => { const q = norm($('#drQ') ? $('#drQ').value : ''); const f = $('#drF') ? $('#drF').value : flt;
     const plain = c => (c && typeof c === 'object') ? c.text : String(c);
-    return out.filter(r => (f === 'all' || r[r.length - 1] === f) && (!q || norm((statusCol === -1 ? r : r.slice(0, -1)).map(plain).join(' ')).includes(q))); };   // search every visible cell, incl. notes
-  const shown = () => rowsOf().map(r => statusCol === -1 ? r : r.slice(0, -1));
+    return out.filter(r => (f === 'all' || (out.__opts ? String(r[r.length - 1]).split(' ').includes(f) : r[r.length - 1] === f)) && (!q || norm((!tagged ? r : r.slice(0, -1)).map(plain).join(' ')).includes(q))); };   // search every visible cell, incl. notes
+  const shown = () => rowsOf().map(r => !tagged ? r : r.slice(0, -1));
   const table = () => { const rs = shown(); return `<div class="tw drl"><table><thead><tr>${cols.map(c => `<th${typeof (out[0]||[])[cols.indexOf(c)] === 'number' ? ' class="num"' : ''}>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rs.slice(0, 600).map(r => `<tr>${r.map((c, i) => cols[i] === 'Cat.' ? `<td><span class="badge ${/^[ABC]$/.test(c)?c:'N'}">${esc(c)}</span></td>` : cols[i] === 'Map' ? `<td>${c}</td>` : (cols[i] === 'Account' || cols[i] === 'Client') && c ? `<td><button type="button" class="cname" data-client="${esc(String(c))}">${esc(String(c))}</button></td>` : cols[i] === 'Note' ? `<td class="wrap">${c && typeof c === 'object' ? c.html : esc(String(c ?? ''))}</td>` : cols[i] === 'Status' ? `<td><span class="st ${/^met/.test(c)?'ok':/^due/.test(c)?'due':'miss'}">${esc(c)}</span></td>` : `<td${typeof c === 'number' ? ' class="num"' : ''}>${esc(String(c))}</td>`).join('')}</tr>`).join('')}</tbody></table>${rs.length > 600 ? `<p class="hint">Showing the first 600 of ${rs.length} — narrow with the search box or download the CSV.</p>` : ''}${rs.length ? '' : '<p class="hint">Nothing matches.</p>'}</div>`; };
-  const count = () => { const rs = rowsOf(); const met = statusCol === -1 ? null : rs.filter(r => r[r.length - 1] === 'met').length; const unit = kind === 'myaccounts' ? 'account' : 'requirement'; return statusCol === -1 ? `${rs.length}` : `${rs.length} ${unit}${rs.length===1?'':'s'}${$('#drF') && $('#drF').value === 'all' ? ` · ${met} met · ${rs.length - met} not met` : ''}`; };
+  const count = () => { const rs = rowsOf(); if (out.__summary && !($('#drQ') && $('#drQ').value) && (!$('#drF') || $('#drF').value === flt)) return out.__summary; if (out.__opts) return `${rs.length} ${out.__unit}${rs.length===1?'':'s'}`; const met = statusCol === -1 ? null : rs.filter(r => r[r.length - 1] === 'met').length; const unit = kind === 'myaccounts' ? 'account' : 'requirement'; return statusCol === -1 ? `${rs.length}` : `${rs.length} ${unit}${rs.length===1?'':'s'}${$('#drF') && $('#drF').value === 'all' ? ` · ${met} met · ${rs.length - met} not met` : ''}`; };
   openModal(title, `<div class="drhead"><span class="hint">${esc(sub)}</span><b id="drN"></b></div>
-    <div class="drbar"><input type="search" id="drQ" placeholder="Search…" aria-label="Search this list">${statusCol === -1 ? '' : `<select id="drF" aria-label="Show"><option value="all"${flt==='all'?' selected':''}>All</option><option value="unmet"${flt==='unmet'?' selected':''}>Not met</option><option value="met"${flt==='met'?' selected':''}>Met</option></select>`}<button type="button" class="btn sm" id="drCsv">⤓ CSV</button></div>
+    <div class="drbar"><input type="search" id="drQ" placeholder="Search…" aria-label="Search this list">${!tagged ? '' : `<select id="drF" aria-label="Show">${(out.__opts || [['all', 'All'], ['unmet', 'Not met'], ['met', 'Met']]).map(([v, l]) => `<option value="${v}"${flt===v?' selected':''}>${l}</option>`).join('')}</select>`}<button type="button" class="btn sm" id="drCsv">⤓ CSV</button></div>
     ${note ? `<p class="hint" style="margin:6px 0 10px">${esc(note)}</p>` : ''}<div id="drT"></div>`, null, 'Close');
   $('#modal .dialog').classList.add('wide');
   const paint = () => { $('#drT').innerHTML = table(); $('#drN').textContent = count(); quietZeros($('#drT')); wireNotes($('#drT'), () => kpiDrill(kind, scope));
     $$('#drT [data-client]').forEach(b => b.onclick = () => clientSheet(b.dataset.client, '', () => kpiDrill(kind, scope)));
-    const shownCols = statusCol === -1 ? cols : cols.slice(); $$('#drT tbody tr').forEach(tr => [...tr.children].forEach((td, i) => { if (shownCols[i]) td.dataset.l = shownCols[i]; if (!td.textContent.trim()) td.classList.add('empty-cell'); })); };   // phones: each row becomes a small card with labels
+    const shownCols = cols; $$('#drT tbody tr').forEach(tr => [...tr.children].forEach((td, i) => { if (shownCols[i]) td.dataset.l = shownCols[i]; if (!td.textContent.trim()) td.classList.add('empty-cell'); })); };   // phones: each row becomes a small card with labels
   paint();
   $('#drQ').oninput = paint; if ($('#drF')) $('#drF').onchange = paint;
   $('#drCsv').onclick = () => downloadCsv(`tmc-go-${kind}-${ui.range.from}-to-${ui.range.to}`, [cols.filter(c => c !== 'Map'), ...shown().map(r => r.filter((c, i) => cols[i] !== 'Map').map(c => (c && typeof c === 'object') ? c.text : c))]);
@@ -4321,7 +4389,7 @@ function renderDashPage(){
   const hlIco = (d, tone) => `<span class="hlic ${tone||''}"><svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg></span>`;
   const highlights = `<div class="card hlcard"><div class="head"><h2>Highlights</h2><span class="sub">${esc(rangeLabel())} · ${esc(cityTxt)}</span></div><div class="hlgrid">
     ${hlBest && ui.aeSel.size !== 1 ? `<button type="button" class="hl" data-hlae="${esc(hlBest.ae)}">${hlIco('<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>', 'ok')}<span class="hlt"><small>Best coverage</small><b>${esc(fullName(hlBest.ae))}</b><span>${hlBest.overall.pct}% · ${hlBest.overall.visited} of ${hlBest.overall.assigned} met</span></span></button>` : ''}
-    ${hlWeak ? `<button type="button" class="hl" data-hlsec="team" title="See everyone’s ${hlWeak.t} accounts in the Team view">${hlIco('<path d="M3 7l6 6 4-4 8 8"/><path d="M21 11v6h-6"/>', hlWeak.p >= 70 ? 'ok' : hlWeak.p >= 40 ? 'warn' : 'bad')}<span class="hlt"><small>Weakest category</small><b>${hlWeak.t} accounts · ${hlWeak.p}%</b><span>${hlWeak.met} of ${hlWeak.due} met — ${hlWeak.t === 'C' ? 'quarterly' : 'monthly'} rule</span></span></button>` : ''}
+    ${hlWeak ? `<button type="button" class="hl" data-hlsec="team" title="See everyone’s ${hlWeak.t} accounts in the Team view">${hlIco('<path d="M3 7l6 6 4-4 8 8"/><path d="M21 11v6h-6"/>', hlWeak.p >= 70 ? 'ok' : hlWeak.p >= 40 ? 'warn' : 'bad')}<span class="hlt"><small>Weakest category</small><b>${hlWeak.t} accounts · ${hlWeak.p}%</b><span>${hlWeak.met} of ${hlWeak.due} met — ${hlWeak.t === 'C' ? (rows.some(r => r.cov && r.cov.tiers.C.monthly) ? 'this month’s C target' : 'quarterly rule') : 'monthly rule'}</span></span></button>` : ''}
     ${ui.aeSel.size === 1 ? '' : `<div class="hl${hlIdle.length ? '' : ' calm'}">${hlIco(hlIdle.length ? '<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/>' : '<path d="M5 12l4.2 4.2L19 6.5"/>', hlIdle.length ? 'warn' : 'ok')}<span class="hlt"><small>No visits yet</small><b>${hlIdle.length ? `${hlIdle.length} ${hlIdle.length === 1 ? 'person' : 'people'}` : 'Everyone is out'}</b><span>${hlIdle.length ? esc(hlIdle.slice(0, 4).map(r => fullName(r.ae)).join(', ') + (hlIdle.length > 4 ? ` +${hlIdle.length - 4}` : '')) : 'Every person has logged visits'}</span></span></div>`}
     <button type="button" class="hl drillable" data-drill="stilldueA" title="See the A accounts still due">${hlIco('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>', hlADue ? 'bad' : 'ok')}<span class="hlt"><small>A accounts still due</small><b>${hlADue}</b><span>of ${total.tiers.A.assigned} this period</span></span></button>
   </div></div>`;
@@ -4360,8 +4428,8 @@ function renderDashPage(){
       <div class="tiers">${TIERS.map(tr=>`<div><span class="badge ${tr}">${tr}</span><b>${total.tiers[tr].pct??0}%</b><span class="hint">${total.tiers[tr].visited}/${total.tiers[tr].assigned}</span></div>`).join('')}</div>
     </div>
     <div class="kpis hk">
-      <div class="kpi drillable k-blue" data-drill="visits" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><div class="l">Visits</div><div class="v">${total.totalVisits}</div><div class="d">${aeDays} visit day${aeDays===1?'':'s'}${aeDays!==fieldDays?` · ${fieldDays} dates`:''}</div>${sparkline(days.map(d=>byDay[d]))}</div>
-      <div class="kpi drillable k-blue" data-drill="accounts" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6"/></svg></span><div class="l">Accounts visited</div><div class="v">${total.totalAccounts}</div><div class="d">incl. net new &amp; shared</div></div>
+      <div class="kpi drillable k-blue" data-drill="visits" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><div class="l">Visits</div><div class="v">${total.totalVisits}</div><div class="d">${aeDays} day${aeDays===1?'':'s'} · ${total.shared.visits} shared · ${total.netNew.visits} net new</div>${sparkline(days.map(d=>byDay[d]))}</div>
+      <div class="kpi drillable k-blue" data-drill="accounts" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6"/></svg></span><div class="l">Accounts visited</div><div class="v">${total.totalAccounts}</div><div class="d">${total.shared.accounts} shared · ${total.netNew.accounts} net new</div></div>
       <div class="kpi drillable k-purple" data-drill="netnew" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span><div class="l">Net new accounts</div><div class="v">${total.netNew.accounts}</div><div class="d">${total.netNew.visits} visit${total.netNew.visits===1?'':'s'}</div></div>
       <div class="kpi drillable k-amber" data-drill="km" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/></svg></span><div class="l">Kilometres</div><div class="v">${num(total.km,0)}</div><div class="d">${total.totalVisits? num(total.km/total.totalVisits,1):0} km per visit</div></div>
       <div class="kpi drillable k-rose" data-drill="stilldue" role="button" tabindex="0" title="See the list behind this number"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div class="l">Still due</div><div class="v">${total.overall.assigned-total.overall.visited}</div><div class="d">${total.overall.needed} visit${total.overall.needed===1?'':'s'} still needed</div></div>
@@ -4371,7 +4439,7 @@ function renderDashPage(){
 
   ${(ui.dashSec||'overview') === 'overview' && !noData ? highlights : ''}
   ${(ui.dashSec||'overview') === 'team' ? `<div class="card perf">
-    <div class="head"><div class="ptitle"><h2>Category performance</h2><span class="sub">A: 2 visits a month · B: 1 a month · C: 1 a quarter · dormant accounts not counted · ${esc(rangeLabel())}</span></div><span class="spacer"></span>
+    <div class="head"><div class="ptitle"><h2>Category performance</h2><span class="sub">A: 2 visits a month · B: 1 a month · C: a third of the C accounts a month (whole quarter when more than a month is shown) · dormant accounts not counted · ${esc(rangeLabel())}</span></div><span class="spacer"></span>
       <div class="legend" aria-label="Colour key"><span><i style="background:#DCFCE7"></i>≥70%</span><span><i style="background:#FEF3C7"></i>40–69%</span><span><i style="background:#FEE2E2"></i>&lt;40%</span>${(() => { const pr = prevRange(ui.range.from, ui.range.to); return pr ? `<span class="tkey" title="Change in coverage, in percentage points${pr.kind === 'month' ? ' — A and B, the monthly rules' : ''}">▲▼ ${pr.kind === 'month' ? 'A&amp;B ' : ''}vs ${esc(pr.label)}</span>` : ''; })()}</div>
       <div class="sortby" role="group" aria-label="Sort by">${[['coverage','Coverage'],['visits','Visits'],['km','KM'],['name','Name']].map(([k,l]) => `<button type="button" data-psort="${k}" class="${(ui.covSort||'coverage')===k?'on':''}" aria-pressed="${(ui.covSort||'coverage')===k}">${l}</button>`).join('')}</div></div>
     ${(() => {
@@ -4407,7 +4475,7 @@ function renderDashPage(){
       const mini = x => `${meas(x) ? '' : '<div class="pcnm">No fixed book — not counted for coverage</div>'}<div class="pcmini${meas(x) ? '' : ' off'}"><span></span><span>Due</span><span>Met</span><span>%</span>
         ${[...TIERS.map(tr => [tr, x.tiers[tr]]), ['All', x.overall]].map(([l, t]) => `<b class="pcl${l === 'All' ? ' all' : ''}">${l}</b>${meas(x) && t.assigned ? `<span>${t.assigned}</span><span>${n(t.visited, true)}</span><span>${pc(t)}${l === 'All' ? trend(x) : ''}</span>` : `<span>${dash}</span><span>${dash}</span><span>${dash}</span>`}`).join('')}</div>
         <div class="pcstats"><span><small>New accts</small><span>${n(x.netNew.accounts, true)}<em> · ${x.netNew.visits} visit${x.netNew.visits===1?'':'s'}</em></span></span><span><small>Accounts</small>${n(x.totalAccounts, true)}</span><span><small>Visits</small>${n(x.totalVisits, true)}</span><span><small>KM</small>${x.km ? `<b>${num(x.km)}</b>` : '<span class="cvz">0</span>'}</span></div>`;
-      const rule = {A: '2 a month', B: '1 a month', C: '1 a quarter'};
+      const rule = {A: '2 a month', B: '1 a month', C: '⅓ a month'};
       return `<div class="tw perftw"><table class="perft">
         <thead>
           <tr><th rowspan="2" class="pfirst">AE</th>${TIERS.map(tr => `<th colspan="3" class="grp g"><span class="badge ${tr}">${tr}</span> category <small>${rule[tr]}</small></th>`).join('')}<th colspan="4" class="grp g ov">Overall <small>all categories</small></th><th colspan="2" class="grp g">New accounts</th><th rowspan="2" class="num g">Accts visited<br><small>incl. net new</small></th><th rowspan="2" class="num">Visits</th><th rowspan="2" class="num">KM</th><th rowspan="2" class="pnotec g">Notes</th></tr>
@@ -4521,7 +4589,7 @@ function buildReport(){
   const totalRow = aoa.length - 1;
   const below = []; meas.forEach(r => r.cov.accts.forEach(x => x.wins.forEach(w => { if (!w.met) below.push([r.ae, x.a.account, x.tier, w.label, w.got, w.need, w.open ? `due · ${w.need - w.got} more` : 'missed']); })));
   below.sort((x, y) => x[0].localeCompare(y[0]) || x[2].localeCompare(y[2]) || x[1].localeCompare(y[1]));
-  aoa.push([], [`A, B & C accounts below target (${below.length}: A needs 2 visits a month, B 1 a month, C 1 a quarter)`], ['Account Executive', 'Account', 'Tier', 'Period', 'Visits', 'Target', 'Status'], ...below);
+  aoa.push([], [`A, B & C accounts below target (${below.length}: A needs 2 visits a month, B 1 a month, C once a quarter — a third of the C accounts a month)`], ['Account Executive', 'Account', 'Tier', 'Period', 'Visits', 'Target', 'Status'], ...below);
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!merges'] = [{s: {r: 0, c: 0}, e: {r: 0, c: head.length - 1}}, {s: {r: 1, c: 0}, e: {r: 1, c: head.length - 1}}];
   ws['!cols'] = [{wch: 24}, {wch: 14}, ...head.slice(2).map(h => ({wch: Math.max(9, Math.min(18, h.length + 2))}))];
@@ -5774,7 +5842,7 @@ async function dataCheckDialog(){
         <li><b>Visits</b> — every client listed on a day, for the people and dates selected.</li>
         <li><b>Visit days</b> — days with at least one visit, counted per person (two people on the same date = 2). <b>Dates</b> — different calendar dates.</li>
         <li><b>Accounts visited</b> — different accounts each person visited (spellings and aliases of the same account count once).</li>
-        <li><b>Coverage</b> — each account must meet its rule in every calendar period: <b>A</b> 2 visits every month, <b>B</b> 1 visit every month, <b>C</b> 1 visit every quarter. Dormant accounts are not counted. Each account × period is one requirement; coverage = requirements met ÷ requirements due. Categories are per person: an account’s category for someone is the one on their own row of the Categories tab (blank = no category for them, even if a colleague has the same company as A). Each person’s coverage counts only their own visits, dated today or earlier, to accounts in their own book (any spelling or alias); the same account twice on one day counts once. When two people visit together, each logs it — it counts for whoever has the account in their book. The team total adds up everyone’s requirements. Accounts added part-way through a period count from the next full period. Months and quarters that ended before the first visit logged in the app aren’t judged (there is no data for them). People marked “no fixed book” and admins without visits are left out.</li>
+        <li><b>Coverage</b> — each account must meet its rule in every calendar period: <b>A</b> 2 visits every month, <b>B</b> 1 visit every month, <b>C</b> 1 visit every quarter — in a month, the target is the C accounts not yet visited this quarter ÷ the months left, rounded up to whole visits (15 C → 5; none visited → 8; none again → 15), each C account counted once. Dormant accounts are not counted. Each account × period is one requirement; coverage = requirements met ÷ requirements due. Categories are per person: an account’s category for someone is the one on their own row of the Categories tab (blank = no category for them, even if a colleague has the same company as A). Each person’s coverage counts only their own visits, dated today or earlier, to accounts in their own book (any spelling or alias); the same account twice on one day counts once. When two people visit together, each logs it — it counts for whoever has the account in their book. The team total adds up everyone’s requirements. Accounts added part-way through a period count from the next full period. Months and quarters that ended before the first visit logged in the app aren’t judged (there is no data for them). People marked “no fixed book” and admins without visits are left out.</li>
         <li><b>Net new</b> — companies that are in nobody’s Categories list (new to TMC), visited in the period.</li>
         <li><b>Kilometres</b> — the day totals saved with each day (Google Maps or entered by hand); <b>per visit</b> = km ÷ visits.</li>
       </ul></details>
