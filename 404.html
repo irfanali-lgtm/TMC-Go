@@ -609,6 +609,9 @@ section.enter{animation:viewin .22s ease both}
 .imp-paste{margin-top:10px;font-size:13px}.imp-paste summary{cursor:pointer;color:var(--muted)}
 .imp-paste textarea{width:100%;margin:8px 0 6px;font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid var(--line-2);border-radius:10px;padding:8px 10px}
 .imp-sum{margin:14px 0 8px;font-size:14px}
+.timp{width:100%;font-size:13.5px;margin:4px 0 10px}.timp th,.timp td{padding:7px 10px;border-bottom:1px solid var(--line)}.timp .num{text-align:right}.timp-ae{display:inline-flex;align-items:center;gap:8px}
+.timp-conf{display:grid;gap:8px;margin:6px 0 10px;padding:12px;border:1px solid #F3D38A;background:#FFFBEB;border-radius:14px}.timp-conf>.hint{display:block}
+.timp-row{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font-size:13.5px}.timp-row>span{flex:1;min-width:0}.timp-row em{font-style:normal;font-weight:650;color:var(--n-600,#4B5368)}
 .imp-bad{color:#B91C1C;font-weight:600}
 .imp-skip{margin-bottom:8px;font-size:13px}.imp-skip ul{margin:6px 0 0 18px}
 .imp-days{max-height:min(42vh,360px);overflow:auto;border:1px solid var(--line);border-radius:12px}
@@ -2101,6 +2104,8 @@ html.dark .dc-issue.info{background:#0E172F!important}
 html.dark .dc-n{background:#383011!important}
 html.dark .dc-issue.ok .dc-n{background:#12321D!important}
 html.dark .dc-issue.info .dc-n{background:#0F1733!important;color:#888FD2!important}
+html.dark .timp-conf{border:1px solid #534628!important;background:#312A0E!important}
+html.dark .timp-row{background:#121829!important}
 html.dark .imp-bad{color:#D89898!important}
 html.dark .imp-day{border-bottom:1px solid #343B47!important}
 html.dark .si-card>input,html.dark .si-card input#siQ,html.dark .si-card input#siCode,html.dark .si-card input#siPin{background:#121829!important}
@@ -2342,8 +2347,8 @@ html.dark .segpick button.on{background:#3B49D6!important;color:#fff!important;b
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-24 14:30 · production';
-const NEEDS_BACKEND = 40;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
+const BUILD = '2026-10-24 15:30 · production';
+const NEEDS_BACKEND = 41;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -4966,6 +4971,7 @@ function renderMenu(){
       ${row('mnAi', 'spark', 'Go (AI) & purposes', 'Gemini check and the purpose list')}
       ${row('mnData', 'data', 'Data & setup', 'Reminder emails, connection, build')}
       ${row('mnCheck', 'check', 'Check the numbers', 'Duplicates, counts, kilometres — one-tap fixes')}
+      ${row('mnTeamUp', 'upload', 'Upload team visits', 'Excel for any AE — each visit goes into their own account, nothing merged')}
       ${isMgr() ? '' : row('mnLock', 'lock', 'Lock admin tools', 'Forget the admin PIN on this device')}`
       : row('mnUnlock', 'unlock', 'Unlock admin tools', 'Team, kilometres & maps, Go and data — needs the admin PIN')}</div></div>`}
     <div class="card mlist">${row('mnOut', 'out', 'Sign out', 'Unsaved drafts on this device are cleared', 'danger')}</div>
@@ -4979,7 +4985,7 @@ function renderMenu(){
   on('mnRem', remindersSheet);
   on('mnAuto', automationsSheet);
   on('mnClaim', kmClaimSheet);
-  on('mnTeam', () => adminSheet('team')); on('mnKm', () => adminSheet('km')); on('mnAi', () => adminSheet('go')); on('mnData', () => adminSheet('data')); on('mnCheck', dataCheckDialog);
+  on('mnTeam', () => adminSheet('team')); on('mnKm', () => adminSheet('km')); on('mnAi', () => adminSheet('go')); on('mnData', () => adminSheet('data')); on('mnCheck', dataCheckDialog); on('mnTeamUp', teamImportDialog);
   on('mnUnlock', async () => { if (await ensureAdmin()) { renderMenu(); toast('Admin tools unlocked'); } });
   on('mnLock', () => { setAdminPin(''); ui.mgrTab = null; ui.mgr = false; renderMenu(); toast('Admin tools locked on this device'); });
   on('mnOut', async () => { if (!(await confirmModal('Sign out?', 'You’ll need your PIN to sign in again on this device. Unsaved drafts here are cleared; everything saved stays in the sheet.', 'Sign out'))) return; try { Object.keys(localStorage).filter(k=>k.startsWith('vi.draft')).forEach(k=>localStorage.removeItem(k)); sessionStorage.clear(); } catch(e){} if (ui.demo) return location.reload(); signOut(); });
@@ -5603,6 +5609,119 @@ async function importSave(){
   ui.importDays = null;
   $('#impOut').innerHTML = `<div class="banner${failed ? ' err' : ''}">${failed ? `Saved ${done - failed} of ${days.length} days. ` : ''}<b>${visits}</b> visit${visits===1?'':'s'} imported${km ? ` · <b>${num(km)}</b> km by road` : ''}.${errs.length ? `<ul>${errs.slice(0,10).map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>`;
   toast(`${visits} visit${visits===1?'':'s'} imported${failed ? ` · ${failed} day${failed===1?'':'s'} failed` : ''}`);
+  form = null; render(); if (!ui.demo) load(false);
+}
+
+/* ---------- Admin: upload visits for the team ----------
+ * One row per visit: Date · AE · Client · Purpose (· Order). Every visit goes into the named AE's own account — matched to
+ * THEIR list, kilometres from THEIR office, new clients become net new in THEIR list. Never merges: a day the AE has already
+ * logged is left exactly as it is unless the admin ticks "Replace" for that day (the file's visits then become that day).
+ * Saved with loggedBy = the admin (set by the server). The server refuses to merge too (noMerge). */
+function matchTeamAe(raw){
+  const r = String(raw ?? '').trim(), n = norm(r); if (!n) return {err: 'no AE on this row'};
+  const team = activeAEs();
+  let hit = team.filter(a => norm(a.name) === n);
+  if (!hit.length) hit = team.filter(a => { const t = norm(a.name); return t.startsWith(n + ' ') || t.endsWith(' ' + n) || n.startsWith(t + ' '); });
+  if (!hit.length) { const sc = team.map(a => [a, dice(norm(a.name), n)]).filter(x => x[1] >= 0.8).sort((x, y) => y[1] - x[1]); if (sc.length && (sc.length === 1 || sc[0][1] - sc[1][1] >= 0.1)) hit = [sc[0][0]]; }
+  if (hit.length === 1) return {name: hit[0].name};
+  if (hit.length > 1) return {err: `AE “${esc(r)}” could be ${hit.map(a => esc(a.name)).join(' or ')} — write the full name`};
+  return {err: `AE “${esc(r)}” is not on the team`};
+}
+function teamImportTemplate(){
+  const ppl = activeAEs().filter(a => a.name !== ui.me).slice(0, 2).map(a => a.name), a1 = ppl[0] || 'Hussain Iftikhar', a2 = ppl[1] || 'Sofia Rana';
+  const rows = [['Date', 'AE', 'Client', 'Purpose', 'Order'], [todayIso(), a1, 'Ghani Glass', 'SAP', '1'], [todayIso(), a1, 'Dawn Foods', 'Follow-up; SAP Business One', '2'], [todayIso(), a2, 'Packages Limited', 'Demo', '1']];
+  const csv = '\uFEFF' + rows.map(r => r.map(x => /[",\n]/.test(x) ? `"${String(x).replace(/"/g,'""')}"` : x).join(',')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'TMC Go team visits template.csv'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+async function teamImportDialog(){
+  if (!(await ensureAdmin())) return;
+  openModal('Upload team visits', `
+    <div class="imp">
+      <p>One row per visit with <b>Date</b>, <b>AE</b>, <b>Client</b> and <b>Purpose</b> (several allowed, separated by “;”); <b>Order</b> is optional. Each visit goes into <b>that AE’s own account</b> — matched to their list, kilometres from their office (2 × office → each client). <b>Nothing is merged:</b> a day an AE has already logged stays as it is, unless you choose to replace it.</p>
+      <label class="dropzone" id="impDrop"><input type="file" id="impFile" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"><span class="dz-i">⤒</span><b>Choose an Excel or CSV file</b><small>or drop it here · up to ${IMPORT_MAX} rows</small></label>
+      <button type="button" class="si-link" id="impTpl">Download the team template</button>
+      <div id="impOut"></div>
+    </div>`, null, 'Close');
+  $('#modal .dialog').classList.add('wide');
+  $('#impTpl').onclick = teamImportTemplate;
+  const take = async f => { if (!f) return; const out = $('#impOut');
+    if (!/\.(xlsx|xls|csv)$/i.test(f.name || '')) { out.innerHTML = `<div class="banner err">“${esc(f.name || 'That file')}” isn’t an Excel or CSV file.</div>`; return; }
+    if (f.size > IMPORT_MAX_BYTES) { out.innerHTML = `<div class="banner err">That file is ${(f.size/1048576).toFixed(1)} MB — the limit is 5 MB. Split it into smaller files.</div>`; return; }
+    out.innerHTML = '<p class="hint">Reading the file…</p>';
+    let rows; try { rows = await readSheetRows(f); } catch(e) { out.innerHTML = `<div class="banner err">${esc(e.message || 'That file could not be read.')}</div>`; return; }
+    teamImportPreview(rows); };
+  $('#impFile').onchange = e => take(e.target.files && e.target.files[0]);
+  const dz = $('#impDrop');
+  dz.ondragover = e => { e.preventDefault(); dz.classList.add('over'); }; dz.ondragleave = () => dz.classList.remove('over');
+  dz.ondrop = e => { e.preventDefault(); dz.classList.remove('over'); take(e.dataTransfer.files && e.dataTransfer.files[0]); };
+}
+function teamImportPreview(rows){
+  const out = $('#impOut'), hd = importHeader(rows);
+  if (!hd || hd.col.ae === undefined || hd.col.purpose === undefined) { out.innerHTML = `<div class="banner err">The first rows need the headings <b>Date</b>, <b>AE</b>, <b>Client</b> and <b>Purpose</b>. <a href="#" id="impTpl2">Download the team template</a> to see the layout.</div>`; $('#impTpl2').onclick = e => { e.preventDefault(); teamImportTemplate(); }; return; }
+  const c = hd.col, body = rows.slice(hd.row + 1).slice(0, IMPORT_MAX), items = [], bad = [], seen = new Set();
+  body.forEach((r, i) => {
+    const line = hd.row + i + 2, raw = k => String(r[c[k]] ?? '').trim(), client = raw('client').replace(/\s+/g, ' ').slice(0, 120);
+    if (!client && !raw('date') && !raw('ae')) return;
+    const date = importDate(r[c.date]), who = matchTeamAe(r[c.ae]), purpose = raw('purpose').slice(0, 300);
+    const why = !client ? 'no client' : !date ? `date “${esc(raw('date'))}” not understood` : date > todayIso() ? 'date is in the future' : who.err ? who.err : !purpose ? 'no purpose — every visit needs one' : '';
+    const rec = {line, date: raw('date'), ae: raw('ae'), client, purpose};
+    if (why) { bad.push({...rec, why}); return; }
+    const ae = who.name, best = matchAccounts(client, ae)[0], matched = best && best.s >= 0.6 ? best.a.account : client, key = ae + '|' + date + '|' + canon(matched);
+    if (seen.has(key)) { bad.push({...rec, why: `${esc(matched)} appears twice for ${esc(ae)} on ${fmtLong(date)} in the file — kept once`}); return; }
+    seen.add(key);
+    items.push({line, date, ae, typed: client, client: matched, corrected: norm(matched) !== norm(client), isNew: !(best && best.s >= 0.6), purpose, order: Number(r[c.order]) || (i + 1)});
+  });
+  const groups = new Map();
+  items.forEach(x => { const k = x.ae + '|' + x.date; if (!groups.has(k)) groups.set(k, {ae: x.ae, date: x.date, rows: [], ex: dayEntry(x.ae, x.date), replace: false}); groups.get(k).rows.push(x); });
+  const days = [...groups.values()].sort((a, b) => a.ae.localeCompare(b.ae) || a.date.localeCompare(b.date));
+  days.forEach(d => d.rows.sort((a, b) => a.order - b.order || a.line - b.line));
+  ui.teamImport = {days, bad};
+  const people = [...new Set(days.map(d => d.ae))];
+  const per = people.map(ae => { const ds = days.filter(d => d.ae === ae); return {ae, days: ds.filter(d => !d.ex).length, visits: ds.filter(d => !d.ex).reduce((s, d) => s + d.rows.length, 0), fresh: ds.reduce((s, d) => s + d.rows.filter(x => x.isNew).length, 0), logged: ds.filter(d => d.ex).length}; });
+  const conflicts = days.map((d, i) => ({d, i})).filter(x => x.d.ex);
+  out.innerHTML = `
+    <div class="imp-sum"><b>${items.length}</b> visit${items.length===1?'':'s'} for <b>${people.length}</b> ${people.length===1?'person':'people'} · <b>${days.length}</b> day${days.length===1?'':'s'}${conflicts.length ? ` · <span class="hint">${conflicts.length} already logged</span>` : ''}${bad.length ? ` · <span class="imp-bad">${bad.length} row${bad.length===1?'':'s'} not added</span>` : ''}</div>
+    ${per.length ? `<div class="tw"><table class="timp"><thead><tr><th>AE</th><th class="num">New days</th><th class="num">Visits</th><th class="num">New clients</th><th class="num">Already logged</th></tr></thead><tbody>${per.map(p => `<tr><td><span class="timp-ae">${avatar(p.ae, 24)}<b>${esc(fullName(p.ae))}</b></span></td><td class="num">${p.days}</td><td class="num">${p.visits}</td><td class="num">${p.fresh || '<span class="hint">0</span>'}</td><td class="num">${p.logged ? `<span class="st due">${p.logged}</span>` : '<span class="hint">0</span>'}</td></tr>`).join('')}</tbody></table></div>` : ''}
+    ${conflicts.length ? `<div class="timp-conf"><b>Already logged — not changed</b><span class="hint">These AEs have already logged these days. Nothing is merged: leave them as they are, or tick <b>Replace</b> to make the file’s visits that day (their own entries for that day are replaced).</span>
+      ${conflicts.map(({d, i}) => `<label class="timp-row"><input type="checkbox" data-rep="${i}"><span><b>${esc(fullName(d.ae))}</b> · ${fmtLong(d.date)}<br><span class="hint">Logged: ${esc(dayDetails(d.ex).map(x => x.client).join(', ') || '—')}</span><br><span class="hint">File: ${esc(d.rows.map(x => x.client).join(', '))}</span></span><em>Replace</em></label>`).join('')}</div>` : ''}
+    ${bad.length ? `<details class="imp-skip"><summary>Rows not added (${bad.length})</summary><ul>${bad.slice(0,40).map(b => `<li>Row ${b.line}: ${b.why}</li>`).join('')}${bad.length>40?`<li>…and ${bad.length-40} more</li>`:''}</ul><button type="button" class="si-link" id="timpBad">Download these rows (CSV) to fix and upload again</button></details>` : ''}
+    <div class="imp-days">${days.filter(d => !d.ex).slice(0, 80).map(d => `<div class="imp-day"><div class="imp-dh"><b>${esc(fullName(d.ae))}</b> · ${fmtLong(d.date)}</div><ol>${d.rows.map(x => `<li><b>${esc(x.client)}</b> <span class="hint">· ${esc(x.purpose)}</span>${x.isNew ? ' <span class="badge None">new client</span>' : x.corrected ? ` <span class="hint">(“${esc(x.typed)}”)</span>` : ''}</li>`).join('')}</ol></div>`).join('') || '<p class="hint" style="padding:10px 12px">No new days — only days that are already logged.</p>'}</div>
+    ${items.length ? `<label class="switch" style="margin:10px 0 4px"><input type="checkbox" id="impKm" ${String(data.settings.autoKm||'Y').toUpperCase()!=='N'?'checked':''}> Work out kilometres from Google Maps (2 × each AE’s office → each client)</label>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button type="button" class="btn primary" id="impGo"></button></div>` : '<div class="banner err">Nothing to upload.</div>'}`;
+  const label = () => { const go = $('#impGo'); if (!go) return; const sel = days.filter(d => !d.ex || d.replace); const v = sel.reduce((s, d) => s + d.rows.length, 0); go.textContent = `Save ${v} visit${v===1?'':'s'} into ${new Set(sel.map(d => d.ae)).size} account${new Set(sel.map(d => d.ae)).size===1?'':'s'}`; go.disabled = !v; };
+  $$('input[data-rep]', out).forEach(cb => cb.onchange = () => { days[+cb.dataset.rep].replace = cb.checked; label(); });
+  if ($('#timpBad')) $('#timpBad').onclick = () => downloadCsv('TMC Go rows not added.csv', [['Row', 'Date', 'AE', 'Client', 'Purpose', 'Why']].concat(bad.map(b => [b.line, b.date, b.ae, b.client, b.purpose, String(b.why).replace(/<[^>]+>/g, '').replace(/&[a-z#0-9]+;/gi, m => ({'&quot;':'"','&amp;':'&','&#39;':"'",'&lt;':'<','&gt;':'>'}[m] || m))])));
+  label(); if ($('#impGo')) $('#impGo').onclick = teamImportSave;
+}
+async function teamImportSave(){
+  const st = ui.teamImport; if (!st) return;
+  const go = $('#impGo'), auto = $('#impKm') && $('#impKm').checked; if (go.disabled) return; go.disabled = true;
+  if (!(await ensureAdmin())) { go.disabled = false; return; }
+  const res = {}, notAdded = st.bad.map(b => [b.line, b.date, b.ae, b.client, b.purpose, String(b.why).replace(/<[^>]+>/g, '')]), errs = []; let i = 0;
+  const tally = (ae, k, n) => { const o = res[ae] || (res[ae] = {visits: 0, days: 0, replaced: 0, kept: 0, km: 0, failed: 0}); o[k] += n; };
+  for (const d of st.days) {
+    i++; go.textContent = `Saving ${i} of ${st.days.length} days…`;
+    if (d.ex && !d.replace) { tally(d.ae, 'kept', 1); d.rows.forEach(x => notAdded.push([x.line, d.date, d.ae, x.typed, x.purpose, 'day already logged by the AE — not changed'])); continue; }
+    const details = d.rows.map(x => ({client: x.client, purpose: x.purpose, cat: catFor(d.ae, x.client)}));
+    const a = aeByName(d.ae) || {}, city = String(a.city || '').split('/')[0].trim();
+    const row = {id: d.ex ? d.ex.id : null, date: d.date, ae: d.ae, city: (d.ex && d.ex.city) || city, accounts: details.map(x => x.client).join('; '), count: details.length, purpose: [...new Set(details.map(x => x.purpose))].join('; '), details: JSON.stringify(details)};
+    try {
+      const r = await callApi(d.ex ? {action:'upsertVisit', row: {...d.ex, ...row, km: 0, route: '', kmMode: ''}, autoKm: auto, mode: 'replace', baseTs: d.ex.ts || '', adminPin: getAdminPin()}
+                                   : {action:'upsertVisit', row, autoKm: auto, mode: 'append', add: details, noMerge: true, adminPin: getAdminPin()});
+      upsertLocal('visits', normVisits([r.row])[0]); tally(d.ae, 'visits', d.rows.length); tally(d.ae, d.ex ? 'replaced' : 'days', 1); if (r.route) tally(d.ae, 'km', r.route.totalKm || 0);
+      for (const x of d.rows.filter(y => y.isNew && !accountRow(d.ae, y.client))) { try { const ra = await callApi({action:'upsertAccount', row:{ae: d.ae, account: x.client, tier:'', city, netNew:'Y', addedOn: d.date}, adminPin: getAdminPin()}); upsertLocal('accounts', normAccounts([ra.row])[0]); } catch(e){} }
+    } catch(e) {
+      const m = String(e.message || e), why = /ALREADY/.test(m) ? 'the AE logged this day while you were uploading — not changed' : /CONFLICT/.test(m) ? 'the AE changed this day meanwhile — not replaced' : friendly(e);
+      tally(d.ae, 'failed', 1); errs.push(`${fullName(d.ae)} · ${fmtLong(d.date)}: ${why}`); d.rows.forEach(x => notAdded.push([x.line, d.date, d.ae, x.typed, x.purpose, why]));
+    }
+  }
+  ui.teamImport = null;
+  const tv = Object.values(res).reduce((s, o) => s + o.visits, 0);
+  $('#impOut').innerHTML = `<div class="banner${errs.length ? ' err' : ''}" style="display:block"><b>${tv}</b> visit${tv===1?'':'s'} saved into ${Object.values(res).filter(o => o.visits).length} AE account${Object.values(res).filter(o => o.visits).length===1?'':'s'}.${errs.length ? `<ul>${errs.slice(0,12).map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>
+    <div class="tw"><table class="timp"><thead><tr><th>AE</th><th class="num">Visits saved</th><th class="num">New days</th><th class="num">Replaced</th><th class="num">Left as logged</th><th class="num">KM</th></tr></thead><tbody>${Object.entries(res).map(([ae, o]) => `<tr><td><span class="timp-ae">${avatar(ae, 24)}<b>${esc(fullName(ae))}</b></span></td><td class="num">${o.visits}</td><td class="num">${o.days}</td><td class="num">${o.replaced || '<span class="hint">0</span>'}</td><td class="num">${o.kept || '<span class="hint">0</span>'}</td><td class="num">${o.km ? num(o.km) : '<span class="hint">—</span>'}</td></tr>`).join('')}</tbody></table></div>
+    ${notAdded.length ? `<button type="button" class="btn sm" id="timpBad2" style="margin-top:10px">Download the ${notAdded.length} row${notAdded.length===1?'':'s'} not added (CSV)</button>` : ''}`;
+  if ($('#timpBad2')) $('#timpBad2').onclick = () => downloadCsv('TMC Go rows not added.csv', [['Row', 'Date', 'AE', 'Client', 'Purpose', 'Why']].concat(notAdded));
+  toast(`${tv} visit${tv===1?'':'s'} saved into the AEs’ accounts${errs.length ? ` · ${errs.length} day${errs.length===1?'':'s'} not saved` : ''}`);
   form = null; render(); if (!ui.demo) load(false);
 }
 
