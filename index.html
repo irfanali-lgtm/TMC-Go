@@ -2034,6 +2034,14 @@ body .btn:active:not(:disabled){transform:translateY(1px)}
 body a.btn,body a.btn:hover,body a.btn:focus-visible{text-decoration:none!important}
 body a.btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 @media (prefers-reduced-motion:reduce){ body .btn{transition:none} body .btn:active:not(:disabled){transform:none} }
+/* Plan visits page */
+.planpage{max-width:900px}
+.planhero{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px!important}
+.planhero h2{margin:0 0 4px;font-size:20px} .planhero .hint{margin:0;max-width:560px}
+.plday{margin:12px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--n-500)} .plday:first-child{margin-top:0}
+.plsugg{display:flex;flex-wrap:wrap;gap:8px}
+.plcal{color:var(--b-600);font-size:12px;font-weight:600} .plcalline{margin-top:8px;font-size:13px} .plcalline .hint{font-size:13px}
+@media (max-width:760px){ .planhero{flex-direction:column;align-items:stretch} body.has-plan .tabbar button span:not(.tbav):not(.ggo){font-size:10px} }
 /* Visit prep: planned visits + the brief */
 .plancard .head{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .planlist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
@@ -2320,7 +2328,8 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
       <span class="blogo" role="img" aria-label="TMC go"><svg class="bmark" viewBox="105 30 240 378" aria-hidden="true"><polygon points="158,35 190,35 166,262 113,262" fill="#B5B5B5"/><polygon points="113,262 166,262 190,402 158,402" fill="#6E6E6E"/><polygon points="205,35 245,35 259,262 191,262" fill="#8DC63F"/><polygon points="191,262 259,262 245,402 205,402" fill="#699B3A"/><polygon points="292,35 260,35 284,262 337,262" fill="#B5B5B5"/><polygon points="337,262 284,262 260,402 292,402" fill="#6E6E6E"/></svg><span class="bgo">go<i class="bdot"></i></span></span>
     </div>
     <nav id="nav">
-      <button data-tab="log">Log visit</button>
+      <button data-tab="plan" hidden>Plan visits</button>
+      <button data-tab="log">Log visits</button>
       <button data-tab="dash">Dashboard</button>
       <button data-tab="todo">To-do<span class="nbadge" id="navTodoN" hidden></span></button>
     </nav>
@@ -2340,6 +2349,7 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
   <div id="loading" class="card loadcard" aria-live="polite"><div class="spin"></div><div><b>Loading TMC Go…</b><div class="hint">Connecting to the Google Sheet</div></div></div>
   <div id="skeleton" class="skel" aria-hidden="true"><div class="sk h"></div><div class="sk"></div><div class="sk"></div><div class="sk w"></div></div>
   <div id="banner" class="banner" style="display:none"></div>
+  <section id="v-plan"></section>
   <section id="v-log"></section>
   <section id="v-dash"></section>
   <section id="v-todo"></section>
@@ -2367,6 +2377,7 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 </aside>
 <div class="modal top" id="ask"><div class="dialog small" role="alertdialog" aria-modal="true" aria-labelledby="askTitle"><div class="body" id="askBody"></div><div class="foot" id="askFoot"></div></div></div>
 <div class="tabbar" id="tabbar" role="navigation" aria-label="Main">
+  <button type="button" data-tab="plan" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M16 3v4M8 3v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span>Plan</span></button>
   <button type="button" data-tab="log"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg><span>Log</span></button>
   <button type="button" data-tab="dash"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg><span>Dashboard</span></button>
   <button type="button" data-tab="todo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg><span>To-do</span><i class="nbadge" id="tbTodoN" hidden></i></button>
@@ -2377,8 +2388,8 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-25 06:30 · production';
-const NEEDS_BACKEND = 51;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
+const BUILD = '2026-10-25 07:30 · production';
+const NEEDS_BACKEND = 52;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -2529,7 +2540,7 @@ const OFFICES = {"Lahore": "Floor No. 10, Zone B, DHA Business Hub, D.H.A. Comme
 const data = { aes:[], accounts:[], visits:[], opportunities:[], aliases:[], followups:[], settings:{autoKm:'Y', offices:Object.fromEntries(Object.keys(OFFICES).map(c=>[c,{address:OFFICES[c], latlng:''}]))} };
 const ui = {
   todoOpen: true, dashSec: (() => { try { return ['overview','team','charts','map'].includes(localStorage.getItem('vi.dashSec')) ? localStorage.getItem('vi.dashSec') : 'overview'; } catch(e) { return 'overview'; } })(),
-  tab: ({'#dashboard':'dash', '#log':'log', '#todo':'todo', '#menu':'menu'})[location.hash] || (['log','dash','todo','menu'].includes(localStorage.getItem('vi.tab')) ? localStorage.getItem('vi.tab') : 'log'),   // a link to #dashboard / #log wins
+  tab: ({'#dashboard':'dash', '#log':'log', '#todo':'todo', '#menu':'menu', '#plan':'plan'})[location.hash] || (['log','dash','todo','menu','plan'].includes(localStorage.getItem('vi.tab')) ? localStorage.getItem('vi.tab') : 'log'),   // a link to #dashboard / #log wins
   month: '', city: '', me: localStorage.getItem('vi.me') || '',
   editId: null, demo: false, loading: true, error: '',
   acctFilter: {ae:'', tier:'', status:'', q:''}, dailyFilter:{ae:'', q:''}, oppFilter:{ae:'', q:''},
@@ -3098,10 +3109,13 @@ function render(){
   _covIndex.clear();
   syncHistory();
 
+  const planOn = !!ui.me && prepOn(); if (ui.tab === 'plan' && !planOn && ui.me) ui.tab = 'log';
+  $$('[data-tab="plan"]').forEach(b => { b.hidden = !planOn; }); document.body.classList.toggle('has-plan', planOn);
   $$('#tabbar button[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
   $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab===ui.tab));
-  ['log','dash','todo','menu'].forEach(t => { const s = $('#v-'+t); const show = ui.tab===t; if (show && s.style.display === 'none') { s.classList.remove('enter'); void s.offsetWidth; s.classList.add('enter'); } s.style.display = show ? '' : 'none'; });
+  ['plan','log','dash','todo','menu'].forEach(t => { const s = $('#v-'+t); const show = ui.tab===t; if (show && s.style.display === 'none') { s.classList.remove('enter'); void s.offsetWidth; s.classList.add('enter'); } s.style.display = show ? '' : 'none'; });
   document.body.dataset.tab = ui.tab;
+  if (ui.tab==='plan') renderPlanPage();
   if (ui.tab==='log') renderLog();
   if (ui.tab==='dash') renderDash();
   if (ui.tab==='todo') renderTodoPage();
@@ -3322,7 +3336,7 @@ function renderLogPage(){
       ${!ui.demo && !autoKmOn() ? `<div class="form" style="margin-top:12px">${[...new Set(form.lines.filter(l=>l.date).map(l=>l.date))].sort().map(d => { const ex = form.editId ? data.visits.find(v=>v.id===form.editId) : dayEntry(ui.me, d); const val = (form.kmByDate||{})[d] ?? (ex && ex.km!=='' ? ex.km : ''); return `<div class="f c3"><label>Kilometres for ${fmtDate(d)}</label><input type="number" step="0.1" min="0" data-km="${d}" value="${esc(val)}" placeholder="0" aria-label="Kilometres for ${esc(fmtLong(d))}"><span class="hint">Automatic km is switched off — enter the day\u2019s total.</span></div>`; }).join('')}</div>` : ''}
       <div class="logactions" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
         <button class="btn" id="fAdd"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Another visit</button>
-        ${!editing && !ui.demo ? `<button type="button" class="btn" id="fImport" title="Upload an Excel or CSV file with many visits at once"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg><span>Upload Excel</span></button>${prepOn() ? `<button type="button" class="btn" id="fPlan" title="Plan a visit — Go researches the company and emails you a brief"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg><span>Plan a visit</span></button>` : ''}` : ''}
+        ${!editing && !ui.demo ? `<button type="button" class="btn" id="fImport" title="Upload an Excel or CSV file with many visits at once"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg><span>Upload Excel</span></button>` : ''}
         <button class="btn primary" id="fSave">${editing ? 'Save changes' : (form.lines.length>1 ? 'Save all' : 'Save visit')}</button>
         <span class="hint" id="fMsg"></span>
         ${editing ? `<span style="margin-left:auto"><button type="button" class="dellink${ui.pendingDelete===form.editId?' arm':''}" id="fDel">${ui.pendingDelete===form.editId ? 'Click again to remove this day' : 'Remove this day…'}</button></span>` : ''}
@@ -3332,7 +3346,6 @@ function renderLogPage(){
     </div>
   </div>
   <div class="card monthcard"><div class="head"><h2>Your month</h2>${monthPickHtml('mpLog')}</div><div class="body" id="myMonth"></div></div>
-  ${prepOn() ? '<section class="card plancard" id="myPlans" aria-label="Planned visits"></section>' : ''}
   <section class="daysfeed" id="myDays" aria-label="Your visits, day by day"></section>`;
   $('#mpLog').onchange = e => { setMonth(e.target.value); renderLog(); };
   if ($('#gbX')) $('#gbX').onclick = () => { hideToday('today'); $('#goBrief').remove(); toast('Hidden for today'); };
@@ -3376,7 +3389,6 @@ function renderLogPage(){
   $$('select[data-ord]').forEach(s => s.onchange = () => { const i = form.lines.findIndex(x => x.key === s.dataset.ord), to = +s.value; if (i < 0 || to === i) return; const [it] = form.lines.splice(i, 1); form.lines.splice(to, 0, it); renderLog(); toast(`${it.client || 'Visit'} is now visit ${to+1}`); });
   if ($('#goDash')) $('#goDash').onclick = () => { ui.tab = 'dash'; localStorage.setItem('vi.tab','dash'); countUpArmed = true; render(); };
   if ($('#fImport')) $('#fImport').onclick = importDialog;
-  if ($('#fPlan')) $('#fPlan').onclick = () => planDialog({});
   if ($('#fMyAccounts')) $('#fMyAccounts').onclick = () => kpiDrill('myaccounts', 'month');
 
   wireNotes($('#v-log'), () => renderLog());
@@ -3392,7 +3404,7 @@ function renderLogPage(){
     }
     ui.pendingDelete = null; deleteVisit(form.editId);
   };
-  renderRouteBox(); renderMyMonth(); renderPlans();
+  renderRouteBox(); renderMyMonth();
 }
 // Where this visit happened: the office chosen on the line, otherwise the account's saved location.
 function lineLoc(l){ if (l.loc && !isNaN(l.loc.lat)) return l.loc; const a = accountRow(ui.me, l.client); return located(a) ? {lat:Number(a.lat), lng:Number(a.lng), address: a.located || a.address || '', saved:true} : null; }
@@ -4024,8 +4036,8 @@ async function deleteVisit(id){
 /* Browser/phone Back: tabs are history steps (#log, #dashboard); an open dialog or Go panel is closed by Back first.
    Closing an overlay on screen removes its history step again, so Back never "does nothing". */
 const HIST = {ready:false, popping:false, overlay:false, closeTimer:null};
-const tabHash = tab => ({dash:'#dashboard', todo:'#todo', menu:'#menu'})[tab] || '#log';
-const hashTab = h => ({'#dashboard':'dash', '#log':'log', '#todo':'todo', '#menu':'menu'})[h] || null;
+const tabHash = tab => ({dash:'#dashboard', todo:'#todo', menu:'#menu', plan:'#plan'})[tab] || '#log';
+const hashTab = h => ({'#dashboard':'dash', '#log':'log', '#todo':'todo', '#menu':'menu', '#plan':'plan'})[h] || null;
 function syncHistory(){
   if (ui.demo || HIST.popping || HIST.overlay) return;
   const want = tabHash(ui.tab);
@@ -5411,23 +5423,68 @@ async function requestBrief(plan, refresh){
   } catch(e) { toast(friendly(e)); }
   finally { delete ui.briefBusy[plan.id]; renderPlans(); }
 }
-function renderPlans(){
-  const el = $('#myPlans'); if (!el) return;
-  const list = myPlans(), busy = ui.briefBusy || {};
-  const chip = p => busy[p.id] ? '<span class="st due">Go is researching…</span>' : p.briefAt ? '<span class="st ok">Brief sent ✓</span>' : p.lastError ? `<span class="st miss" title="${esc(p.lastError)}">${esc(/allowance/.test(p.lastError) ? 'Waiting — free research used up this month' : /daily limit/.test(p.lastError) ? 'Researched tomorrow (daily limit)' : /No email/.test(p.lastError) ? 'No email — open the brief here' : 'Brief not ready')}</span>` : '<span class="st due">Brief on its way</span>';
-  el.innerHTML = `<div class="head"><h2>Planned visits</h2><button type="button" class="btn sm" id="plAdd">Plan a visit</button></div>
-    <div class="body">${list.length ? `<ul class="planlist">${list.map(p => `<li class="planrow"><span class="pldate"><b>${esc(dayName(p.date))} ${esc(fmtLong(p.date).replace(/ \d{4}$/, ''))}</b>${p.time ? `<small>${esc(p.time)}</small>` : ''}</span>
-        <span class="plmain"><button type="button" class="cname" data-client="${esc(p.account)}">${esc(p.account)}</button>${p.purpose ? `<small class="hint">${esc(p.purpose)}</small>` : ''}</span>
-        <span class="plstat">${chip(p)}</span>
-        <span class="plbtns"><button type="button" class="btn sm" data-plbrief="${esc(p.id)}">Brief</button><button type="button" class="tdbtn" data-pledit="${esc(p.id)}" title="Change" aria-label="Change plan: ${esc(p.account)}">${ICO.edit}</button><button type="button" class="tdbtn" data-plx="${esc(p.id)}" title="Cancel this visit" aria-label="Cancel plan: ${esc(p.account)}">×</button></span></li>`).join('')}</ul>`
-      : '<p class="hint" style="margin:0">Visiting someone in the next few weeks? Plan it — Go does the homework on the company and emails you a brief.</p>'}</div>`;
-  $('#plAdd').onclick = () => planDialog({});
+// The Plan visits page: plan a visit, what's coming up (by day), who's still due and not planned, last week's plans to log.
+function renderPlans(){ if (ui.tab === 'plan') renderPlanPage(); }
+function planRowHtml(p, past){
+  const busy = ui.briefBusy || {};
+  const chip = busy[p.id] ? '<span class="st due">Go is researching…</span>' : p.briefAt ? '<span class="st ok">Brief sent ✓</span>' : p.lastError ? `<span class="st miss" title="${esc(p.lastError)}">${esc(/allowance/.test(p.lastError) ? 'Waiting — free research used up this month' : /daily limit/.test(p.lastError) ? 'Researched tomorrow (daily limit)' : /No email/.test(p.lastError) ? 'No email — open the brief here' : 'Brief not ready')}</span>` : '<span class="st due">Brief on its way</span>';
+  const logged = past && data.visits.some(v => v.ae === ui.me && v.date === p.date && splitAccts(v.accounts).some(a => canon(a) === canon(p.account)));
+  return `<li class="planrow"><span class="pldate"><b>${p.time ? esc(p.time) : 'Any time'}</b>${p.purpose ? `<small>${esc(p.purpose)}</small>` : ''}</span>
+    <span class="plmain"><button type="button" class="cname" data-client="${esc(p.account)}">${esc(p.account)}</button>${p.source === 'calendar' ? `<small class="plcal" title="${esc(p.note || '')}">📅 From your calendar${/couldn’t check/.test(p.note || '') ? ' · check it’s in person' : ''}</small>` : p.note ? `<small class="hint">${esc(p.note)}</small>` : ''}</span>
+    <span class="plstat">${past ? (logged ? '<span class="st ok">Logged ✓</span>' : '<span class="st due">Not logged yet</span>') : chip}</span>
+    <span class="plbtns">${past ? (logged ? '' : `<button type="button" class="btn sm primary" data-pllog="${esc(p.id)}">Log this visit</button>`) : ''}<button type="button" class="btn sm" data-plbrief="${esc(p.id)}">Brief</button>${past ? '' : `<button type="button" class="tdbtn" data-pledit="${esc(p.id)}" title="Change" aria-label="Change plan: ${esc(p.account)}">${ICO.edit}</button><button type="button" class="tdbtn" data-plx="${esc(p.id)}" title="${p.source === 'calendar' ? 'Not an in-person visit — remove it' : 'Cancel this visit'}" aria-label="${p.source === 'calendar' ? 'Remove' : 'Cancel plan'}: ${esc(p.account)}">×</button>`}</span></li>`;
+}
+function renderPlanPage(){
+  const el = $('#v-plan'); if (!el) return;
+  if (!ui.me) { el.innerHTML = ''; return; }
+  const t0 = todayIso(), tmr = addDays(t0, 1), list = myPlans();
+  const past = (data.plans || []).filter(p => p.ae === ui.me && p.status === 'planned' && p.date < t0 && p.date >= addDays(t0, -7)).sort((a, b) => b.date.localeCompare(a.date));
+  const days = [...new Set(list.map(p => p.date))];
+  const dayLabel = d => d === t0 ? 'Today' : d === tmr ? 'Tomorrow' : `${dayName(d)} ${fmtLong(d).replace(/ \d{4}$/, '')}`;
+  const planned = new Set(list.map(p => canon(p.account)));
+  let due = []; try { const cov = coverageFor(ui.me, t0.slice(0, 8) + '01', t0); due = (cov.accts || []).filter(x => !x.cur.met && ['A', 'B'].includes(x.tier) && !planned.has(canon(x.a.account))).sort((x, y) => x.tier.localeCompare(y.tier) || x.a.account.localeCompare(y.a.account)); } catch(e){}
+  el.innerHTML = `<div class="pagecol planpage">
+    <div class="card planhero"><div><h2>Plan your visits</h2><p class="hint">Tell Go who you’re seeing. It researches the company on Google — what they do, recent news, what TMC can sell them, who to meet — and emails you a brief.</p><div class="plcalline" id="plCalLine"></div></div><button type="button" class="btn primary" id="plAdd">Plan a visit</button></div>
+    <div class="card plancard"><div class="head"><h2>Coming up</h2><span class="hint">${list.length ? `${list.length} visit${list.length === 1 ? '' : 's'} planned` : ''}</span></div><div class="body">
+      ${list.length ? days.map(d => `<h4 class="plday">${esc(dayLabel(d))}</h4><ul class="planlist">${list.filter(p => p.date === d).map(p => planRowHtml(p, false)).join('')}</ul>`).join('')
+        : '<p class="hint" style="margin:0">Nothing planned yet. Plan a visit up to 30 days ahead — the brief lands in your inbox within minutes.</p>'}
+    </div></div>
+    ${due.length ? `<div class="card plancard"><div class="head"><h2>Still due this month, not planned</h2></div><div class="body"><div class="plsugg">${due.slice(0, 10).map(x => `<button type="button" class="chipq" data-plsug="${esc(x.a.account)}" data-plid="${esc(x.a.id)}"><span class="badge ${x.tier}">${x.tier}</span> ${esc(x.a.account)}</button>`).join('')}</div><p class="hint" style="margin:8px 0 0">Tap one to plan it.</p></div></div>` : ''}
+    ${past.length ? `<div class="card plancard"><div class="head"><h2>Last week’s plans</h2></div><div class="body">${[...new Set(past.map(p => p.date))].map(d => `<h4 class="plday">${esc(dayName(d) + ' ' + fmtLong(d).replace(/ \d{4}$/, ''))}</h4><ul class="planlist">${past.filter(p => p.date === d).map(p => planRowHtml(p, true)).join('')}</ul>`).join('')}</div></div>` : ''}
+  </div>`;
+  $('#plAdd').onclick = () => planDialog({}); paintCalLine();
+  $$('[data-plsug]', el).forEach(b => b.onclick = () => planDialog({account: b.dataset.plsug, accountId: b.dataset.plid}));
   $$('[data-plbrief]', el).forEach(b => b.onclick = () => { const p = data.plans.find(x => x.id === b.dataset.plbrief); if (p) briefSheet({account: p.account, plan: p}); });
   $$('[data-pledit]', el).forEach(b => b.onclick = () => { const p = data.plans.find(x => x.id === b.dataset.pledit); if (p) planDialog(p); });
+  $$('[data-pllog]', el).forEach(b => b.onclick = () => { const p = data.plans.find(x => x.id === b.dataset.pllog); if (p && addClientToForm(p.account, p.date)) toast(`${p.account} added to ${dayName(p.date)} ${fmtLong(p.date)} — pick the purpose and save`); });
   $$('[data-plx]', el).forEach(b => b.onclick = async () => { const p = data.plans.find(x => x.id === b.dataset.plx); if (!p) return;
-    if (!(await confirmModal('Cancel this visit?', `${p.account} — ${dayName(p.date)} ${fmtLong(p.date)}. The research stays available on the client page.`, 'Cancel visit'))) return;
-    try { const r = await callApi({action: 'setPlanStatus', id: p.id, status: 'cancelled'}); upsertLocal('plans', normPlan(r.row)); renderPlans(); toast('Visit cancelled'); } catch(e) { toast(friendly(e)); } });
+    const fromCal = p.source === 'calendar';
+    if (!(await confirmModal(fromCal ? 'Not an in-person visit?' : 'Cancel this visit?', fromCal ? `${p.account} — ${dayName(p.date)} ${fmtLong(p.date)} came from your calendar. Remove it if it’s online or not a client visit — it won’t be brought back.` : `${p.account} — ${dayName(p.date)} ${fmtLong(p.date)}. The research stays available on the client page.`, fromCal ? 'Remove' : 'Cancel visit'))) return;
+    try { const r = await callApi({action: 'setPlanStatus', id: p.id, status: 'cancelled'}); upsertLocal('plans', normPlan(r.row)); renderPlans(); toast(fromCal ? 'Removed — it won’t come back from your calendar' : 'Visit cancelled'); } catch(e) { toast(friendly(e)); } });
   $$('.cname[data-client]', el).forEach(b => b.onclick = () => clientSheet(b.dataset.client));
+  const cb = $('#plCal'); if (cb) cb.onclick = () => syncCalendarPlans(true);
+  if (!ui.calSyncAt || Date.now() - ui.calSyncAt > 10 * 60000) syncCalendarPlans(false);
+}
+// In-person meetings from the person's Google Calendar → planned visits (the server decides; this asks and shows the result).
+async function syncCalendarPlans(force){
+  if (ui.calBusy) return; ui.calBusy = true; ui.calSyncAt = Date.now(); paintCalLine();
+  try { const r = await callApi({action: 'syncCalendarPlans', force: !!force}), x = r.result || {};
+    if (!x.recent) ui.calState = Object.assign({at: Date.now()}, x);
+    const n = (x.added || 0) + (x.moved || 0) + (x.removed || 0) + (x.linked || 0);
+    if (n) { await load(); toast(`From your calendar: ${[x.added ? `${x.added} in-person meeting${x.added === 1 ? '' : 's'} added` : '', x.moved ? `${x.moved} moved` : '', x.removed ? `${x.removed} removed` : ''].filter(Boolean).join(' · ') || 'plans updated'}`); }
+    else if (force) toast(x.status === 'ok' ? 'Your calendar is checked — nothing new in person' : 'Couldn’t read your calendar — see the note on the page');
+  } catch(e) { if (force) toast(friendly(e)); }
+  finally { ui.calBusy = false; paintCalLine(); }
+}
+function paintCalLine(){
+  const el = $('#plCalLine'); if (!el) return; const x = ui.calState || {}, me = aeByName(ui.me) || {};
+  const t = x.at ? new Date(x.at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '';
+  el.innerHTML = ui.calBusy ? '<span class="hint">📅 Checking your Google Calendar…</span>'
+    : x.status === 'not-shared' ? `<span class="hint">📅 Your calendar isn’t shared with TMC Go yet. In Google Calendar → Settings → your calendar → <b>Share with specific people</b> → add <b>${esc(x.shareWith || 'the TMC Go account')}</b> with “See all event details”.</span>`
+    : x.status === 'no-email' || !me.email ? '<span class="hint">📅 Add your email to your profile to bring in meetings from your calendar.</span>'
+    : `<span class="hint">📅 In-person client meetings in your Google Calendar are added here automatically — online ones (Meet, Zoom, Teams) are left out.${t ? ` Checked ${esc(t)}.` : ''}${x.via === 'calendarapp' ? ' Meet links can’t be read yet, so check those marked.' : ''}</span>`;
+  el.insertAdjacentHTML('beforeend', ` <button type="button" class="linkbtn" id="plCal"${ui.calBusy ? ' disabled' : ''}>Check now</button>`);
+  const cb = $('#plCal'); if (cb) cb.onclick = () => syncCalendarPlans(true);
 }
 const srcLink = u => u ? ` <a href="${esc(u)}" target="_blank" rel="noopener" class="srcl">source</a>` : '';
 const liSearch = (q, label) => `<a href="https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(q)}" target="_blank" rel="noopener" class="srcl">${esc(label || 'LinkedIn search')}</a>`;
