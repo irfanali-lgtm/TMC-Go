@@ -2377,8 +2377,8 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-25 06:00 · production';
-const NEEDS_BACKEND = 50;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
+const BUILD = '2026-10-25 06:30 · production';
+const NEEDS_BACKEND = 51;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -5371,7 +5371,7 @@ async function aiSaveLog(i){
 /* ── Visit prep: plan a visit → Go researches the company (Google Search) and emails a brief; the brief also opens here ── */
 const normPlan = p => ({...p, date: isoDay(p.date), time: hhmm(p.time) || '', status: p.status || 'planned'});
 const PLAN_DAYS = 30;
-function prepOn(){ const v = (data.settings || {}).visitPrep || 'admins'; return !ui.demo && (v === 'all' || (v === 'admins' && isMgr())); }   // admins first, then everyone (Settings visitPrep)
+function prepOn(){ const v = String((data.settings || {}).visitPrep || 'admins'); if (ui.demo || v === 'off') return false; if (v === 'all' || isMgr()) return true; return v !== 'admins' && v.split(', ').some(n => n.toLowerCase() === String(ui.me || '').toLowerCase()); }   // Settings visitPrep: admins | all | off | names (a pilot)
 function myPlans(){ const t = todayIso(); return (data.plans || []).filter(p => p.ae === ui.me && p.status === 'planned' && p.date >= t).sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || ''))); }
 function accountFor(name){ const k = canon(name); if (!k) return null; const rows = data.accounts.filter(a => canon(a.account) === k); return rows.find(a => a.ae === ui.me) || rows[0] || null; }
 function nextWorkingDay(){ let d = addDays(todayIso(), 1); while ([0, 6].includes(new Date(d + 'T00:00:00').getDay())) d = addDays(d, 1); return d; }
