@@ -682,16 +682,16 @@ td.acc{white-space:nowrap}td.acc .btn.sm{padding:0 8px;margin-right:4px}
 .aiquick button,.aichips button{border:1px solid #D7DCFB;background:#fff;color:#3442CC;border-radius:999px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer}
 .aiquick button:hover,.aichips button:hover{background:#EEF1FF}
 .ailang{margin-top:14px;font-size:12px;color:var(--muted)}
-.mrow{display:flex;gap:8px;margin:0 0 12px}
-.mrow.u{justify-content:flex-end}
-.mrow .mav{width:26px;height:26px;flex:none;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;background:linear-gradient(135deg,#4F46E5,#A855F7);margin-top:2px}
-.mrow .mcol{min-width:0;max-width:calc(100% - 34px)}
-.mrow .msg{max-width:100%!important;margin:0!important;padding:10px 13px!important;font-size:14px;line-height:1.5}
-.mrow.u .msg{max-width:85%!important}
+.gmrow{display:flex;gap:8px;margin:0 0 12px;flex:none}
+.gmrow.u{justify-content:flex-end}
+.gmrow .gmav{width:26px;height:26px;flex:none;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;background:linear-gradient(135deg,#4F46E5,#A855F7);margin-top:2px}
+.gmrow .gmcol{min-width:0;max-width:calc(100% - 34px)}
+.gmrow .msg{max-width:100%!important;margin:0!important;padding:10px 13px!important;font-size:14px;line-height:1.5}
+.gmrow.u .msg{max-width:85%!important}
 .msg.a p{margin:0 0 6px}.msg.a p:last-child{margin:0}
 .msg.a ul{margin:4px 0 6px 18px}
 .mtools{display:flex;gap:2px;margin-top:3px;opacity:0;transition:opacity .15s}
-.mrow.a:hover .mtools,.mrow.a:focus-within .mtools,.mrow.a:last-child .mtools{opacity:1}
+.gmrow.a:hover .mtools,.gmrow.a:focus-within .mtools,.gmrow.a:last-child .mtools{opacity:1}
 .mtools button{border:none;background:transparent;color:#64748B;font-size:11.5px;padding:3px 6px;border-radius:6px;cursor:pointer}
 .mtools button:hover{background:#EEF1FF;color:#3442CC}
 .msg .tts{display:none}
@@ -2296,6 +2296,10 @@ html.dark .ordhint.quiet{background:transparent!important;border:0!important}
 html.dark .av{box-shadow:0 0 0 2px #141B2E}
 html.dark .segpick button.on{background:#3B49D6!important;color:#fff!important;box-shadow:none!important}
 /* DARK-HAND */
+html.dark body details.untouched>summary .ut-n{color:#F5C46B!important}
+html.dark body .wd.on .dc{color:#4ADE80}
+html.dark .tdtab.alert:not(.on) span{background:#B4232B;color:#fff}
+html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFFFFF,#F3F5FA)!important}
 </style>
 </head>
 <body>
@@ -2362,8 +2366,8 @@ html.dark .segpick button.on{background:#3B49D6!important;color:#fff!important;b
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-25 03:15 · production';
-const NEEDS_BACKEND = 48;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
+const BUILD = '2026-10-25 04:00 · production';
+const NEEDS_BACKEND = 49;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -2576,7 +2580,7 @@ function friendly(err){
   if (/APP_PAGE/.test(m)) return 'The backend answered with a web page instead of data. An admin opens the /exec link in a browser to see the message, pastes the latest Code.gs and deploys a new version.';
   if (/NOT_JSON|Unexpected token|JSON/i.test(m)) return 'The sheet replied with something unexpected. Try again in a moment; if it keeps happening, tell an admin.';
   if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return 'Could not reach the sheet. Check your connection and try again.';
-  if (/BUSY|lock timeout|another process was holding the lock/i.test(m)) return 'The sheet was busy saving for someone else. Please try again in a moment.';
+  if (/\bBUSY:/.test(m) || /lock timeout|another process was holding the lock/i.test(m)) return 'The sheet was busy saving for someone else. Please try again in a moment.';   // the server's own BUSY: code only — "Gemini is busy" is Go's message
   if (/^SIGNIN/.test(m)) return 'Please sign in.';
   if (/CONFLICT/.test(m)) return 'This day was changed on another device a moment ago. The latest version is now shown — please make your change again.';
   if (/WEAKPIN/.test(m)) return 'The admin PIN is still the default or too simple. An admin must set a stronger one (at least 6 digits) in the sheet’s Settings tab first.';
@@ -2590,6 +2594,7 @@ function friendly(err){
   if (/admin pin/i.test(m)) return 'Wrong admin PIN.';
   if (/wrong pin|pin required/i.test(m)) return 'The backend is on an older version. Ask an admin to paste the latest Code.gs into Apps Script and deploy a new version.';
   if (/unknown action/i.test(m)) return 'The backend is on an older version and does not understand this request. Ask an admin to update Code.gs and deploy a new version.';
+  if (/^(?:Error:\s*)?(?:Go (?:couldn’t|couldn't|could not|is not approved)|Go(?:’|')s answer|Gemini (?:is busy|refused)|The Gemini (?:key|model)|The assistant is not set up|A manager still needs)/.test(m)) return m.replace(/^Error:\s*/, '');   // Go's own messages are already plain words
   if (/quota|rate ?limit|429/i.test(m)) return 'Google is busy right now. Wait a minute and try again.';
   if (/not found|could not find|could not locate|could not build the route|office address|no office/i.test(m)) return m.replace(/^Error:\s*/,'');
   if (/too long|does not look right|needs a purpose|WhatsApp|test WhatsApp|dated in the future|sign-in codes were sent today|test email was sent|Enter |Choose |Add at least|needs a date|Type the purpose|already in the team|name missing|No AEs|Go is not approved|Gemini key|Gemini model|Gemini is busy|Go could not answer|A manager still needs/i.test(m)) return m;
@@ -3798,8 +3803,8 @@ async function saveVisitNow(){
   renderLog();
 }
 
-function upsertLocal(tab, row){ const i = data[tab].findIndex(r=>r.id===row.id); if(i<0) data[tab].push(row); else data[tab][i]=row; if (tab==='accounts' || tab==='aliases') resetMatchCache(); }
-function removeLocal(tab, id){ const i = data[tab].findIndex(r=>r.id===id); if(i>=0) data[tab].splice(i,1); if (tab==='accounts' || tab==='aliases') resetMatchCache(); }
+function upsertLocal(tab, row){ const i = data[tab].findIndex(r=>r.id===row.id); if(i<0) data[tab].push(row); else data[tab][i]=row; if (tab==='accounts' || tab==='aliases') resetMatchCache(); _covIndex.clear(); }   // coverage is re-worked from the new data
+function removeLocal(tab, id){ const i = data[tab].findIndex(r=>r.id===id); if(i>=0) data[tab].splice(i,1); if (tab==='accounts' || tab==='aliases') resetMatchCache(); _covIndex.clear(); }
 
 function renderMyMonth(){
   const el = $('#myMonth'); if(!el) return;
@@ -3808,6 +3813,7 @@ function renderMyMonth(){
   // accounts whose rule isn't met yet for this period (A: this month · B/C: this quarter), A first
   const notV = s.cov.accts.filter(x => !x.cur.met).sort((x,y) => x.tier.localeCompare(y.tier) || y.still - x.still || x.a.account.localeCompare(y.a.account)).map(x => Object.assign({}, x.a, {_need: x}));
   const curOpen = monthRange().to === todayIso();
+  const cmD = s.cov.tiers.C.monthly, dueN = cmD ? notV.filter(x => x._need.tier !== 'C').length + Math.ceil(Math.max(0, cmD.target - cmD.fresh) - 1e-9) : notV.length;   // = the Dashboard's Still due (C chips are choices)
   el.innerHTML = `
     <div class="covhero drillable" data-drill="coverage" data-scope="month" role="button" tabindex="0" title="See every requirement behind this number">
       ${(() => { const pct = s.measured ? (s.overall.pct ?? 0) : null, C = 2 * Math.PI * 42; return `<div class="mring${pct == null ? ' off' : ''}"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="42" class="tr"/>${pct ? `<circle cx="50" cy="50" r="42" class="fg ${pct >= 70 ? 'ok' : pct >= 40 ? 'mid' : 'low'}" stroke-dasharray="${(C * Math.min(100, pct) / 100).toFixed(1)} ${C.toFixed(1)}"/>` : ''}</svg><span class="rv">${pct != null ? pct + '%' : '—'}</span></div>`; })()}
@@ -3829,7 +3835,7 @@ function renderMyMonth(){
       <div class="mstat drillable" data-drill="netnew" data-scope="month" role="button" tabindex="0" title="See the list behind this number"><div class="l">Net new</div><div class="v">${s.netNew.accounts}</div><div class="d">${s.netNew.visits} visit${s.netNew.visits===1?'':'s'}</div></div>
       <div class="mstat drillable" data-drill="km" data-scope="month" role="button" tabindex="0" title="See the list behind this number"><div class="l">Kilometres</div><div class="v">${num(s.km)}</div><div class="d">${mine.length} day${mine.length===1?'':'s'} logged</div></div>
     </div>
-    ${notV.length && !$('#untouchedSlot') ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>Still due</b><span class="ut-n">${notV.length}</span></span><span class="hint ut-h">tap a client to add it to today</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,14).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="Add ${esc(a.account)} as a visit${String(a.aeNotes||'').trim() ? ' — note: ' + esc(String(a.aeNotes).trim().slice(0,120)) : ''}">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span></button>`).join('')}${notV.length>14?`<span class="hint">and ${notV.length-14} more</span>`:''}</div></details>`:''}
+    ${notV.length && !$('#untouchedSlot') ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>Still due</b><span class="ut-n">${dueN}</span></span><span class="hint ut-h">tap a client to add it to today</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,14).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="Add ${esc(a.account)} as a visit${String(a.aeNotes||'').trim() ? ' — note: ' + esc(String(a.aeNotes).trim().slice(0,120)) : ''}">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span></button>`).join('')}${notV.length>14?`<span class="hint">and ${notV.length-14} more</span>`:''}</div></details>`:''}
     <div class="tw monthtbl"><table class="daytbl"><thead><tr><th>Date</th><th>Client visited</th><th>Category</th><th>Opportunity / purpose</th><th class="num">KM (day)</th><th></th></tr></thead><tbody>
       ${mine.map(v => {
         const det = v.count ? dayDetails(v) : [{client:'', purpose: v.purpose||'No visits'}];
@@ -3851,7 +3857,7 @@ function renderMyMonth(){
   }
   // the "not yet visited" list sits under the log form, where tapping a client adds it
   const slot = $('#untouchedSlot');
-  if (slot) { slot.innerHTML = notV.length ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>${curOpen ? 'Still due' : 'Missed in ' + MONTHS_LONG[+ui.month.slice(5)-1]}</b><span class="ut-n">${notV.length}</span></span><span class="hint ut-h">${curOpen ? 'A: 2× a month · B: every month · C: a third a month' : 'rule not met'}</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,40).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="${esc(a._need.rule)} — ${esc(needText(a._need))}${String(a.aeNotes||'').trim() ? ' — note: ' + esc(String(a.aeNotes).trim().slice(0,120)) : ''}">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span><small class="uneed">${esc(curOpen ? needText(a._need) : (a._need.cur.got + ' of ' + a._need.cur.need))}</small></button>`).join('')}${notV.length>40?`<span class="hint">and ${notV.length-40} more</span>`:''}</div></details>` : `<div class="allclear">✓ Every account is on track — A this month, B and C this quarter</div>`; wireRowActions(slot); }
+  if (slot) { slot.innerHTML = notV.length ? `<details class="untouched" ${localStorage.getItem('vi.untouchedOpen')==='1'?'open':''}><summary><span class="ut-l"><b>${curOpen ? 'Still due' : 'Missed in ' + MONTHS_LONG[+ui.month.slice(5)-1]}</b><span class="ut-n">${dueN}</span></span><span class="hint ut-h">${curOpen ? 'A: 2× a month · B: every month · C: a third a month' : 'rule not met'}</span><span class="ut-c" aria-hidden="true">▾</span></summary><div class="uchips">${notV.slice(0,40).map(a=>`<button type="button" class="uchip" data-add="${esc(a.account)}" title="${esc(a._need.rule)} — ${esc(needText(a._need))}${String(a.aeNotes||'').trim() ? ' — note: ' + esc(String(a.aeNotes).trim().slice(0,120)) : ''}">${esc(a.account)}<span class="badge ${a.tier}">${a.tier}</span><small class="uneed">${esc(curOpen ? needText(a._need) : (a._need.cur.got + ' of ' + a._need.cur.need))}</small></button>`).join('')}${notV.length>40?`<span class="hint">and ${notV.length-40} more</span>`:''}</div></details>` : `<div class="allclear">✓ Every account is on track — A this month, B and C this quarter</div>`; wireRowActions(slot); }
   quietZeros($('#myMonth')); wireDrills($('#myMonth'));
 }
 // One day in "Your visits": the date, every client in the order visited (category, purpose, km for that leg), the day's km.
@@ -4097,7 +4103,7 @@ function reachProblems(v, me){ me = me || aeByName(meName()) || {}; v = v || myR
   if (v !== 'email') { if (!waOn()) out.push('WhatsApp isn’t switched on yet (ask your admin)'); else if (!waNum(me.phone)) out.push('there’s no WhatsApp number on your profile'); }
   return out; }
 function emailLine(f){
-  if (f.status === 'done') return `<span class="tst ok">${ICO.check}Done${f.doneAt ? ' ' + esc(fmtDate(String(f.doneAt).slice(0,10))) : ''}</span>`;
+  if (f.status === 'done') return `<span class="tst ok">${ICO.check}Done${f.doneAt ? ' ' + esc(fmtDate(isNaN(new Date(f.doneAt)) ? String(f.doneAt).slice(0,10) : isoD(new Date(f.doneAt)))) : ''}</span>`;
   if (!f.dueDate) return `<span class="tst">${ICO.belloff}No date · no reminder</span>`;
   if (f.remind !== 'Y') return `<span class="tst">${ICO.belloff}Reminder off</span>`;
   if (f.sentAt) { const d = new Date(f.sentAt); return `<span class="tst ok">${ICO.sent}Reminder sent ${esc(fmtDate(isoD(d)))} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}</span>${f.lastError ? `<span class="tst warn">${ICO.warn}${esc(String(f.lastError).replace(/\s*\(\d{4}-\d{2}-\d{2}\)$/, ''))}</span>` : ''}`; }
@@ -4872,8 +4878,8 @@ const distKm = (a, b, c, d) => { const r = x => x * Math.PI / 180, h = Math.sin(
 async function automationsSheet(){
   const me = aeByName(ui.me); if (!me) return; const p = myAuto();
   const rows = [
-    ['W', 'wrap', 'Friday wrap-up', 'Fridays at 5:30 pm: your week in one friendly email — who you met, your notes, what got done, what’s waiting and what needs attention.'],
-    ['M', 'focus', 'Monday focus', 'Mondays at 9:30 am: your plan for the week — meetings, follow-ups due and overdue, opportunities and where to start.'],
+    ['W', 'wrap', 'Friday wrap-up', `Fridays at ${weeklyTime('wrap')}: your week in one friendly email — who you met, your notes, what got done, what’s waiting and what needs attention.`],
+    ['M', 'focus', 'Monday focus', `Mondays at ${weeklyTime('focus')}: your plan for the week — meetings, follow-ups due and overdue, opportunities and where to start.`],
     ['A', 'visits', 'Calendar visit reminder', 'At 5:00 pm, the client meetings in your Google Calendar that you haven’t logged yet.'],
     ['G', 'nudge', 'Evening nudge', 'At 5:40 pm, a reminder if you haven’t logged anything today.'],
     ['J', 'early', 'Early warning', 'When one of your A accounts has had no visit for 3 weeks — before it becomes a miss.'],
@@ -5063,6 +5069,9 @@ function renderMenu(){
   on('mnLock', () => { setAdminPin(''); ui.mgrTab = null; ui.mgr = false; renderMenu(); toast('Admin tools locked on this device'); });
   on('mnOut', async () => { if (!(await confirmModal('Sign out?', 'You’ll need your PIN to sign in again on this device. Unsaved drafts here are cleared; everything saved stays in the sheet.', 'Sign out'))) return; try { Object.keys(localStorage).filter(k=>k.startsWith('vi.draft')).forEach(k=>localStorage.removeItem(k)); sessionStorage.clear(); } catch(e){} if (ui.demo) return location.reload(); signOut(); });
 }
+// "17:30" from the server's Settings → "5:30 pm" (Pakistan time); defaults as on the server
+function weeklyTime(k){ const w = (data.settings || {}).weekly || {}, t = ((w[k] || {}).time) || (k === 'wrap' ? '17:30' : '09:30'), [h, m] = t.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`; }
+function viaPlace(via){ via = via || ['email']; return via.includes('email') && via.includes('whatsapp') ? 'your inbox and WhatsApp' : via.includes('whatsapp') ? 'WhatsApp' : 'your inbox'; }
 function remindersSheet(){
   const me = aeByName(ui.me); if (!me) return; let v = myRemindVia();
   const ico = k => `<span class="mic"><svg viewBox="0 0 24 24" aria-hidden="true">${MI[k]}</svg></span>`;
@@ -5074,15 +5083,15 @@ function remindersSheet(){
       <div class="mrow">${ico('wa')}<span class="mtx"><b>WhatsApp</b><small>${!waOn() ? 'Not switched on yet — your admin connects it' : n ? '+' + n : 'Add your mobile number in Edit profile'}</small></span>${waOn() ? (n ? '<button type="button" class="btn sm" id="rTestWa">Test</button>' : '<button type="button" class="btn sm" id="rAddNum">Add number</button>') : ''}</div>
     </div>
     <p class="fuhint" id="rWarn"></p>
-    <div class="wrapnote"><span class="mic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg></span><span class="mtx"><b>Friday wrap-up · 5:30 pm</b><small>Your week in one friendly email: who you met, your notes, what got done, what’s waiting and what needs attention${isMgr() ? ' — and, for admins, the whole team' : ''}.</small></span><button type="button" class="btn sm" id="rWrap">Send me this week’s</button></div>
-    <div class="wrapnote"><span class="mic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class="mtx"><b>Monday focus · 9:30 am</b><small>Your plan for the week: meetings, follow-ups due and overdue, opportunities and where to start. Pakistan time; switch either off in Menu → Automations.</small></span><button type="button" class="btn sm" id="rFocus">Send me one now</button></div>`, async () => { await saveProfile(me, {remindVia: v}); render(); }, 'Save');
+    <div class="wrapnote"><span class="mic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg></span><span class="mtx"><b>Friday wrap-up · ${weeklyTime('wrap')}</b><small>Your week in one friendly email: who you met, your notes, what got done, what’s waiting and what needs attention${isMgr() ? ' — and, for admins, the whole team' : ''}.</small></span><button type="button" class="btn sm" id="rWrap">Send me this week’s</button></div>
+    <div class="wrapnote"><span class="mic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class="mtx"><b>Monday focus · ${weeklyTime('focus')}</b><small>Your plan for the week: meetings, follow-ups due and overdue, opportunities and where to start. Pakistan time; switch either off in Menu → Automations.</small></span><button type="button" class="btn sm" id="rFocus">Send me one now</button></div>`, async () => { await saveProfile(me, {remindVia: v}); render(); }, 'Save');
   const warn = () => { const pr = reachProblems(v, me); $('#rWarn').innerHTML = pr.length ? `⚠️ Reminders can’t reach you yet: ${esc(pr.join(' and '))}.` : `✓ Your reminders will come by <b>${esc(viaLabel(v))}</b>.`; $('#rWarn').classList.toggle('bad', !!pr.length); };
   $$('#mBody [data-via]').forEach(b => b.onclick = () => { v = b.dataset.via; $$('#mBody [data-via]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); }); warn(); });
   if ($('#rTestMail')) $('#rTestMail').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { await callApi({action:'testReminderEmail'}); toast('Test email sent — check your inbox'); } catch(err) { toast(friendly(err)); } b.disabled = false; };
   if ($('#rTestWa')) $('#rTestWa').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { const r = await callApi({action:'testReminderWhatsApp'}); toast(`Test WhatsApp sent to ${r.to || 'your phone'}`); } catch(err) { toast(friendly(err)); } b.disabled = false; };
   if ($('#rAddNum')) $('#rAddNum').onclick = () => profileSheet();
-  if ($('#rWrap')) $('#rWrap').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { await callApi({action:'testWeeklyWrap'}); toast('This week’s wrap-up is on its way — check your inbox'); } catch(err) { toast(friendly(err)); } b.disabled = false; };
-  if ($('#rFocus')) $('#rFocus').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { await callApi({action:'testWeeklyFocus'}); toast('Your Monday focus is on its way — check your inbox'); } catch(err) { toast(friendly(err)); } b.disabled = false; };
+  if ($('#rWrap')) $('#rWrap').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { const r = await callApi({action:'testWeeklyWrap'}); toast(`This week’s wrap-up is on its way — check ${viaPlace(r.via)}`); } catch(err) { toast(friendly(err)); } b.disabled = false; };
+  if ($('#rFocus')) $('#rFocus').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { const r = await callApi({action:'testWeeklyFocus'}); toast(`Your Monday focus is on its way — check ${viaPlace(r.via)}`); } catch(err) { toast(friendly(err)); } b.disabled = false; };
   warn();
 }
 async function saveProfile(me, prof){
@@ -5252,16 +5261,19 @@ function shrinkPhoto(file){
 /* ---------- Go — the TMC assistant (Gemini, via Code.gs; nothing runs locally) ---------- */
 const ai = { open:false, msgs:[], busy:false };
 const isUrdu = s => /[\u0600-\u06FF]/.test(s);
-const RO_STRONG = new Set(['aaj','kal','aur','gaya','gayi','gaye','gae','mila','mili','mulaqat','bas','bus','haan','han','ji','nahi','nahin','nai','mujhe','mera','meri','mere','kiya','kya','theek','thik','acha','accha','batao','bata','sunao','suna','kitne','kitni','kaun','kon','liye','liya','sath','saath','hai','hain','tha','thi','karo','karna','kar','dein','dedo','sab','wala','wali','phir','abhi','hogaya','khatam','ruko','galat','sahi','bilkul','naya','nayi','hatao','hata','wapis']);
+const RO_STRONG = new Set(['aaj','kal','aur','gaya','gayi','gaye','gae','mila','mili','mulaqat','bas','haan','ji','nahi','nahin','nai','mujhe','mera','meri','mere','kiya','kya','theek','thik','acha','accha','batao','bata','sunao','suna','kitne','kitni','kaun','kon','liye','liya','sath','saath','hai','hain','tha','thi','karo','karna','kar','dein','dedo','sab','wala','wali','phir','abhi','hogaya','khatam','ruko','galat','sahi','bilkul','naya','nayi','hatao','hata','wapis']);
 function romanUrdu(s){ const w = norm(s).split(' ').filter(Boolean); return w.some(x => RO_STRONG.has(x)); }
 function urVoiceOk(){ const v = pickVoice('ur'); return !!(v && /^ur/i.test(v.lang||'')); }
 function detectLang(said){ if (isUrdu(said)) return 'ur'; if (romanUrdu(said)) return urVoiceOk() ? 'ur' : 'ro'; return 'en'; }
 // Escapes first, then the little markdown Go uses (bold, bullets, line breaks).
+// Go saying it saved something itself ("I've logged your visit", "it has been saved") — the app is the only thing that saves.
+// Reporting the person's own numbers ("you've logged 22 visits") is not a claim.
+const GO_SAVE_CLAIM = /\bI(?:['’]ve| have)?\s+(?:just\s+|now\s+|already\s+)?(?:saved|logged|recorded|updated|added)\b|\b(?:has|have)\s+been\s+(?:saved|logged|recorded|updated|added)\b|\b(?:saved|logged|recorded|added)\s+(?:it|them|that|this|those)\b/i;
 function mdLite(s){
   const e = esc(s); const lines = e.split('\n'); let html = '', inList = false;
   lines.forEach(l => { const m = /^\s*(?:[-*•]|\d+[.)])\s+(.*)$/.exec(l); if (m) { if (!inList) { html += '<ul>'; inList = true; } html += '<li>' + m[1] + '</li>'; } else { if (inList) { html += '</ul>'; inList = false; } if (l.trim()) html += '<p>' + l + '</p>'; } });
   if (inList) html += '</ul>';
-  return html.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[\s>(])_([^_<]+)_(?=[\s<.,!?)]|$)/g, '$1<i>$2</i>').replace(/`([^`]+)`/g, '<code>$1</code>');
+  return html.replace(/(^|[\s>(])_([^_<]+)_(?=[\s<.,!?)]|$)/g, '$1<i>$2</i>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 // What Go is good at — shown as cards on a fresh chat. 'prompt' is sent as if typed; 'run' does it in the app.
 const AI_STARTS = [
@@ -5302,7 +5314,8 @@ function linesFromAction(log){
 function actionCard(m, i){
   const a = m.action; if (!a) return '';
   let html = '';
-  if (Array.isArray(a.log) && a.log.length) html += `<div class="aiact"><div class="hint">${a.log.map((x,j)=>`<span class="seq sm">${j+1}</span><b>${esc(x.client)}</b>${x.purpose?' · '+esc(x.purpose):''} <span class="hint">· ${esc(/^\d{4}-\d{2}-\d{2}$/.test(x.date||'') && x.date < todayIso() ? fmtLong(x.date) : 'today')}</span>`).join('<br>')}</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn sm primary" data-save="${i}">Save ${a.log.length===1?'this visit':'these '+a.log.length+' visits'}</button><button type="button" class="btn sm" data-act="${i}">Review in form</button></div></div>`;
+  const log = Array.isArray(a.log) ? a.log.filter(x => x && x.client) : [];
+  if (log.length) html += `<div class="aiact"><div class="hint">${log.map((x,j)=>`<span class="seq sm">${j+1}</span><b>${esc(x.client)}</b>${x.purpose?' · '+esc(x.purpose):''} <span class="hint">· ${esc(/^\d{4}-\d{2}-\d{2}$/.test(x.date||'') && x.date < todayIso() ? fmtLong(x.date) : 'today')}</span>`).join('<br>')}</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn sm primary" data-save="${i}">Save ${log.length===1?'this visit':'these '+log.length+' visits'}</button><button type="button" class="btn sm" data-act="${i}">Review in form</button></div></div>`;
   if (a.draft && a.draft.text) html += `<div class="aiact"><b>${esc(a.draft.title||'Draft')}</b><div class="draft">${esc(a.draft.text)}</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn sm" data-copy="${i}">Copy</button>${a.draft.text.length<1500?`<a class="btn sm" href="https://wa.me/?text=${encodeURIComponent(a.draft.text)}" target="_blank" rel="noopener">WhatsApp</a>`:''}${a.draft.title && /mail/i.test(a.draft.title)?`<a class="btn sm" href="mailto:?subject=${encodeURIComponent(a.draft.subject||a.draft.title)}&body=${encodeURIComponent(a.draft.text)}">Email</a>`:''}</div></div>`;
   if (a.opportunity && a.opportunity.client) html += `<div class="aiact"><div class="hint"><b>${esc(a.opportunity.client)}</b> — ${esc(a.opportunity.text||'')}${a.opportunity.stage?` <span class="badge B">${esc(a.opportunity.stage)}</span>`:''}</div><button type="button" class="btn sm primary" data-opp="${i}">Add to opportunities</button></div>`;
   return html;
@@ -5311,14 +5324,14 @@ async function aiSaveLog(i){
   const m = ai.msgs[i]; if (!m || !m.action || m.done) return;
   const lines = linesFromAction(m.action.log); if (!lines.length) return toast('Nothing to save');
   if (!ui.me) return toast('Select your name first');
+  if (ui.saving) { toast('A save is still going — try again in a moment'); return; }
+  if (form && form.editId) { toast('Finish or cancel the day you’re editing first'); return; }
   if (lines.some(l => !linePurpose(l))) {   // every visit needs a purpose: let the person pick it in the form
     const keep0 = form && !form.editId && form.ae === ui.me ? form.lines.filter(l => l.client) : [];
     form = {ae: ui.me, editId:null, lines: keep0.concat(lines), results:null, kmByDate:{}}; lines.forEach(l => { if (!linePurpose(l)) l.err = true; });
-    m.done = true; ai.msgs.push({role:'assistant', content:'I’ve put these visits in the form — pick a purpose for each client and tap **Save**.', spoken: true}); renderAi();
+    m.done = true; ai.msgs.push({role:'assistant', content:'I’ve put these visits in the form — pick a purpose for each client and tap **Save**.', spoken: true, local: true}); renderAi();
     ui.tab = 'log'; localStorage.setItem('vi.tab','log'); render(); aiCloseFn(); return;
   }
-  if (ui.saving) { toast('A save is still going — try again in a moment'); return; }
-  if (form && form.editId) { toast('Finish or cancel the day you’re editing first'); return; }
   const keep = form && form.ae === ui.me ? form.lines.filter(l => l.client || linePurpose(l)) : [];   // the person's own unsaved lines
   form = {ae: ui.me, editId:null, lines, results:null, kmByDate:{}};
   m.done = true; renderAi();
@@ -5327,7 +5340,7 @@ async function aiSaveLog(i){
   const res = form.results;
   if (!res) {   // the save never started (e.g. no city on the profile): put everything back in the form, nothing is lost
     form = {ae: ui.me, editId:null, lines: keep.concat(form.lines), results:null, kmByDate:{}}; saveDraft(); renderLog();
-    m.done = false; ai.msgs.push({role:'assistant', content: `I couldn’t save that — ${($('#fMsg') && $('#fMsg').textContent) || 'please check the form'}. The visits are in the form.`, spoken: true}); renderAi(); return;
+    m.done = false; ai.msgs.push({role:'assistant', content: `I couldn’t save that — ${($('#fMsg') && $('#fMsg').textContent) || 'please check the form'}. The visits are in the form.`, spoken: true, local: true}); renderAi(); return;
   }
   const ok = res.filter(r=>!r.error), bad = res.filter(r=>r.error);
   const km = ok.reduce((s,r)=>s+(r.route?r.route.totalKm:0),0);
@@ -5336,28 +5349,29 @@ async function aiSaveLog(i){
   if (!form.lines.length) form.lines = [newLine(todayIso())];
   saveDraft(); renderLog();
   const note = bad.length ? `Saved ${ok.length}, but ${bad.length} day${bad.length===1?'':'s'} failed — ${bad[0].error}` : `Saved${km?` — ${num(km)} km by road`:''}. ✅`;
-  const noteMsg = {role:'assistant', content: note, spoken: true}; ai.msgs.push(noteMsg); renderAi();
+  const noteMsg = {role:'assistant', content: note, spoken: true, local: true}; ai.msgs.push(noteMsg); renderAi();
   if (voice.on || m.voice) await speak(note, 'en');
 }
 async function aiAddOpportunity(i){
   const m = ai.msgs[i]; if (!m || !m.action || m.done) return;
   const o = m.action.opportunity; if (m.busy) return; m.busy = true;
-  try { const r = await callApi({action:'upsertOpportunity', row:{id:null, ae: ui.me, client:o.client, opportunity:o.text||'', stage:o.stage||'Open', updated: todayIso()}}); upsertLocal('opportunities', r.row); m.done = true; toast('Added to opportunities'); renderAi(); } catch(e) { toast(e.message); } finally { m.busy = false; }
+  const stage = OPP_STAGES.find(st => st.toLowerCase() === String(o.stage || '').trim().toLowerCase()) || ({closing: 'Negotiation', demo: 'Proposal'})[String(o.stage || '').trim().toLowerCase()] || 'Open';
+  try { const r = await callApi({action:'upsertOpportunity', row:{id:null, ae: ui.me, client:o.client, opportunity:o.text||'', stage, updated: todayIso()}}); upsertLocal('opportunities', r.row); m.done = true; toast('Added to opportunities'); renderAi(); } catch(e) { toast(e.message); } finally { m.busy = false; }
 }
 function aiApplyRange(r){ if (!r) return; if (r.preset && r.preset!=='custom') setRange(r.preset); else if (r.from && r.to) setRange('custom', r.from, r.to); ui.tab='dash'; localStorage.setItem('vi.tab','dash'); render(); toast(`Dashboard set to ${rangeLabel()}`); }
 function renderAi(){
   const box = $('#aiMsgs');
   box.innerHTML = (ai.msgs.length ? '' : aiWelcome()) + ai.msgs.map((m,i) => m.role==='user'
-    ? `<div class="mrow u"><div class="msg u">${esc(m.content)}</div></div>`
-    : `<div class="mrow a"><span class="mav" aria-hidden="true">✦</span><div class="mcol"><div class="msg a" ${isUrdu(m.content)?'dir="rtl"':''}>${mdLite(m.content)}${m.done ? '' : actionCard(m, i)}</div><div class="mtools">${'speechSynthesis' in window && m.content ? `<button type="button" data-tts="${i}" title="Read aloud">🔊 Listen</button>` : ''}<button type="button" data-cp="${i}" title="Copy">⧉ Copy</button></div></div></div>`).join('')
-    + (ai.busy ? '<div class="mrow a"><span class="mav">✦</span><div class="msg a typing"><span></span><span></span><span></span></div></div>' : '');
+    ? `<div class="gmrow u"><div class="msg u">${esc(m.content)}</div></div>`
+    : `<div class="gmrow a"><span class="gmav" aria-hidden="true">✦</span><div class="gmcol"><div class="msg a" ${isUrdu(m.content)?'dir="rtl"':''}>${mdLite(m.content)}${m.done ? '' : actionCard(m, i)}</div><div class="mtools">${'speechSynthesis' in window && m.content ? `<button type="button" data-tts="${i}" title="Read aloud">🔊 Listen</button>` : ''}<button type="button" data-cp="${i}" title="Copy">⧉ Copy</button></div></div></div>`).join('')
+    + (ai.busy ? '<div class="gmrow a"><span class="gmav">✦</span><div class="msg a typing"><span></span><span></span><span></span></div></div>' : '');
   $$('button[data-cp]', box).forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText(ai.msgs[+b.dataset.cp].content); toast('Copied'); } catch(e) { toast('Select the text and copy it'); } });
   $$('button[data-start]', box).forEach(b => b.onclick = () => { const x = AI_STARTS[+b.dataset.start]; if (x.run === 'import') { aiCloseFn(); importDialog(); return; } aiSend(x.prompt); });
   $$('button[data-quick]', box).forEach(b => b.onclick = () => aiSend(b.dataset.quick));
   if ($('#aiPrefs')) $('#aiPrefs').onclick = e => { e.preventDefault(); aiCloseFn(); goPrefsSheet(); };
-  $$('button[data-tts]', box).forEach(b => b.onclick = () => speak(ai.msgs[+b.dataset.tts].content));
+  $$('button[data-tts]', box).forEach(b => b.onclick = async () => { await speak(ai.msgs[+b.dataset.tts].content); if (voice.on && ai.open && voice.state === 'idle') listen(); });
   $$('button[data-save]', box).forEach(b => b.onclick = () => aiSaveLog(+b.dataset.save));
-  $$('button[data-act]', box).forEach(b => b.onclick = () => { const m = ai.msgs[+b.dataset.act]; const keep = form && !form.editId && form.ae === ui.me ? form.lines.filter(l => l.client) : []; form = {ae: ui.me, editId:null, lines: keep.concat(linesFromAction(m.action.log)), results:null, kmByDate:{}}; m.done = true; ui.tab='log'; localStorage.setItem('vi.tab','log'); render(); aiCloseFn(); window.scrollTo({top:0}); });
+  $$('button[data-act]', box).forEach(b => b.onclick = () => { if (ui.saving) return toast('A save is still going — try again in a moment'); if (form && form.editId) return toast('Finish or cancel the day you’re editing first'); const m = ai.msgs[+b.dataset.act]; const keep = form && !form.editId && form.ae === ui.me ? form.lines.filter(l => l.client) : []; form = {ae: ui.me, editId:null, lines: keep.concat(linesFromAction(m.action.log)), results:null, kmByDate:{}}; m.done = true; ui.tab='log'; localStorage.setItem('vi.tab','log'); render(); aiCloseFn(); window.scrollTo({top:0}); });
   $$('button[data-copy]', box).forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText(ai.msgs[+b.dataset.copy].action.draft.text); toast('Copied'); } catch(e) { toast('Select the text and copy it'); } });
   $$('button[data-opp]', box).forEach(b => b.onclick = () => aiAddOpportunity(+b.dataset.opp));
   $('#aiChips').innerHTML = !ai.msgs.length || ai.busy || !aiReady() ? '' : aiQuick().slice(0, 3).map(c => `<button type="button">${esc(c)}</button>`).join('');
@@ -5371,23 +5385,23 @@ async function aiSend(text, opts={}){
   ai.msgs.push({role:'user', content:text, voice: opts.voice || null}); $('#aiIn').value = ''; autoGrow($('#aiIn'));
   if (looksLikeVisitRows(text)) {
     const n = rowsFromPaste(text).length;
-    ai.msgs.push({role:'assistant', content:`That’s a list of about ${n} visits — I’ve opened the upload preview so you can check every row before anything is saved. Tap **Save** there when it looks right.`});
+    ai.msgs.push({role:'assistant', content:`That’s a list of about ${n} visits — I’ve opened the upload preview so you can check every row before anything is saved. Tap **Save** there when it looks right.`, local: true});
     renderAi(); aiCloseFn(); importFromText(text); return;
   }
   ai.busy = true; renderAi();
   const gen = ai.gen || 0, askedBy = meName();
   let reply = '';
   try {
-    const turns = ai.msgs.slice(-14).map(m => ({role:m.role, content: m.role==='user' && m.voice ? `[voice:${m.voice}] ${m.content}` : m.content}));
+    const turns = ai.msgs.filter(m => !m.local).slice(-14).map(m => ({role:m.role, content: m.role==='user' && m.voice ? `[voice:${m.voice}] ${m.content}` : (m.said || m.content)}));
     const r = await callApi({action:'ask', messages: turns, range:{from:ui.range.from, to:ui.range.to}, city: ui.city, me: ui.me, today: todayIso()});
     if ((ai.gen || 0) !== gen || meName() !== askedBy) return;           // signed out (or someone else signed in) meanwhile
     reply = String(r.reply || '').trim();
     const parsed = aiParse(reply);
     let said = parsed.text || (parsed.action ? 'Here you go.' : 'Sorry, I lost my train of thought — say that again?');
     // the app is the only thing that saves: if Go claims it saved without a Save card, say so plainly
-    if (!(parsed.action && Array.isArray(parsed.action.log) && parsed.action.log.length) && /\b(saved|logged|recorded|updated|added)\b.*\bvisits?\b|\bvisits?\b.*\b(saved|logged|recorded|updated|added)\b/i.test(said))
+    if (!(parsed.action && Array.isArray(parsed.action.log) && parsed.action.log.length) && GO_SAVE_CLAIM.test(said))
       said += '\n\n_Nothing was saved from this message. To record many visits, paste the rows here or use **⤒ Upload Excel** on the Log tab._';
-    const msg = {role:'assistant', content: said, action: parsed.action || null, voice: opts.voice || null};
+    const msg = {role:'assistant', content: said, said: parsed.text || said, action: parsed.action || null, voice: opts.voice || null};
     ai.msgs.push(msg);
     if (parsed.action && parsed.action.range) aiApplyRange(parsed.action.range);
     if (parsed.action && parsed.action.save) {
@@ -5395,14 +5409,12 @@ async function aiSend(text, opts={}){
       if (!Array.isArray(parsed.action.log) || !parsed.action.log.length) { const prev = [...ai.msgs].reverse().find(x => x.role==='assistant' && x.action && Array.isArray(x.action.log) && x.action.log.length && !x.done); if (prev) { msg.action = {...msg.action, log: prev.action.log}; prev.done = true; } }
       if (Array.isArray(msg.action.log) && msg.action.log.length) { renderAi(); await aiSaveLog(ai.msgs.length-1); }
     }
-  } catch(e) { if ((ai.gen || 0) !== gen || meName() !== askedBy) return; ai.msgs.push({role:'assistant', content: e.message}); }
+  } catch(e) { if ((ai.gen || 0) !== gen || meName() !== askedBy) return; ai.msgs.push({role:'assistant', content: e.message, local: true}); }
   if ((ai.gen || 0) !== gen) return;
   ai.busy = false; renderAi();
-  if ((opts.voice || voice.on) && !ai.msgs[ai.msgs.length-1].spoken) {
-    const last = ai.msgs[ai.msgs.length-1]; last.spoken = true;
-    await speak(last.content, isUrdu(last.content) ? 'ur' : 'en');
-    if (voice.on) setTimeout(() => { if (voice.on && voice.state === 'idle') listen(); }, 250);
-  }
+  const last = ai.msgs[ai.msgs.length-1];
+  if (ai.open && (opts.voice || voice.on) && last && !last.spoken) { last.spoken = true; await speak(last.content, isUrdu(last.content) ? 'ur' : 'en'); }   // never talk after the panel was closed
+  if (voice.on && ai.open) setTimeout(() => { if (voice.on && ai.open && voice.state === 'idle') listen(); }, 250);   // hands-free continues — also after a save Go announced itself
 }
 // "Log by voice" on the form = open Go in hands-free mode with the logging intent.
 async function vlStart(){
@@ -5435,6 +5447,7 @@ function speak(text, lang){
     if (!('speechSynthesis' in window)) return resolve(false);
     const clean = speakable(text); if (!clean) return resolve(false);
     lang = lang || (isUrdu(clean) ? 'ur' : 'en');
+    if (voice.rec) { const r0 = voice.rec; voice.rec = null; try { r0.abort(); } catch(e){} }   // the microphone must not hear Go speaking
     speechSynthesis.cancel();
     const parts = clean.match(/[^.!?؟۔]+[.!?؟۔]?/g) || [clean]; const chunks = []; let cur = '';
     parts.forEach(p => { if ((cur + p).length > 180 && cur) { chunks.push(cur.trim()); cur = p; } else cur += p; }); if (cur.trim()) chunks.push(cur.trim());
@@ -5466,12 +5479,14 @@ function listen(){
   };
   rec.onaudiostart = () => { gotAudio = true; };
   rec.onresult = e => {
-    let s = '', fin = false; for (const r of e.results) { s += r[0].transcript; if (r.isFinal) fin = true; }
+    voice.fails = 0; let s = '', fin = false; for (const r of e.results) { s += r[0].transcript; if (r.isFinal) fin = true; }
     transcript = s; inp.value = s; autoGrow(inp); $('#aiVoiceTxt').textContent = s || 'Listening…';
     clearTimeout(timer); timer = setTimeout(send, fin ? 500 : 1200);
   };
   rec.onend = () => { if (sent) return; if (transcript.trim()) return send(); voice.rec = null; if (voice.on && voice.state === 'listening') { voice.state = 'idle'; setTimeout(() => { if (voice.on && voice.state === 'idle') listen(); }, 200); } };
-  rec.onerror = e => { voice.rec = null; clearTimeout(timer); if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { voice.on = false; voice.state = 'idle'; toast(micBlockedMsg()); renderVoice(); return; } if (e.error === 'aborted') return; voice.state = 'idle'; if (voice.on) setTimeout(() => { if (voice.on && voice.state === 'idle') listen(); }, 400); renderVoice(); };
+  rec.onerror = e => { voice.rec = null; clearTimeout(timer); if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { voice.on = false; voice.state = 'idle'; toast(micBlockedMsg()); renderVoice(); return; } if (e.error === 'aborted') return;
+    if (e.error === 'network' || e.error === 'audio-capture') { voice.fails = (voice.fails || 0) + 1; if (voice.fails >= 2) { voice.fails = 0; voice.on = false; voice.state = 'idle'; renderVoice(); toast(e.error === 'network' ? 'Voice needs an internet connection — type your message instead.' : 'No microphone found — check it is connected, or type instead.'); return; } }
+    voice.state = 'idle'; if (voice.on) setTimeout(() => { if (voice.on && voice.state === 'idle') listen(); }, 400); renderVoice(); };
   voice.rec = rec; voice.state = 'listening'; renderVoice(); $('#aiVoiceTxt').textContent = 'Listening…';
   try { rec.start(); } catch(e) { voice.rec = null; voice.state = 'idle'; renderVoice(); if (voice.on) setTimeout(() => { if (voice.on && voice.state === 'idle') listen(); }, 600); }
   // safety: Chrome ends continuous sessions quietly after a while; if nothing at all arrived in 15 s, restart
