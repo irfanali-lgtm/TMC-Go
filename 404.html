@@ -2073,6 +2073,73 @@ html body .kpi .v{font-size:38px!important}
 html body .planrow .cname,html body .tdtask,html body .hlt b{font-family:var(--serif)!important;font-weight:600!important}
 html body .tdtask{font-size:16px!important}
 html body .kpi .l,html body .plday,html body .hlt small,html body .gl,html body .eyebrow,html body .si-eyebrow,html body .wd .dn,html body .dr-date span{font-family:var(--mono)!important;font-weight:500!important;text-transform:uppercase!important;letter-spacing:.12em!important;font-size:11px!important}
+
+/* ── Plan visits redesign (25 Oct): week planner, timeline agenda, route journey, "still needs you" board ── */
+.planpage{max-width:960px}
+.planhero{display:block!important;padding:22px 22px 16px!important;background:radial-gradient(120% 140% at 0% 0%,var(--b-100) 0%,var(--b-50) 45%,var(--n-0) 100%)!important}
+.plhero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.planhero .eyebrow{color:var(--b-600);margin-bottom:4px}
+html body .planhero h2{font-size:32px!important;line-height:1.08;margin:0 0 6px}
+.planhero .hint{margin:0;max-width:560px}
+.plmeter{margin-top:16px;padding:12px 14px;border:1px solid var(--edge);border-radius:16px;background:var(--n-0)}
+.plmeter-t{display:flex;justify-content:space-between;gap:6px 14px;flex-wrap:wrap;align-items:baseline;font-size:14px}
+.plmeter-t b{font-family:var(--serif);font-size:18px;color:var(--b-800)}
+html.dark .plmeter-t b{color:#C9CEF8} html.dark .pldate b{color:#E6E9F5} html.dark .plrail::before{background:#283250}
+.plbar{height:8px;border-radius:999px;background:var(--n-100);margin-top:8px;overflow:hidden}
+.plbar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--leaf),var(--leaf-2));min-width:6px}
+.plneed{margin-top:6px;font-size:12.5px}
+.plmeter.done{font-size:14px;color:var(--ok)}
+.pdays{display:flex;gap:8px;margin-top:14px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:thin}
+.pday{flex:0 0 auto;width:64px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 7px;border:1px solid var(--edge);border-radius:16px;background:var(--n-0);cursor:pointer;font:inherit;color:var(--n-700)}
+.pday small{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--n-500)}
+.pday b{font-family:var(--serif);font-size:22px;line-height:1.05;color:var(--n-900)}
+.pdots{display:flex;gap:3px;align-items:center;height:8px}
+.pdots i{width:6px;height:6px;border-radius:50%;background:var(--b-600)} .pdots em{font-style:normal;font-size:10px;font-weight:700;color:var(--b-600)}
+.pday.today{border-color:var(--b-200)} .pday.today small{color:var(--b-600);font-weight:600}
+.pday:hover{border-color:var(--b-500)}
+.pday.on{background:var(--b-600);border-color:var(--b-600);box-shadow:0 6px 14px -6px rgba(59,73,214,.55)}
+.pday.on small,.pday.on b,.pday.on .pdots em{color:#fff} .pday.on .pdots i{background:#fff}
+.pday.all{width:58px}
+.plcalline{margin-top:10px}
+.agenda .head .linkbtn{margin-left:auto}
+.planlist{gap:10px!important}
+.planrow{grid-template-columns:70px 14px minmax(0,1fr) auto auto!important;gap:10px!important;padding:12px 14px!important;position:relative}
+.pldate b{font-family:var(--serif);font-size:17px;color:var(--n-900);white-space:nowrap} .pldate b.any{font-size:13px;font-family:var(--font);font-weight:600;color:var(--n-500)}
+.plrail{align-self:stretch;position:relative;width:14px}
+.plrail::before{content:'';position:absolute;left:6px;top:-12px;bottom:-12px;width:2px;background:var(--n-100)}
+.plrail::after{content:'';position:absolute;left:1px;top:50%;margin-top:-6px;width:12px;height:12px;border-radius:50%;background:var(--n-0);border:3px solid var(--b-500);box-sizing:border-box}
+.planrow.t-ok .plrail::after{border-color:var(--leaf-2);background:var(--leaf-2)}
+.planrow.t-cal .plrail::after{border-color:#0EA5E9}
+.planrow.t-due .plrail::after{border-color:#D97706}
+html body .planrow .cname{font-size:17px}
+.plmeta{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;margin-top:3px;font-size:12.5px;color:var(--n-500)}
+.plpur{font-weight:600;color:var(--n-700)} .plnote{color:var(--n-500)}
+.plempty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:18px 8px}
+.plempty-ic{font-size:30px} .plempty b{font-family:var(--serif);font-size:19px} .plempty .plsugg{justify-content:center}
+.routecard .rtact{margin-top:16px} .rtline{list-style:none;margin:0 0 4px;padding:0;display:flex;flex-wrap:wrap;gap:10px 0;align-items:flex-start}
+.rtline li{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:0 26px 0 0;min-width:0;max-width:260px}
+.rtline li:not(:last-child)::after{content:'';position:absolute;right:6px;top:9px;width:14px;height:2px;background:var(--b-200)}
+.rtline .rtoff{flex-direction:row;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--n-500);padding-top:1px}
+.rtdot{width:12px;height:12px;border-radius:4px;background:var(--b-800)}
+.rtname{display:flex;align-items:center;gap:6px} .rtline .planc small{display:block;color:var(--n-500);padding-left:24px;font-size:12px;white-space:normal}
+.rtline .rtname .seq{margin:0}
+.plduegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px} .plmore{border:none;background:none;font:inherit;font-size:13px;font-weight:600;color:var(--b-600);cursor:pointer;padding:6px 4px}
+.pldue .plday{display:flex;align-items:center;gap:6px;margin:0 0 8px!important}
+.plchip{height:auto!important;padding:7px 12px!important;border-radius:14px!important;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left}
+.plchip span{font-weight:600;color:var(--n-800)} .plchip small{font-weight:500;font-size:11.5px;color:var(--n-500)}
+.plchip:hover{border-color:var(--b-500)}
+@media (max-width:760px){
+  html body .planhero h2{font-size:26px!important}
+  .plhero-top{flex-direction:column;align-items:stretch} .plhero-top .btn{width:100%}
+  .pday{width:56px} .pday b{font-size:20px}
+  .planrow{grid-template-columns:58px 14px minmax(0,1fr)!important;row-gap:8px!important}
+  .planrow .pldate{grid-column:1;grid-row:1} .planrow .plrail{grid-column:2;grid-row:1 / span 3} .planrow .plmain{grid-column:3;grid-row:1}
+  .planrow .plstat{grid-column:3;grid-row:2} .planrow .plbtns{grid-column:3;grid-row:3;flex-wrap:wrap}
+  .planrow .plstat:empty{display:none}
+  .plduegrid{grid-template-columns:1fr}
+  .pldate b{font-size:15px}
+  .rtline{flex-direction:column;gap:10px} .rtline li{padding:0;max-width:none} .rtline li:not(:last-child)::after{right:auto;left:8px;top:22px;width:2px;height:10px}
+}
 </style>
 <style id="darkcss">
 /* DARK-AUTO:START (generated by tools/darkcss.py — do not edit by hand) */
@@ -2279,6 +2346,7 @@ html.dark body .drow:hover,html.dark body .mstat:hover,html.dark body .covhero:h
 html.dark .covhero + .pace{border-top:1px dashed #4F442C!important}
 html.dark .kcsum{border:1px solid var(--edge,#353A46)!important;background:#141A29!important}
 html.dark .tplan{border-top:1px dashed #2E2853!important}
+html.dark .pday.on .pdots i{background:#121829!important}
 @media (max-width:760px){html.dark .tabbar button.on{color:#888FD2!important}html.dark .tabbar button.on svg{background:#0E1431!important}html.dark .route .tl li::before{background:#121829!important}html.dark .logactions{background:linear-gradient(to top,#171A24 70%,rgba(255,255,255,0))!important}}
 @media (max-width:560px){html.dark #drT tbody tr{border:1px solid var(--edge,#353A46)!important}}
 /* DARK-AUTO:END */
@@ -2408,8 +2476,8 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-25 15:00 · production';
-const NEEDS_BACKEND = 56;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
+const BUILD = '2026-10-25 16:30 · production';
+const NEEDS_BACKEND = 58;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -3989,14 +4057,18 @@ document.addEventListener('click', e => { const b = e.target.closest && e.target
 // The Today card: today's follow-ups, the account gone quietest, the last day logged, and the plan (still-due accounts
 // close together, with a route) — one card at the top of the Log page, closed for the day with ×.
 // pace: what the rest of this month needs (current month only) — on Plan visits for people who have it, else under Your month
+function paceFacts(s){
+  if (!s || !s.measured) return null;
+  const A = s.cov.accts.filter(x => x.tier === 'A' && !x.cur.met), B = s.cov.accts.filter(x => x.tier === 'B' && !x.cur.met);
+  const left = workingDaysLeft(monthRange().to === todayIso() ? monthEnd(ui.month) : todayIso()), cm = s.cov.tiers.C.monthly, cMore = cm ? Math.ceil(Math.max(0, cm.target - cm.fresh) - 1e-9) : 0;
+  const need = [...A, ...B].reduce((t, x) => t + x.still, 0) + cMore;
+  const a2 = A.filter(x => x.cur.got).length, a0 = A.length - a2;
+  const parts = [a2 ? `${a2} A account${a2 === 1 ? '' : 's'} need${a2 === 1 ? 's' : ''} a 2nd visit` : '', a0 ? `${a0} A not visited yet` : '', B.length ? `${B.length} B not visited yet` : '', cMore ? `${cMore} more C this month (target ${num(cm.target)})` : ''].filter(Boolean);
+  return {need, left, parts, perDay: need && left ? Math.ceil(need / left) : 0};
+}
 function paceHtml(s, curOpen){
-      if (!curOpen || !s.measured || hiddenToday('pace')) return '';
-      const A = s.cov.accts.filter(x => x.tier === 'A' && !x.cur.met), B = s.cov.accts.filter(x => x.tier === 'B' && !x.cur.met), C = s.cov.accts.filter(x => x.tier === 'C' && !x.cur.met);
-      const left = workingDaysLeft(monthRange().to === todayIso() ? monthEnd(ui.month) : todayIso()), cm0 = s.cov.tiers.C.monthly, need = [...A, ...B].reduce((t, x) => t + x.still, 0) + (cm0 ? Math.ceil(Math.max(0, cm0.target - cm0.fresh) - 1e-9) : 0);
-      const cm = s.cov.tiers.C.monthly, cNeed = cm ? Math.max(0, cm.target - cm.fresh) : 0, cMore = Math.ceil(cNeed - 1e-9);
-      const a2 = A.filter(x => x.cur.got).length, a0 = A.length - a2;
-      const parts = [a2 ? `${a2} A account${a2 === 1 ? '' : 's'} need${a2 === 1 ? 's' : ''} a 2nd visit` : '', a0 ? `${a0} A not visited yet` : '', B.length ? `${B.length} B not visited yet` : '', cMore ? `${cMore} more C this month (target ${num(cm.target)})` : ''].filter(Boolean);
-      return `<div class="pace${need ? '' : ' done'}"><span class="pace-ic" aria-hidden="true">${need ? '⏱' : '✓'}</span><span><b>${need ? `${left} working day${left === 1 ? '' : 's'} left` : 'Everything due this month is done'}</b>${parts.length ? ' · ' + esc(parts.join(' · ')) : ''}${need && left ? ` — <b>about ${Math.ceil(need / left)} visit${Math.ceil(need / left) === 1 ? '' : 's'} a day</b> keeps you on track` : ''}</span><button type="button" class="cardx" data-hide="pace" aria-label="Hide this for today" title="Hide for today">×</button></div>`;
+      if (!curOpen || hiddenToday('pace')) return ''; const f = paceFacts(s); if (!f) return '';
+      return `<div class="pace${f.need ? '' : ' done'}"><span class="pace-ic" aria-hidden="true">${f.need ? '⏱' : '✓'}</span><span><b>${f.need ? `${f.left} working day${f.left === 1 ? '' : 's'} left` : 'Everything due this month is done'}</b>${f.parts.length ? ' · ' + esc(f.parts.join(' · ')) : ''}${f.perDay ? ` — <b>about ${f.perDay} visit${f.perDay === 1 ? '' : 's'} a day</b> keeps you on track` : ''}</span><button type="button" class="cardx" data-hide="pace" aria-label="Hide this for today" title="Hide for today">×</button></div>`;
     }
 function wireTodayCard(el){
   if ($('#gbX')) $('#gbX').onclick = () => { hideToday('today'); $('#goBrief').remove(); toast('Hidden for today'); };
@@ -5454,45 +5526,69 @@ function planRowHtml(p, past){
   const busy = ui.briefBusy || {};
   const chip = busy[p.id] ? '<span class="st due">Go is researching…</span>' : p.briefAt ? '<span class="st ok">Brief ready ✓</span>' : p.lastError ? `<span class="st miss" title="${esc(p.lastError)}">${esc(/free plan/i.test(p.lastError) ? 'Web research not in the free plan' : /used up|allowance|quota/i.test(p.lastError) ? 'Free research used up — try later' : /daily limit/.test(p.lastError) ? 'Daily limit — try tomorrow' : /No email/.test(p.lastError) ? 'Brief ready — no email on your profile' : 'Brief failed — try again')}</span>` : '';
   const logged = past && data.visits.some(v => v.ae === ui.me && v.date === p.date && splitAccts(v.accounts).some(a => canon(a) === canon(p.account)));
-  return `<li class="planrow"><span class="pldate"><b>${p.time ? esc(p.time) : 'Any time'}</b>${p.purpose ? `<small>${esc(p.purpose)}</small>` : ''}</span>
-    <span class="plmain"><button type="button" class="cname" data-client="${esc(p.account)}">${esc(p.account)}</button>${p.source === 'calendar' ? `<small class="plcal" title="${esc(p.note || '')}">📅 From your calendar${/couldn’t check/.test(p.note || '') ? ' · check it’s in person' : ''}</small>` : p.note ? `<small class="hint">${esc(p.note)}</small>` : ''}</span>
+  const cat = catFor(ui.me, p.account), tone = past ? (logged ? 'ok' : 'due') : p.briefAt ? 'ok' : p.source === 'calendar' ? 'cal' : '';
+  const meta = [TIERS.includes(cat) ? `<span class="badge ${cat}">${cat}</span>` : '', p.purpose ? `<span class="plpur">${esc(p.purpose)}</span>` : '',
+    p.source === 'calendar' ? `<span class="plcal" title="${esc(p.note || '')}">📅 From your calendar${/couldn’t check/.test(p.note || '') ? ' · check it’s in person' : ''}</span>` : p.note ? `<span class="plnote">${esc(p.note)}</span>` : ''].filter(Boolean).join('');
+  return `<li class="planrow${tone ? ' t-' + tone : ''}"><span class="pldate">${p.time ? `<b>${esc(p.time)}</b>` : '<b class="any">Any time</b>'}</span><span class="plrail" aria-hidden="true"></span>
+    <span class="plmain"><button type="button" class="cname" data-client="${esc(p.account)}">${esc(p.account)}</button>${meta ? `<span class="plmeta">${meta}</span>` : ''}</span>
     <span class="plstat">${past ? (logged ? '<span class="st ok">Logged ✓</span>' : '<span class="st due">Not logged yet</span>') : chip}</span>
     <span class="plbtns">${past ? (logged ? '' : `<button type="button" class="btn sm primary" data-pllog="${esc(p.id)}">Log this visit</button>`) : ''}${p.briefAt || past ? `<button type="button" class="btn sm" data-plbrief="${esc(p.id)}">Brief</button>` : `<button type="button" class="btn sm primary" data-plget="${esc(p.id)}"${busy[p.id] ? ' disabled' : ''}>${busy[p.id] ? 'Researching…' : 'Get brief'}</button>`}${past ? '' : `<button type="button" class="tdbtn" data-pledit="${esc(p.id)}" title="Change" aria-label="Change plan: ${esc(p.account)}">${ICO.edit}</button><button type="button" class="tdbtn" data-plx="${esc(p.id)}" title="${p.source === 'calendar' ? 'Not an in-person visit — remove it' : 'Cancel this visit'}" aria-label="${p.source === 'calendar' ? 'Remove' : 'Cancel plan'}: ${esc(p.account)}">×</button>`}</span></li>`;
 }
+// The next N working days (Mon–Fri) from today — the week planner's tiles.
+function planStripDays(n){ const out = []; let d = todayIso(); while (out.length < n) { if (![0, 6].includes(new Date(d + 'T00:00:00').getDay())) out.push(d); d = addDays(d, 1); } return out; }
+// Plan visits (redesigned 25 Oct): Your day → "Plan your week" (how far your plans cover what's still needed + a day-by-day
+// planner) → the agenda as a timeline (all, or the day picked) → Go's route → who still needs you → last week's plans to log.
 function renderPlanPage(){
   const el = $('#v-plan'); if (!el) return;
   if (!ui.me) { el.innerHTML = ''; return; }
   const t0 = todayIso(), tmr = addDays(t0, 1), list = myPlans();
   const past = (data.plans || []).filter(p => p.ae === ui.me && p.status === 'planned' && p.date < t0 && p.date >= addDays(t0, -7)).sort((a, b) => b.date.localeCompare(a.date));
-  const days = [...new Set(list.map(p => p.date))];
-  const dayLabel = d => d === t0 ? 'Today' : d === tmr ? 'Tomorrow' : `${dayName(d)} ${fmtLong(d).replace(/ \d{4}$/, '')}`;
+  const dayLabel = d => d === t0 ? 'Today' : d === tmr ? 'Tomorrow' : `${DAYS_LONG[new Date(d + 'T00:00:00').getDay()]} ${fmtLong(d).replace(/ \d{4}$/, '')}`;
   const planned = new Set(list.map(p => canon(p.account)));
-  let due = []; try { const cov = coverageFor(ui.me, t0.slice(0, 8) + '01', t0); due = (cov.accts || []).filter(x => !x.cur.met && ['A', 'B'].includes(x.tier) && !planned.has(canon(x.a.account))).sort((x, y) => x.tier.localeCompare(y.tier) || x.a.account.localeCompare(y.a.account)); } catch(e){}
+  let cov = null, due = []; try { cov = coverageFor(ui.me, t0.slice(0, 8) + '01', t0); due = (cov.accts || []).filter(x => !x.cur.met && ['A', 'B'].includes(x.tier) && !planned.has(canon(x.a.account))).sort((x, y) => x.tier.localeCompare(y.tier) || x.a.account.localeCompare(y.a.account)); } catch(e){}
   const late = new Date().getHours() >= 15; let nx = late ? addDays(t0, 1) : t0; while ([0, 6].includes(new Date(nx + 'T00:00:00').getDay())) nx = addDays(nx, 1);
   let route = null; try { route = planSuggestion(new Set([...planned])); } catch(e){}
   const whenTxt = nx === t0 ? 'today' : nx === tmr ? 'tomorrow' : DAYS_LONG[new Date(nx + 'T00:00:00').getDay()];
   ui.routeStops = route ? {date: nx, stops: route.stops.map(y => ({account: y.x.a.account, id: y.x.a.id}))} : null;
   if (route) { const inRoute = new Set(route.stops.map(y => canon(y.x.a.account))); due = due.filter(x => !inRoute.has(canon(x.a.account))); }   // no account twice on the page
-  let pace = ''; { const m0 = ui.month; ui.month = t0.slice(0, 7); try { const st = statsFor(ui.me, visitsInMonth()); pace = paceHtml(st, true); } catch(e){} finally { ui.month = m0; } }
+  let pf = null; { const m0 = ui.month; ui.month = t0.slice(0, 7); try { pf = paceFacts(statsFor(ui.me, visitsInMonth())); } catch(e){} finally { ui.month = m0; } }
+  // how much of what's still needed this month the plans already cover (each still-due account planned this month counts its visits still needed, at most)
+  const stillBy = new Map((cov && cov.accts || []).filter(x => !x.cur.met && x.cur.open).map(x => [canon(x.a.account), x.still || 1]));
+  const monthPlans = list.filter(p => p.date.slice(0, 7) === t0.slice(0, 7)), covered = [...new Set(monthPlans.map(p => canon(p.account)))].reduce((t, k) => t + Math.min(stillBy.get(k) || 0, monthPlans.filter(p => canon(p.account) === k).length), 0);
+  const strip = planStripDays(10); if (ui.planDay && !strip.includes(ui.planDay)) ui.planDay = '';
+  const sel = ui.planDay || '', shown = sel ? list.filter(p => p.date === sel) : list, days = [...new Set(shown.map(p => p.date))];
+  const briefs = list.filter(p => p.briefAt).length, defDay = sel || nx;
+  const tile = d => { const n = list.filter(p => p.date === d).length, dt = new Date(d + 'T00:00:00');
+    return `<button type="button" class="pday${d === sel ? ' on' : ''}${d === t0 ? ' today' : ''}${n ? ' has' : ''}" data-plday="${d}" aria-pressed="${d === sel}" aria-label="${esc(dayLabel(d))}: ${n} visit${n === 1 ? '' : 's'} planned"><small>${d === t0 ? 'Today' : DAYS[dt.getDay()]}</small><b>${dt.getDate()}</b><span class="pdots">${n ? '<i></i>'.repeat(Math.min(n, 3)) + (n > 3 ? `<em>+${n - 3}</em>` : '') : ''}</span></button>`; };
+  const meter = pf && pf.need ? `<div class="plmeter"><div class="plmeter-t"><span><b>${covered}</b> of <b>${pf.need}</b> visit${pf.need === 1 ? '' : 's'} still needed this month ${covered ? 'are planned' : 'planned so far'}</span><span class="hint">${pf.left} working day${pf.left === 1 ? '' : 's'} left${pf.perDay ? ` · about ${pf.perDay} a day keeps you on track` : ''}</span></div><div class="plbar"><i style="width:${Math.min(100, Math.round(100 * covered / pf.need))}%"></i></div>${pf.parts.length ? `<div class="plneed hint">${esc(pf.parts.join(' · '))}</div>` : ''}</div>`
+    : pf ? '<div class="plmeter done"><b>✓ Everything due this month is done</b> <span class="hint">— plan ahead for next month, or follow up where it matters.</span></div>' : '';
+  const emptyDay = sel ? `<div class="plempty"><div class="plempty-ic" aria-hidden="true">🗓️</div><b>Nothing planned for ${esc(dayLabel(sel))}</b><span class="hint">${due.length ? 'Quick add one of the accounts that still need you:' : 'Plan a visit for this day.'}</span>${due.length ? `<div class="plsugg">${due.slice(0, 4).map(x => `<button type="button" class="chipq" data-plsug="${esc(x.a.account)}" data-plid="${esc(x.a.id)}"><span class="badge ${x.tier}">${x.tier}</span> ${esc(x.a.account)}</button>`).join('')}</div>` : ''}<button type="button" class="btn primary" data-pladdday="${sel}">+ Plan a visit for ${esc(dayLabel(sel))}</button></div>`
+    : '<div class="plempty"><div class="plempty-ic" aria-hidden="true">🗓️</div><b>Nothing planned yet</b><span class="hint">Plan a visit up to 30 days ahead, then tap Get brief for Go’s research.</span></div>';
+  const lastOf = a => { const ds = [...(visitDatesFor(ui.me).get(canon(a)) || [])].filter(d => d <= t0).sort(); return ds[ds.length - 1] || ''; };
+  const dueCol = (tier, title) => { const xs = due.filter(x => x.tier === tier); return xs.length ? `<div class="pldue"><h4 class="plday"><span class="badge ${tier}">${tier}</span> ${esc(title)} · ${xs.length}</h4><div class="plsugg">${xs.slice(0, ui.planDueAll ? 99 : 8).map(x => { const l = lastOf(x.a.account); return `<button type="button" class="chipq plchip" data-plsug="${esc(x.a.account)}" data-plid="${esc(x.a.id)}"><span>${esc(x.a.account)}</span><small>${l ? 'last ' + esc(fmtDate(l)) : 'never visited'}</small></button>`; }).join('')}${xs.length > 8 && !ui.planDueAll ? `<button type="button" class="plmore" data-plmore>+${xs.length - 8} more</button>` : ''}</div></div>` : ''; };
   el.innerHTML = `<div class="pagecol planpage">
     ${todayCard(true)}
-    ${pace}
-    <div class="card planhero"><div><h2>Plan your visits</h2><p class="hint">Plan who you’re seeing. Tap <b>Get brief</b> on a visit and Go researches the company on Google — what they do, recent news, what TMC can sell them, who to meet — and emails you the brief.</p><div class="plcalline" id="plCalLine"></div></div><button type="button" class="btn primary" id="plAdd">Plan a visit</button></div>
-    ${route ? `<div class="card plancard routecard"><div class="head"><h2>Suggested route for ${esc(whenTxt)}</h2><span class="hint">${route.stops.length === 1 ? 'your most urgent still-due account' : route.stops.length + ' still-due accounts close together'}${route.left > route.stops.length ? ` · ${route.left} due in all` : ''}</span></div><div class="body">
-      <div class="tplanl">${route.stops.map((y, i) => `<span class="planc"><span class="seq sm">${i + 1}</span><button type="button" class="cname" data-client="${esc(y.x.a.account)}">${esc(y.x.a.account)}</button><span class="badge ${y.x.tier}">${y.x.tier}</span><small>${y.last ? 'last ' + esc(fmtDate(y.last)) : 'not visited yet'}${y.km ? ' · ' + y.km.toFixed(1) + ' km away' : ''}</small></span>`).join('')}</div>
+    <div class="card planhero"><div class="plhero-top"><div><div class="eyebrow">Plan visits</div><h2>Plan your <em class="goname">week</em></h2><p class="hint">${list.length ? `${list.length} visit${list.length === 1 ? '' : 's'} planned${briefs ? ` · ${briefs} brief${briefs === 1 ? '' : 's'} ready` : ''}` : 'Pick a day, plan who you’re seeing, and tap Get brief for Go’s homework on the company.'}</p></div><button type="button" class="btn primary" id="plAdd">+ Plan a visit</button></div>
+      ${hiddenToday('pace') ? '' : meter}
+      <div class="pdays" role="group" aria-label="Pick a day"><button type="button" class="pday all${sel ? '' : ' on'}" data-plday="" aria-pressed="${!sel}"><small>All</small><b>${list.length}</b><span class="pdots"></span></button>${strip.map(tile).join('')}</div>
+      <div class="plcalline" id="plCalLine"></div></div>
+    <div class="card plancard agenda"><div class="head"><h2>${sel ? esc(dayLabel(sel)) : 'Coming up'}</h2><span class="hint">${shown.length ? `${shown.length} visit${shown.length === 1 ? '' : 's'} planned` : ''}</span>${sel ? `<button type="button" class="linkbtn" data-plday="">Show all days</button>` : ''}</div><div class="body">
+      ${shown.length ? days.map(d => `${sel ? '' : `<h4 class="plday">${esc(dayLabel(d))}</h4>`}<ul class="planlist">${shown.filter(p => p.date === d).map(p => planRowHtml(p, false)).join('')}</ul>`).join('') : emptyDay}
+    </div></div>
+    ${route ? `<div class="card plancard routecard"><div class="head"><h2>Go’s route for ${esc(whenTxt)}</h2><span class="hint">${route.stops.length === 1 ? 'your most urgent still-due account' : route.stops.length + ' still-due accounts close together'}${route.left > route.stops.length ? ` · ${route.left} due in all` : ''}</span></div><div class="body">
+      <ol class="rtline"><li class="rtoff"><span class="rtdot" aria-hidden="true"></span><span>Your office</span></li>${route.stops.map((y, i) => `<li class="planc"><span class="rtname"><span class="seq sm">${i + 1}</span><button type="button" class="cname" data-client="${esc(y.x.a.account)}">${esc(y.x.a.account)}</button><span class="badge ${y.x.tier}">${y.x.tier}</span></span><small>${y.last ? 'last ' + esc(fmtDate(y.last)) : 'not visited yet'}${y.km ? ' · ' + y.km.toFixed(1) + ' km from the first stop' : ''}</small></li>`).join('')}</ol>
       <div class="rtact"><button type="button" class="btn primary" id="plRoute">Plan ${route.stops.length === 1 ? 'this visit' : 'these ' + route.stops.length + ' visits'} for ${esc(whenTxt)}</button><a class="btn" href="${esc(route.url)}" target="_blank" rel="noopener">Route in Google Maps</a></div>
       </div></div>` : ''}
-    <div class="card plancard"><div class="head"><h2>Coming up</h2><span class="hint">${list.length ? `${list.length} visit${list.length === 1 ? '' : 's'} planned` : ''}</span></div><div class="body">
-      ${list.length ? days.map(d => `<h4 class="plday">${esc(dayLabel(d))}</h4><ul class="planlist">${list.filter(p => p.date === d).map(p => planRowHtml(p, false)).join('')}</ul>`).join('')
-        : '<p class="hint" style="margin:0">Nothing planned yet. Plan a visit up to 30 days ahead, then tap Get brief for Go’s research.</p>'}
-    </div></div>
-    ${due.length ? `<div class="card plancard"><div class="head"><h2>Still due this month, not planned</h2></div><div class="body"><div class="plsugg">${due.slice(0, 10).map(x => `<button type="button" class="chipq" data-plsug="${esc(x.a.account)}" data-plid="${esc(x.a.id)}"><span class="badge ${x.tier}">${x.tier}</span> ${esc(x.a.account)}</button>`).join('')}</div><p class="hint" style="margin:8px 0 0">Tap one to plan it.</p></div></div>` : ''}
-    ${past.length ? `<div class="card plancard"><div class="head"><h2>Last week’s plans</h2></div><div class="body">${[...new Set(past.map(p => p.date))].map(d => `<h4 class="plday">${esc(dayName(d) + ' ' + fmtLong(d).replace(/ \d{4}$/, ''))}</h4><ul class="planlist">${past.filter(p => p.date === d).map(p => planRowHtml(p, true)).join('')}</ul>`).join('')}</div></div>` : ''}
+    ${due.length ? `<div class="card plancard duecard"><div class="head"><h2>Still needs you this month</h2><span class="hint">not planned yet · tap one to plan it for ${esc(/^(Today|Tomorrow)$/.test(dayLabel(defDay)) ? dayLabel(defDay).toLowerCase() : dayLabel(defDay))}</span></div><div class="body plduegrid">${dueCol('A', 'Two visits a month')}${dueCol('B', 'One visit a month')}</div></div>` : ''}
+    ${past.length ? `<div class="card plancard"><div class="head"><h2>Did these happen?</h2><span class="hint">last week’s plans — log the ones you visited</span></div><div class="body">${[...new Set(past.map(p => p.date))].map(d => `<h4 class="plday">${esc(dayName(d) + ' ' + fmtLong(d).replace(/ \d{4}$/, ''))}</h4><ul class="planlist">${past.filter(p => p.date === d).map(p => planRowHtml(p, true)).join('')}</ul>`).join('')}</div></div>` : ''}
   </div>`;
-  $('#plAdd').onclick = () => planDialog({}); paintCalLine(); wireTodayCard(el);
+  $('#plAdd').onclick = () => planDialog(sel ? {date: sel} : {}); paintCalLine(); wireTodayCard(el);
+  $$('[data-plday]', el).forEach(b => b.onclick = () => { ui.planDay = b.dataset.plday; renderPlanPage(); });
+  $$('[data-plmore]', el).forEach(b => b.onclick = () => { ui.planDueAll = true; renderPlanPage(); });
+  $$('[data-pladdday]', el).forEach(b => b.onclick = () => planDialog({date: b.dataset.pladdday}));
   $$('[data-hide]', el).forEach(b => b.onclick = () => { hideToday(b.dataset.hide); renderPlanPage(); toast('Hidden for today'); });
   const pr = $('#plRoute'); if (pr) pr.onclick = () => planRoute(pr);
-  $$('[data-plsug]', el).forEach(b => b.onclick = () => planDialog({account: b.dataset.plsug, accountId: b.dataset.plid}));
+  $$('[data-plsug]', el).forEach(b => b.onclick = () => planDialog({account: b.dataset.plsug, accountId: b.dataset.plid, date: defDay}));
   $$('[data-plbrief]', el).forEach(b => b.onclick = () => { const p = data.plans.find(x => x.id === b.dataset.plbrief); if (p) briefSheet({account: p.account, plan: p}); });
   $$('[data-plget]', el).forEach(b => b.onclick = async () => { const p = data.plans.find(x => x.id === b.dataset.plget); if (!p) return; const r = await requestBrief(p); if (r && r.plan && r.plan.briefAt && !r.error) briefSheet({account: p.account, plan: data.plans.find(x => x.id === p.id) || p}); });
   $$('[data-pledit]', el).forEach(b => b.onclick = () => { const p = data.plans.find(x => x.id === b.dataset.pledit); if (p) planDialog(p); });
@@ -5551,7 +5647,7 @@ async function briefSheet(o){
     ...(H.opps || []).map(x => `Opportunity: ${esc(x.what)} <span class="st due">${esc(x.stage)}</span>`), ...(H.followups || []).map(f => `Your open follow-up: ${esc(f.task)}${f.due ? ' (' + esc(fmtLong(f.due)) + ')' : ''}`),
     H.note ? `Your note: ${esc(H.note)}` : '', H.contact ? `Contact on file: ${esc([H.contact.name, H.contact.role, H.contact.phone, H.contact.email].filter(Boolean).join(' · '))}` : ''].filter(Boolean);
   const people = (d.people || []).map(x => `<b>${esc(x.name)}</b> — ${esc(x.title)}${srcLink(x.url)} · ${liSearch(x.name + ' ' + company)}`);
-  ['Head of IT', 'CFO'].forEach(role => { if (!(d.people || []).some(x => new RegExp(role === 'CFO' ? 'CFO|finance' : 'IT|CIO|technology|digital', 'i').test(x.title))) people.push(`${role}: not found in public sources — ${liSearch(role + ' ' + company, 'search LinkedIn')}`); });
+  ['Head of IT', 'CFO'].forEach(role => { if (!(d.people || []).some(x => (role === 'CFO' ? /CFO|finance/i : /\bIT\b|\bCIO\b|\bCTO\b|technology|digital|information/).test(String(x.title || '')))) people.push(`${role}: not found in public sources — ${liSearch(role + ' ' + company, 'search LinkedIn')}`); });
   const me = aeByName(ui.me) || {}, to = H.contact && H.contact.email || '', ce = d.confirmEmail || {};
   const gmail = `https://mail.google.com/mail/?view=cm&fs=1${me.email ? '&authuser=' + encodeURIComponent(me.email) : ''}${to ? '&to=' + encodeURIComponent(to) : ''}&su=${encodeURIComponent(ce.subject || '')}&body=${encodeURIComponent(ce.body || '')}`;
   const body = !R ? `<div class="banner">${plan ? 'Go hasn’t researched this company yet.' : 'No research for this company yet — plan a visit and Go will research it.'}</div>`
@@ -5566,9 +5662,9 @@ async function briefSheet(o){
       ${ce.subject || ce.body ? sec('Confirm the meeting', `<p style="margin:0 0 8px">${esc(ce.subject || '')}</p><a class="btn sm" href="${esc(gmail)}" target="_blank" rel="noopener">Open the draft in your Gmail</a>${to ? '' : ' <span class="hint">add the client’s email</span>'}`) : ''}
       ${sec('Sources', ul((R.sources || []).slice(0, 10).map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title || 'source')}</a>`)))}`;
   $('#mBody').innerHTML = `${o.back ? '<button type="button" class="linkbtn" id="brBack">← Back to the client</button>' : ''}${body}${sec(`TMC &amp; ${esc(company)}`, ul(hist))}
-    ${plan ? `<div class="csact"><button type="button" class="btn${R ? '' : ' primary'}" id="brRun">${R ? 'Refresh research' : 'Research now'}</button><span class="hint">${R ? 'Searches Google again (counts toward your 5 a day).' : ''}</span></div>` : ''}`;
+    ${plan ? `<div class="csact"><button type="button" class="btn${R ? '' : ' primary'}" id="brRun">${R ? 'Refresh research' : 'Research now'}</button><span class="hint">${R ? 'Searches Google again (counts toward your daily research limit).' : ''}</span></div>` : ''}`;
   if ($('#brBack')) $('#brBack').onclick = () => o.back();
-  if ($('#brRun')) $('#brRun').onclick = async e => { const bt = e.currentTarget; bt.disabled = true; bt.textContent = 'Go is researching… (about a minute)'; const res = await requestBrief(plan, !!R); if ($('#modal').classList.contains('open') && res && !res.error) briefSheet(o); else bt.disabled = false; };
+  if ($('#brRun')) $('#brRun').onclick = async e => { const bt = e.currentTarget; bt.disabled = true; bt.textContent = 'Go is researching… (about a minute)'; const res = await requestBrief(plan, !!R); if ($('#modal').classList.contains('open') && res && !res.error) briefSheet(o); else { bt.disabled = false; bt.textContent = R ? 'Refresh research' : 'Research now'; } };
 }
 async function aiAddPlan(i){
   const m = ai.msgs[i]; if (!m || !m.action || !m.action.plan || m.done || m.busy) return; m.busy = true;
