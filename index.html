@@ -2040,6 +2040,7 @@ body a.btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width
 .planhero h2{margin:0 0 4px;font-size:20px} .planhero .hint{margin:0;max-width:560px}
 .plday{margin:12px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--n-500)} .plday:first-child{margin-top:0}
 .plsugg{display:flex;flex-wrap:wrap;gap:8px}
+.planpage .gobrief{margin:0} .planpage .pace{margin:0} .routecard .tplanl{display:flex;flex-wrap:wrap;gap:8px 16px} .rtact{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .plcal{color:var(--b-600);font-size:12px;font-weight:600} .plcalline{margin-top:8px;font-size:13px} .plcalline .hint{font-size:13px}
 @media (max-width:760px){ .planhero{flex-direction:column;align-items:stretch} body.has-plan .tabbar button span:not(.tbav):not(.ggo){font-size:10px} }
 /* Visit prep: planned visits + the brief */
@@ -2047,7 +2048,7 @@ body a.btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width
 .planlist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .planrow{display:grid;grid-template-columns:92px minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:8px 10px;border:1px solid var(--edge);border-radius:14px;background:var(--n-0)}
 .pldate{display:flex;flex-direction:column;line-height:1.2} .pldate small{color:var(--n-500)}
-.plmain{display:flex;flex-direction:column;min-width:0} .plmain .cname{text-align:left;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plmain{display:flex;flex-direction:column;min-width:0} .plmain .cname{text-align:left;font-weight:650;white-space:normal;overflow-wrap:anywhere}
 .plbtns{display:flex;gap:6px;align-items:center}
 @media (max-width:760px){ .planrow{grid-template-columns:1fr auto} .plstat{grid-column:1 / -1} .plbtns{grid-column:2;grid-row:1} }
 .brbox{margin-top:10px} .brbox h4{margin:0 0 6px} .brbox h4 small{font-weight:500}
@@ -2388,7 +2389,7 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-25 07:30 · production';
+const BUILD = '2026-10-25 08:30 · production';
 const NEEDS_BACKEND = 52;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
@@ -3304,7 +3305,7 @@ function renderLogPage(){
   const editing = !!form.editId; const editDay = editing ? data.visits.find(v=>v.id===form.editId) : null;
   const city = aeCities(ui.me)[0] || '';
   const purposes = purposeList();
-  el.innerHTML = `${!editing ? todayCard() : ''}
+  el.innerHTML = `${!editing && !prepOn() ? todayCard() : ''}
   <div class="card logcard">
     <div class="head hello"><div class="who">${avatar(ui.me, 44)}<div><h2>${esc(greeting())}, ${esc(shortName(ui.me).split(' ')[0])} ${greetEmoji()}</h2><div class="hint">${esc(['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()])}, ${esc(fmtLong(todayIso()))}${esc([aeByName(ui.me)?.title, city].filter(Boolean).map(x => ' · ' + x).join(''))}${monthPulse()}</div>${editing ? `<span class="sub hellosub">Editing ${fmtDate(editDay ? editDay.date : '')} — change the visits below and save; the day\u2019s kilometres are recalculated.</span>` : ''}</div></div>
       <span class="spacer"></span>${editing ? '<button class="btn sm" id="fCancel">Cancel</button>' : `<div class="htools"><button type="button" class="hbtn" id="fMyAccounts" title="My accounts — everyone on your list, with your notes" aria-label="My accounts"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h12a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2z"/><path d="M8 8h6M8 12h6"/></svg><span>Accounts</span></button></div>`}</div>
@@ -3348,9 +3349,7 @@ function renderLogPage(){
   <div class="card monthcard"><div class="head"><h2>Your month</h2>${monthPickHtml('mpLog')}</div><div class="body" id="myMonth"></div></div>
   <section class="daysfeed" id="myDays" aria-label="Your visits, day by day"></section>`;
   $('#mpLog').onchange = e => { setMonth(e.target.value); renderLog(); };
-  if ($('#gbX')) $('#gbX').onclick = () => { hideToday('today'); $('#goBrief').remove(); toast('Hidden for today'); };
-  if ($('#gbTodo')) $('#gbTodo').onclick = () => goTab('todo');
-  if ($('#gbPlan')) $('#gbPlan').onclick = () => { aiOpen(); const i = $('#aiIn'); if (i && aiReady()) { i.value = 'Plan my day — which of my accounts should I visit today, and in what order?'; autoGrow(i); i.focus(); } };
+  wireTodayCard(el);
   form.lines.forEach(l => {
     if (!l.client) { const inp = $('#lin-'+l.key); const holder = []; attachPicker(inp, $('#lmn-'+l.key), ui.me, holder, info => { l.client = holder[holder.length-1]; l.typed = (info && info.typed) || ''; l.forced = !!(info && info.isNew); if (!(l.purposes||[]).length) { const lp = lastPurposeFor(l.client); if (lp) { l.purposes = splitPurposes(lp); l.prefilled = true; } } renderLog(); const nxt = $('select[data-lp="'+l.key+'"]'); if (nxt) nxt.focus(); }); }
   });
@@ -3846,15 +3845,7 @@ function renderMyMonth(){
         ${s.measured ? `<div class="mtiers">${TIERS.filter(t => s.tiers[t].assigned).map(t => { const x = s.tiers[t], pc = x.pct ?? 0; return `<div class="mtr"><span class="badge ${t}">${t}</span><span class="mbar"><i class="${pc >= 70 ? 'ok' : pc >= 40 ? 'mid' : 'low'}" style="width:${Math.max(pc, x.visited ? 4 : 0)}%"></i></span><span class="mtn"><b>${x.visited}</b>/${x.assigned}</span></div>`; }).join('') || '<span class="hint">Nothing due in this month</span>'}</div>` : '<span class="hint">Visits still count below</span>'}
       </div>
     </div>
-    ${(() => {   // pace: what the rest of this month needs (current month only)
-      if (!curOpen || !s.measured || hiddenToday('pace')) return '';
-      const A = s.cov.accts.filter(x => x.tier === 'A' && !x.cur.met), B = s.cov.accts.filter(x => x.tier === 'B' && !x.cur.met), C = s.cov.accts.filter(x => x.tier === 'C' && !x.cur.met);
-      const left = workingDaysLeft(monthRange().to === todayIso() ? monthEnd(ui.month) : todayIso()), cm0 = s.cov.tiers.C.monthly, need = [...A, ...B].reduce((t, x) => t + x.still, 0) + (cm0 ? Math.ceil(Math.max(0, cm0.target - cm0.fresh) - 1e-9) : 0);
-      const cm = s.cov.tiers.C.monthly, cNeed = cm ? Math.max(0, cm.target - cm.fresh) : 0, cMore = Math.ceil(cNeed - 1e-9);
-      const a2 = A.filter(x => x.cur.got).length, a0 = A.length - a2;
-      const parts = [a2 ? `${a2} A account${a2 === 1 ? '' : 's'} need${a2 === 1 ? 's' : ''} a 2nd visit` : '', a0 ? `${a0} A not visited yet` : '', B.length ? `${B.length} B not visited yet` : '', cMore ? `${cMore} more C this month (target ${num(cm.target)})` : ''].filter(Boolean);
-      return `<div class="pace${need ? '' : ' done'}"><span class="pace-ic" aria-hidden="true">${need ? '⏱' : '✓'}</span><span><b>${need ? `${left} working day${left === 1 ? '' : 's'} left` : 'Everything due this month is done'}</b>${parts.length ? ' · ' + esc(parts.join(' · ')) : ''}${need && left ? ` — <b>about ${Math.ceil(need / left)} visit${Math.ceil(need / left) === 1 ? '' : 's'} a day</b> keeps you on track` : ''}</span><button type="button" class="cardx" data-hide="pace" aria-label="Hide this for today" title="Hide for today">×</button></div>`;
-    })()}
+    ${prepOn() ? '' : paceHtml(s, curOpen)}
     <div class="mstats">
       <div class="mstat drillable" data-drill="visits" data-scope="month" role="button" tabindex="0" title="See the list behind this number"><div class="l">Visits</div><div class="v">${s.totalVisits}</div><div class="d">${s.totalAccounts} client${s.totalAccounts===1?'':'s'}</div></div>
       <div class="mstat drillable" data-drill="netnew" data-scope="month" role="button" tabindex="0" title="See the list behind this number"><div class="l">Net new</div><div class="v">${s.netNew.accounts}</div><div class="d">${s.netNew.visits} visit${s.netNew.visits===1?'':'s'}</div></div>
@@ -3978,7 +3969,23 @@ function addClientToForm(company, date){
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-client]'); if (!b || !b.isConnected || b.closest('#mBody')) return; e.preventDefault(); clientSheet(b.dataset.client, b.dataset.cae || ''); });
 // The Today card: today's follow-ups, the account gone quietest, the last day logged, and the plan (still-due accounts
 // close together, with a route) — one card at the top of the Log page, closed for the day with ×.
-function todayCard(){
+// pace: what the rest of this month needs (current month only) — on Plan visits for people who have it, else under Your month
+function paceHtml(s, curOpen){
+      if (!curOpen || !s.measured || hiddenToday('pace')) return '';
+      const A = s.cov.accts.filter(x => x.tier === 'A' && !x.cur.met), B = s.cov.accts.filter(x => x.tier === 'B' && !x.cur.met), C = s.cov.accts.filter(x => x.tier === 'C' && !x.cur.met);
+      const left = workingDaysLeft(monthRange().to === todayIso() ? monthEnd(ui.month) : todayIso()), cm0 = s.cov.tiers.C.monthly, need = [...A, ...B].reduce((t, x) => t + x.still, 0) + (cm0 ? Math.ceil(Math.max(0, cm0.target - cm0.fresh) - 1e-9) : 0);
+      const cm = s.cov.tiers.C.monthly, cNeed = cm ? Math.max(0, cm.target - cm.fresh) : 0, cMore = Math.ceil(cNeed - 1e-9);
+      const a2 = A.filter(x => x.cur.got).length, a0 = A.length - a2;
+      const parts = [a2 ? `${a2} A account${a2 === 1 ? '' : 's'} need${a2 === 1 ? 's' : ''} a 2nd visit` : '', a0 ? `${a0} A not visited yet` : '', B.length ? `${B.length} B not visited yet` : '', cMore ? `${cMore} more C this month (target ${num(cm.target)})` : ''].filter(Boolean);
+      return `<div class="pace${need ? '' : ' done'}"><span class="pace-ic" aria-hidden="true">${need ? '⏱' : '✓'}</span><span><b>${need ? `${left} working day${left === 1 ? '' : 's'} left` : 'Everything due this month is done'}</b>${parts.length ? ' · ' + esc(parts.join(' · ')) : ''}${need && left ? ` — <b>about ${Math.ceil(need / left)} visit${Math.ceil(need / left) === 1 ? '' : 's'} a day</b> keeps you on track` : ''}</span><button type="button" class="cardx" data-hide="pace" aria-label="Hide this for today" title="Hide for today">×</button></div>`;
+    }
+function wireTodayCard(el){
+  if ($('#gbX')) $('#gbX').onclick = () => { hideToday('today'); $('#goBrief').remove(); toast('Hidden for today'); };
+  if ($('#gbTodo')) $('#gbTodo').onclick = () => goTab('todo');
+  if ($('#gbPlan')) $('#gbPlan').onclick = () => { aiOpen(); const i = $('#aiIn'); if (i && aiReady()) { i.value = 'Plan my day — which of my accounts should I visit today, and in what order?'; autoGrow(i); i.focus(); } };
+  $$('#goBrief .cname[data-client]', el).forEach(b => b.onclick = () => clientSheet(b.dataset.client));
+}
+function todayCard(onPlan){
   if (!ui.me || hiddenToday('today')) return '';
   const today = todayIso(), late = new Date().getHours() >= 15;
   const fo = myFollowups().filter(f => f.status !== 'done'), fToday = fo.filter(f => f.dueDate === today).length, fLate = fo.filter(f => f.dueDate && f.dueDate < today).length;
@@ -3986,7 +3993,7 @@ function todayCard(){
   if (fToday || fLate) items.push(['todo', [fToday ? `<b>${fToday} follow-up${fToday === 1 ? '' : 's'} today</b>` : '', fLate ? `<span class="bad">${fLate} overdue follow-up${fLate === 1 ? '' : 's'}</span>` : ''].filter(Boolean).join(' · ')]);
   if (hasFixedBook(ui.me)) {
     const cov = coverageFor(ui.me, today.slice(0, 7) + '-01', today), A = cov.accts.filter(x => x.tier === 'A' && !x.cur.met).length, B = cov.accts.filter(x => x.tier === 'B' && !x.cur.met).length, left = workingDaysLeft(monthEnd(today.slice(0, 7)));
-    if ((A || B) && (ui.month !== today.slice(0, 7) || hiddenToday('pace'))) items.push(['due', `<b>${[A ? `${A} A` : '', B ? `${B} B` : ''].filter(Boolean).join(' and ')} account${A + B === 1 ? '' : 's'}</b> still due this month · ${left} working day${left === 1 ? '' : 's'} left`]);
+    if ((A || B) && ((!onPlan && ui.month !== today.slice(0, 7)) || hiddenToday('pace'))) items.push(['due', `<b>${[A ? `${A} A` : '', B ? `${B} B` : ''].filter(Boolean).join(' and ')} account${A + B === 1 ? '' : 's'}</b> still due this month · ${left} working day${left === 1 ? '' : 's'} left`]);
     const idx = visitDatesFor(ui.me); let quiet = null;
     cov.accts.filter(x => x.tier !== 'C' && !x.cur.met).forEach(x => { const ds = [...(idx.get(canon(x.a.account)) || [])].filter(d => d <= today).sort(), last = ds[ds.length - 1]; if (last && (!quiet || last < quiet.last)) quiet = {a: x.a, last}; });
     if (quiet) items.push(['quiet', `Last visit to <button type="button" class="cname" data-client="${esc(quiet.a.account)}">${esc(quiet.a.account)}</button> was ${agoText(quiet.last)}`]);
@@ -3995,7 +4002,7 @@ function todayCard(){
   if (prevDay) items.push(['last', `${prevDay.date === addDays(today, -1) ? 'Yesterday' : dayName(prevDay.date) + ' ' + fmtDate(prevDay.date)}: ${prevDay.count} visit${prevDay.count === 1 ? '' : 's'}${prevDay.km !== '' ? ` · ${num(prevDay.km)} km` : ''}`]);
   // the plan: from 15:00 it is for the next working day (not shown when that is already next month)
   let plan = '';
-  if (myAuto().plan) { let nx = addDays(today, 1); while ([0, 6].includes(new Date(nx + 'T00:00:00').getDay())) nx = addDays(nx, 1);
+  if (!onPlan && myAuto().plan) { let nx = addDays(today, 1); while ([0, 6].includes(new Date(nx + 'T00:00:00').getDay())) nx = addDays(nx, 1);
     if (!(late && nx.slice(0, 7) !== today.slice(0, 7))) { const pl = planSuggestion();
       if (pl) { const when = late ? (nx === addDays(today, 1) ? 'tomorrow' : DAYS_LONG[new Date(nx + 'T00:00:00').getDay()]) : 'today';
         plan = `<div class="tplan"><div class="tplanh"><b>Plan for ${when}</b><span class="hint">${pl.stops.length === 1 ? 'your most urgent still-due account' : pl.stops.length + ' still-due accounts close together'}${pl.left > pl.stops.length ? ` · ${pl.left} due in all` : ''}</span></div>
@@ -4915,7 +4922,7 @@ async function automationsSheet(){
     ['D', 'draft', 'Thank-you email drafts', 'A “Thank-you” button on your days and client pages that opens a ready email in your Gmail. You send it yourself.'],
     ['K', 'plan', 'Plan for the day', 'Still-due accounts close to each other, with a route — in the Your day card on the Log page.']];
   openModal('Automations', `<div id="auCal" class="aucal"><span class="hint">Checking your Google Calendar…</span></div>
-    <div class="aulist">${rows.map(([n, k, t, d]) => `<label class="aurow${k ? '' : ' fixed'}"><span class="autx"><b>${esc(t)}</b><small>${esc(d)}</small></span>${k ? `<input type="checkbox" class="tgl" data-au="${k}"${p[k] ? ' checked' : ''} aria-label="${esc(t)}">` : '<span class="aulock">Always on</span>'}</label>`).join('')}</div>
+    <div class="aulist">${rows.filter(r => !(r[1] === 'plan' && prepOn())).map(([n, k, t, d]) => `<label class="aurow${k ? '' : ' fixed'}"><span class="autx"><b>${esc(t)}</b><small>${esc(d)}</small></span>${k ? `<input type="checkbox" class="tgl" data-au="${k}"${p[k] ? ' checked' : ''} aria-label="${esc(t)}">` : '<span class="aulock">Always on</span>'}</label>`).join('')}</div>
     <p class="hint" style="margin-top:10px">Reminders come by ${esc(viaLabel(myRemindVia()))} (Menu → Reminders), Monday to Friday.</p>`,
     async () => { const o = {}; $$('#mBody [data-au]').forEach(i => o[i.dataset.au] = i.checked); await saveProfile(me, {autoPrefs: JSON.stringify(o)}); }, 'Save');
   try { const r = await callApi({action: 'myAutomations'}); const el = $('#auCal'); if (!el) return;
@@ -5015,10 +5022,10 @@ function thankYouPick(v){
   $$('#mBody [data-ty]').forEach(b => b.onclick = () => { const d = det[+b.dataset.ty]; $('#modal').classList.remove('open'); thankYouMail(d.client, d.purpose); });
 }
 // K — still-due accounts close to each other (the most urgent one first), with a Google Maps route from the office
-function planSuggestion(){
+function planSuggestion(skip){
   if (!hasFixedBook(ui.me)) return null;
   const today = todayIso(), cov = coverageFor(ui.me, today.slice(0, 7) + '-01', today), spots = companySpots(), idx = visitDatesFor(ui.me);
-  const due = cov.accts.filter(x => !x.cur.met && x.cur.open).map(x => { const s = spots.get(canon(x.a.account)), ds = [...(idx.get(canon(x.a.account)) || [])].sort(); return {x, s, last: ds[ds.length - 1] || ''}; }).filter(y => y.s);
+  const due = cov.accts.filter(x => !x.cur.met && x.cur.open && !(skip && skip.has(canon(x.a.account)))).map(x => { const s = spots.get(canon(x.a.account)), ds = [...(idx.get(canon(x.a.account)) || [])].sort(); return {x, s, last: ds[ds.length - 1] || ''}; }).filter(y => y.s);
   if (!due.length) return null;
   due.sort((p, q) => p.x.tier.localeCompare(q.x.tier) || (p.last || '0').localeCompare(q.last || '0'));
   const seed = due[0], near = due.slice(1).map(y => Object.assign(y, {km: distKm(seed.s.lat, seed.s.lng, y.s.lat, y.s.lng)})).filter(y => y.km <= 10).sort((p, q) => p.km - q.km).slice(0, 4);
@@ -5064,7 +5071,7 @@ function renderMenu(){
     <div class="mgroup"><h3>Settings</h3><div class="card mlist">
       ${row('mnGo', 'spark', 'How Go talks to you', me.goPrefs ? esc(String(me.goPrefs).slice(0, 60)) + (String(me.goPrefs).length > 60 ? '…' : '') : 'Language, tone, length — only you see this')}
       ${ui.demo ? '' : row('mnPin', 'lock', 'Change my PIN', 'Used on any new phone or computer')}
-      ${ui.demo ? '' : row('mnAuto', 'auto', 'Automations', (() => { const p = myAuto(), on = Object.keys(p).filter(k => p[k]).length; return `${on} of ${Object.keys(p).length} switched on`; })())}
+      ${ui.demo ? '' : row('mnAuto', 'auto', 'Automations', (() => { const p = myAuto(), ks = Object.keys(p).filter(k => !(k === 'plan' && prepOn())), on = ks.filter(k => p[k]).length; return `${on} of ${ks.length} switched on`; })())}
       ${ui.demo ? '' : row('mnRem', 'bell', 'Reminders', (() => { const pr = reachProblems(); return `By ${esc(viaLabel(myRemindVia()))}` + (pr.length ? ` · <span class="overtxt">can’t reach you yet</span>` : ''); })())}
       ${row('mnInstall', 'phone', isStandalone() ? 'TMC Go is installed' : 'Install TMC Go as an app', isStandalone() ? 'You’re using the home-screen app' : 'Home-screen icon, full screen, opens instantly')}
       ${row('mnTheme', 'moon', 'Appearance', {auto: 'Automatic — follows your phone', light: 'Light', dark: 'Dark'}[themePref()])}
@@ -5443,8 +5450,20 @@ function renderPlanPage(){
   const dayLabel = d => d === t0 ? 'Today' : d === tmr ? 'Tomorrow' : `${dayName(d)} ${fmtLong(d).replace(/ \d{4}$/, '')}`;
   const planned = new Set(list.map(p => canon(p.account)));
   let due = []; try { const cov = coverageFor(ui.me, t0.slice(0, 8) + '01', t0); due = (cov.accts || []).filter(x => !x.cur.met && ['A', 'B'].includes(x.tier) && !planned.has(canon(x.a.account))).sort((x, y) => x.tier.localeCompare(y.tier) || x.a.account.localeCompare(y.a.account)); } catch(e){}
+  const late = new Date().getHours() >= 15; let nx = late ? addDays(t0, 1) : t0; while ([0, 6].includes(new Date(nx + 'T00:00:00').getDay())) nx = addDays(nx, 1);
+  let route = null; try { route = planSuggestion(new Set([...planned])); } catch(e){}
+  const whenTxt = nx === t0 ? 'today' : nx === tmr ? 'tomorrow' : DAYS_LONG[new Date(nx + 'T00:00:00').getDay()];
+  ui.routeStops = route ? {date: nx, stops: route.stops.map(y => ({account: y.x.a.account, id: y.x.a.id}))} : null;
+  if (route) { const inRoute = new Set(route.stops.map(y => canon(y.x.a.account))); due = due.filter(x => !inRoute.has(canon(x.a.account))); }   // no account twice on the page
+  let pace = ''; { const m0 = ui.month; ui.month = t0.slice(0, 7); try { const st = statsFor(ui.me, visitsInMonth()); pace = paceHtml(st, true); } catch(e){} finally { ui.month = m0; } }
   el.innerHTML = `<div class="pagecol planpage">
+    ${todayCard(true)}
+    ${pace}
     <div class="card planhero"><div><h2>Plan your visits</h2><p class="hint">Tell Go who you’re seeing. It researches the company on Google — what they do, recent news, what TMC can sell them, who to meet — and emails you a brief.</p><div class="plcalline" id="plCalLine"></div></div><button type="button" class="btn primary" id="plAdd">Plan a visit</button></div>
+    ${route ? `<div class="card plancard routecard"><div class="head"><h2>Suggested route for ${esc(whenTxt)}</h2><span class="hint">${route.stops.length === 1 ? 'your most urgent still-due account' : route.stops.length + ' still-due accounts close together'}${route.left > route.stops.length ? ` · ${route.left} due in all` : ''}</span></div><div class="body">
+      <div class="tplanl">${route.stops.map((y, i) => `<span class="planc"><span class="seq sm">${i + 1}</span><button type="button" class="cname" data-client="${esc(y.x.a.account)}">${esc(y.x.a.account)}</button><span class="badge ${y.x.tier}">${y.x.tier}</span><small>${y.last ? 'last ' + esc(fmtDate(y.last)) : 'not visited yet'}${y.km ? ' · ' + y.km.toFixed(1) + ' km away' : ''}</small></span>`).join('')}</div>
+      <div class="rtact"><button type="button" class="btn primary" id="plRoute">Plan ${route.stops.length === 1 ? 'this visit' : 'these ' + route.stops.length + ' visits'} for ${esc(whenTxt)}</button><a class="btn" href="${esc(route.url)}" target="_blank" rel="noopener">Route in Google Maps</a></div>
+      <p class="hint" style="margin:8px 0 0">Go researches each company and emails you the briefs.</p></div></div>` : ''}
     <div class="card plancard"><div class="head"><h2>Coming up</h2><span class="hint">${list.length ? `${list.length} visit${list.length === 1 ? '' : 's'} planned` : ''}</span></div><div class="body">
       ${list.length ? days.map(d => `<h4 class="plday">${esc(dayLabel(d))}</h4><ul class="planlist">${list.filter(p => p.date === d).map(p => planRowHtml(p, false)).join('')}</ul>`).join('')
         : '<p class="hint" style="margin:0">Nothing planned yet. Plan a visit up to 30 days ahead — the brief lands in your inbox within minutes.</p>'}
@@ -5452,7 +5471,9 @@ function renderPlanPage(){
     ${due.length ? `<div class="card plancard"><div class="head"><h2>Still due this month, not planned</h2></div><div class="body"><div class="plsugg">${due.slice(0, 10).map(x => `<button type="button" class="chipq" data-plsug="${esc(x.a.account)}" data-plid="${esc(x.a.id)}"><span class="badge ${x.tier}">${x.tier}</span> ${esc(x.a.account)}</button>`).join('')}</div><p class="hint" style="margin:8px 0 0">Tap one to plan it.</p></div></div>` : ''}
     ${past.length ? `<div class="card plancard"><div class="head"><h2>Last week’s plans</h2></div><div class="body">${[...new Set(past.map(p => p.date))].map(d => `<h4 class="plday">${esc(dayName(d) + ' ' + fmtLong(d).replace(/ \d{4}$/, ''))}</h4><ul class="planlist">${past.filter(p => p.date === d).map(p => planRowHtml(p, true)).join('')}</ul>`).join('')}</div></div>` : ''}
   </div>`;
-  $('#plAdd').onclick = () => planDialog({}); paintCalLine();
+  $('#plAdd').onclick = () => planDialog({}); paintCalLine(); wireTodayCard(el);
+  $$('[data-hide]', el).forEach(b => b.onclick = () => { hideToday(b.dataset.hide); renderPlanPage(); toast('Hidden for today'); });
+  const pr = $('#plRoute'); if (pr) pr.onclick = () => planRoute(pr);
   $$('[data-plsug]', el).forEach(b => b.onclick = () => planDialog({account: b.dataset.plsug, accountId: b.dataset.plid}));
   $$('[data-plbrief]', el).forEach(b => b.onclick = () => { const p = data.plans.find(x => x.id === b.dataset.plbrief); if (p) briefSheet({account: p.account, plan: p}); });
   $$('[data-pledit]', el).forEach(b => b.onclick = () => { const p = data.plans.find(x => x.id === b.dataset.pledit); if (p) planDialog(p); });
@@ -5464,6 +5485,15 @@ function renderPlanPage(){
   $$('.cname[data-client]', el).forEach(b => b.onclick = () => clientSheet(b.dataset.client));
   const cb = $('#plCal'); if (cb) cb.onclick = () => syncCalendarPlans(true);
   if (!ui.calSyncAt || Date.now() - ui.calSyncAt > 10 * 60000) syncCalendarPlans(false);
+}
+// "Plan these visits": the suggested route becomes plans for that day, one after another, then their briefs.
+async function planRoute(btn){
+  const r = ui.routeStops; if (!r || !r.stops.length || ui.routeBusy) return; ui.routeBusy = true; if (btn) { btn.disabled = true; btn.textContent = 'Planning…'; }
+  const made = [];
+  try { for (const st of r.stops) { const res = await callApi({action: 'upsertPlan', row: {accountId: st.id, account: st.account, date: r.date, time: ''}}); const pl = normPlan(res.row); upsertLocal('plans', pl); made.push(pl); } }
+  catch(e) { toast(friendly(e)); }
+  ui.routeBusy = false; renderPlans();
+  if (made.length) { toast(`Planned ${made.length} visit${made.length === 1 ? '' : 's'} for ${dayName(r.date)} ${fmtLong(r.date)} — briefs are on their way`); for (const pl of made) await requestBrief(pl); }
 }
 // In-person meetings from the person's Google Calendar → planned visits (the server decides; this asks and shows the result).
 async function syncCalendarPlans(force){
