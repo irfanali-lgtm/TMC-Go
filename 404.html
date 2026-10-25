@@ -2483,7 +2483,7 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-25 18:00 · production';
+const BUILD = '2026-10-25 18:30 · production';
 const NEEDS_BACKEND = 59;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
@@ -5544,7 +5544,7 @@ function planRowHtml(p, past){
   return `<li class="planrow${tone ? ' t-' + tone : ''}"><span class="pldate">${p.time ? `<b>${esc(p.time)}</b>` : '<b class="any">Any time</b>'}</span><span class="plrail" aria-hidden="true"></span>
     <span class="plmain"><button type="button" class="cname" data-client="${esc(p.account)}">${esc(p.account)}</button>${meta ? `<span class="plmeta">${meta}</span>` : ''}</span>
     <span class="plstat">${logged ? '<span class="st ok">Logged ✓</span>' : past ? '<span class="st due">Not logged yet</span>' : chip}</span>
-    <span class="plbtns">${doneable ? `<button type="button" class="btn sm primary pldone" data-pldone="${esc(p.id)}" title="I visited — log it">Done ✓</button>` : ''}${p.briefAt || past || logged || doneable ? (p.briefAt ? `<button type="button" class="btn sm" data-plbrief="${esc(p.id)}">Brief</button>` : '') : `<button type="button" class="btn sm primary" data-plget="${esc(p.id)}"${busy[p.id] ? ' disabled' : ''}>${busy[p.id] ? 'Researching…' : 'Get brief'}</button>`}${past || logged ? '' : `<button type="button" class="tdbtn" data-pledit="${esc(p.id)}" title="Change" aria-label="Change plan: ${esc(p.account)}">${ICO.edit}</button><button type="button" class="tdbtn" data-plx="${esc(p.id)}" title="${p.source === 'calendar' ? 'Not an in-person visit — remove it' : 'Cancel this visit'}" aria-label="${p.source === 'calendar' ? 'Remove' : 'Cancel plan'}: ${esc(p.account)}">×</button>`}</span></li>`;
+    <span class="plbtns">${doneable ? `<button type="button" class="btn sm primary pldone" data-pldone="${esc(p.id)}" title="I visited — log it">Log visit</button>` : ''}${p.briefAt || past || logged || doneable ? (p.briefAt ? `<button type="button" class="btn sm" data-plbrief="${esc(p.id)}">Brief</button>` : '') : `<button type="button" class="btn sm primary" data-plget="${esc(p.id)}"${busy[p.id] ? ' disabled' : ''}>${busy[p.id] ? 'Researching…' : 'Get brief'}</button>`}${past || logged ? '' : `<button type="button" class="tdbtn" data-pledit="${esc(p.id)}" title="Change" aria-label="Change plan: ${esc(p.account)}">${ICO.edit}</button><button type="button" class="tdbtn" data-plx="${esc(p.id)}" title="${p.source === 'calendar' ? 'Not an in-person visit — remove it' : 'Cancel this visit'}" aria-label="${p.source === 'calendar' ? 'Remove' : 'Cancel plan'}: ${esc(p.account)}">×</button>`}</span></li>`;
 }
 // The next N working days (Mon–Fri) from today — the week planner's tiles.
 function planStripDays(n){ const out = []; let d = todayIso(); while (out.length < n) { if (![0, 6].includes(new Date(d + 'T00:00:00').getDay())) out.push(d); d = addDays(d, 1); } return out; }
@@ -5617,7 +5617,7 @@ function renderPlanPage(){
   const cb = $('#plCal'); if (cb) cb.onclick = () => syncCalendarPlans(true);
   if (!ui.calSyncAt || Date.now() - ui.calSyncAt > 10 * 60000) syncCalendarPlans(false);
 }
-// "Done ✓" on a planned visit: log it in one go — purpose from the plan, the place confirmed by the person (suggested
+// "Log visit" on a planned visit: log it in one go — purpose from the plan, the place confirmed by the person (suggested
 // from the phone's location: at the client's saved spot → that spot, else where they are now), km as on Log visits.
 // the Pakistan-time day of a moment stored as an ISO time ("2026-10-24T21:30:00Z" → 2026-10-25)
 function pkDayOf(t){ const d = new Date(t); return isNaN(d) ? String(t).slice(0, 10) : new Date(d.getTime() + 5 * 3600e3).toISOString().slice(0, 10); }
