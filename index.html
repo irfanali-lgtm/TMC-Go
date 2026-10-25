@@ -2389,8 +2389,8 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-25 08:30 · production';
-const NEEDS_BACKEND = 52;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
+const BUILD = '2026-10-25 09:30 · production';
+const NEEDS_BACKEND = 53;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -5397,7 +5397,7 @@ function nextWorkingDay(){ let d = addDays(todayIso(), 1); while ([0, 6].include
 function planDialog(pre, after){
   pre = pre || {}; const t0 = todayIso(), max = addDays(t0, PLAN_DAYS);
   const names = [...new Set(data.accounts.slice().sort((a, b) => (b.ae === ui.me) - (a.ae === ui.me) || a.account.localeCompare(b.account)).map(a => a.account))];
-  openModal(pre.id ? 'Change planned visit' : 'Plan a visit', `<p class="hint" style="margin:0 0 12px">Go researches the company on Google — what they do, recent news, what TMC can sell them, people to meet — and emails you a brief in a few minutes. The day before, you get a reminder.</p>
+  openModal(pre.id ? 'Change planned visit' : 'Plan a visit', `<p class="hint" style="margin:0 0 12px">Plan it up to 30 days ahead. When you want Go’s homework on the company — what they do, recent news, what TMC can sell them, who to meet — tap <b>Get brief</b> on the visit.</p>
     <div class="form">
       <div class="f c12"><label for="plClient">Client</label><input id="plClient" list="plNames" autocomplete="off" maxlength="160" value="${esc(pre.account || '')}" placeholder="Company name"><datalist id="plNames">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
       <div class="f c6"><label for="plDate">Day</label><input id="plDate" type="date" min="${t0}" max="${max}" value="${esc(pre.date || nextWorkingDay())}"></div>
@@ -5412,8 +5412,7 @@ function planDialog(pre, after){
       const acc = pre.accountId && pre.account === name ? {id: pre.accountId} : accountFor(name);
       const r = await callApi({action: 'upsertPlan', row: {id: pre.id || null, accountId: acc ? acc.id : '', account: name, date, time, purpose: $('#plPurpose').value, note: $('#plNote').value.trim()}});
       const plan = normPlan(r.row); upsertLocal('plans', plan); renderPlans();
-      toast(plan.briefAt ? `Planned · ${plan.account}, ${dayName(plan.date)} ${fmtLong(plan.date)}` : `Planned · Go is researching ${plan.account} — the brief comes by email in a few minutes`);
-      if (!plan.briefAt) setTimeout(() => requestBrief(plan), 0);
+      toast(`Planned · ${plan.account}, ${dayName(plan.date)} ${fmtLong(plan.date)}${plan.briefAt ? '' : ' — tap Get brief when you want Go to research them'}`);
       if (after) setTimeout(after, 0);
     }, pre.id ? 'Save' : 'Plan visit');
 }
@@ -5434,12 +5433,12 @@ async function requestBrief(plan, refresh){
 function renderPlans(){ if (ui.tab === 'plan') renderPlanPage(); }
 function planRowHtml(p, past){
   const busy = ui.briefBusy || {};
-  const chip = busy[p.id] ? '<span class="st due">Go is researching…</span>' : p.briefAt ? '<span class="st ok">Brief sent ✓</span>' : p.lastError ? `<span class="st miss" title="${esc(p.lastError)}">${esc(/allowance/.test(p.lastError) ? 'Waiting — free research used up this month' : /daily limit/.test(p.lastError) ? 'Researched tomorrow (daily limit)' : /No email/.test(p.lastError) ? 'No email — open the brief here' : 'Brief not ready')}</span>` : '<span class="st due">Brief on its way</span>';
+  const chip = busy[p.id] ? '<span class="st due">Go is researching…</span>' : p.briefAt ? '<span class="st ok">Brief ready ✓</span>' : p.lastError ? `<span class="st miss" title="${esc(p.lastError)}">${esc(/used up|allowance|quota/i.test(p.lastError) ? 'Free research used up — try later' : /daily limit/.test(p.lastError) ? 'Daily limit — try tomorrow' : /No email/.test(p.lastError) ? 'Brief ready — no email on your profile' : 'Brief failed — try again')}</span>` : '';
   const logged = past && data.visits.some(v => v.ae === ui.me && v.date === p.date && splitAccts(v.accounts).some(a => canon(a) === canon(p.account)));
   return `<li class="planrow"><span class="pldate"><b>${p.time ? esc(p.time) : 'Any time'}</b>${p.purpose ? `<small>${esc(p.purpose)}</small>` : ''}</span>
     <span class="plmain"><button type="button" class="cname" data-client="${esc(p.account)}">${esc(p.account)}</button>${p.source === 'calendar' ? `<small class="plcal" title="${esc(p.note || '')}">📅 From your calendar${/couldn’t check/.test(p.note || '') ? ' · check it’s in person' : ''}</small>` : p.note ? `<small class="hint">${esc(p.note)}</small>` : ''}</span>
     <span class="plstat">${past ? (logged ? '<span class="st ok">Logged ✓</span>' : '<span class="st due">Not logged yet</span>') : chip}</span>
-    <span class="plbtns">${past ? (logged ? '' : `<button type="button" class="btn sm primary" data-pllog="${esc(p.id)}">Log this visit</button>`) : ''}<button type="button" class="btn sm" data-plbrief="${esc(p.id)}">Brief</button>${past ? '' : `<button type="button" class="tdbtn" data-pledit="${esc(p.id)}" title="Change" aria-label="Change plan: ${esc(p.account)}">${ICO.edit}</button><button type="button" class="tdbtn" data-plx="${esc(p.id)}" title="${p.source === 'calendar' ? 'Not an in-person visit — remove it' : 'Cancel this visit'}" aria-label="${p.source === 'calendar' ? 'Remove' : 'Cancel plan'}: ${esc(p.account)}">×</button>`}</span></li>`;
+    <span class="plbtns">${past ? (logged ? '' : `<button type="button" class="btn sm primary" data-pllog="${esc(p.id)}">Log this visit</button>`) : ''}${p.briefAt || past ? `<button type="button" class="btn sm" data-plbrief="${esc(p.id)}">Brief</button>` : `<button type="button" class="btn sm primary" data-plget="${esc(p.id)}"${busy[p.id] ? ' disabled' : ''}>${busy[p.id] ? 'Researching…' : 'Get brief'}</button>`}${past ? '' : `<button type="button" class="tdbtn" data-pledit="${esc(p.id)}" title="Change" aria-label="Change plan: ${esc(p.account)}">${ICO.edit}</button><button type="button" class="tdbtn" data-plx="${esc(p.id)}" title="${p.source === 'calendar' ? 'Not an in-person visit — remove it' : 'Cancel this visit'}" aria-label="${p.source === 'calendar' ? 'Remove' : 'Cancel plan'}: ${esc(p.account)}">×</button>`}</span></li>`;
 }
 function renderPlanPage(){
   const el = $('#v-plan'); if (!el) return;
@@ -5459,14 +5458,14 @@ function renderPlanPage(){
   el.innerHTML = `<div class="pagecol planpage">
     ${todayCard(true)}
     ${pace}
-    <div class="card planhero"><div><h2>Plan your visits</h2><p class="hint">Tell Go who you’re seeing. It researches the company on Google — what they do, recent news, what TMC can sell them, who to meet — and emails you a brief.</p><div class="plcalline" id="plCalLine"></div></div><button type="button" class="btn primary" id="plAdd">Plan a visit</button></div>
+    <div class="card planhero"><div><h2>Plan your visits</h2><p class="hint">Plan who you’re seeing. Tap <b>Get brief</b> on a visit and Go researches the company on Google — what they do, recent news, what TMC can sell them, who to meet — and emails you the brief.</p><div class="plcalline" id="plCalLine"></div></div><button type="button" class="btn primary" id="plAdd">Plan a visit</button></div>
     ${route ? `<div class="card plancard routecard"><div class="head"><h2>Suggested route for ${esc(whenTxt)}</h2><span class="hint">${route.stops.length === 1 ? 'your most urgent still-due account' : route.stops.length + ' still-due accounts close together'}${route.left > route.stops.length ? ` · ${route.left} due in all` : ''}</span></div><div class="body">
       <div class="tplanl">${route.stops.map((y, i) => `<span class="planc"><span class="seq sm">${i + 1}</span><button type="button" class="cname" data-client="${esc(y.x.a.account)}">${esc(y.x.a.account)}</button><span class="badge ${y.x.tier}">${y.x.tier}</span><small>${y.last ? 'last ' + esc(fmtDate(y.last)) : 'not visited yet'}${y.km ? ' · ' + y.km.toFixed(1) + ' km away' : ''}</small></span>`).join('')}</div>
       <div class="rtact"><button type="button" class="btn primary" id="plRoute">Plan ${route.stops.length === 1 ? 'this visit' : 'these ' + route.stops.length + ' visits'} for ${esc(whenTxt)}</button><a class="btn" href="${esc(route.url)}" target="_blank" rel="noopener">Route in Google Maps</a></div>
-      <p class="hint" style="margin:8px 0 0">Go researches each company and emails you the briefs.</p></div></div>` : ''}
+      </div></div>` : ''}
     <div class="card plancard"><div class="head"><h2>Coming up</h2><span class="hint">${list.length ? `${list.length} visit${list.length === 1 ? '' : 's'} planned` : ''}</span></div><div class="body">
       ${list.length ? days.map(d => `<h4 class="plday">${esc(dayLabel(d))}</h4><ul class="planlist">${list.filter(p => p.date === d).map(p => planRowHtml(p, false)).join('')}</ul>`).join('')
-        : '<p class="hint" style="margin:0">Nothing planned yet. Plan a visit up to 30 days ahead — the brief lands in your inbox within minutes.</p>'}
+        : '<p class="hint" style="margin:0">Nothing planned yet. Plan a visit up to 30 days ahead, then tap Get brief for Go’s research.</p>'}
     </div></div>
     ${due.length ? `<div class="card plancard"><div class="head"><h2>Still due this month, not planned</h2></div><div class="body"><div class="plsugg">${due.slice(0, 10).map(x => `<button type="button" class="chipq" data-plsug="${esc(x.a.account)}" data-plid="${esc(x.a.id)}"><span class="badge ${x.tier}">${x.tier}</span> ${esc(x.a.account)}</button>`).join('')}</div><p class="hint" style="margin:8px 0 0">Tap one to plan it.</p></div></div>` : ''}
     ${past.length ? `<div class="card plancard"><div class="head"><h2>Last week’s plans</h2></div><div class="body">${[...new Set(past.map(p => p.date))].map(d => `<h4 class="plday">${esc(dayName(d) + ' ' + fmtLong(d).replace(/ \d{4}$/, ''))}</h4><ul class="planlist">${past.filter(p => p.date === d).map(p => planRowHtml(p, true)).join('')}</ul>`).join('')}</div></div>` : ''}
@@ -5476,6 +5475,7 @@ function renderPlanPage(){
   const pr = $('#plRoute'); if (pr) pr.onclick = () => planRoute(pr);
   $$('[data-plsug]', el).forEach(b => b.onclick = () => planDialog({account: b.dataset.plsug, accountId: b.dataset.plid}));
   $$('[data-plbrief]', el).forEach(b => b.onclick = () => { const p = data.plans.find(x => x.id === b.dataset.plbrief); if (p) briefSheet({account: p.account, plan: p}); });
+  $$('[data-plget]', el).forEach(b => b.onclick = async () => { const p = data.plans.find(x => x.id === b.dataset.plget); if (!p) return; const r = await requestBrief(p); if (r && r.plan && r.plan.briefAt && !r.error) briefSheet({account: p.account, plan: data.plans.find(x => x.id === p.id) || p}); });
   $$('[data-pledit]', el).forEach(b => b.onclick = () => { const p = data.plans.find(x => x.id === b.dataset.pledit); if (p) planDialog(p); });
   $$('[data-pllog]', el).forEach(b => b.onclick = () => { const p = data.plans.find(x => x.id === b.dataset.pllog); if (p && addClientToForm(p.account, p.date)) toast(`${p.account} added to ${dayName(p.date)} ${fmtLong(p.date)} — pick the purpose and save`); });
   $$('[data-plx]', el).forEach(b => b.onclick = async () => { const p = data.plans.find(x => x.id === b.dataset.plx); if (!p) return;
@@ -5493,7 +5493,7 @@ async function planRoute(btn){
   try { for (const st of r.stops) { const res = await callApi({action: 'upsertPlan', row: {accountId: st.id, account: st.account, date: r.date, time: ''}}); const pl = normPlan(res.row); upsertLocal('plans', pl); made.push(pl); } }
   catch(e) { toast(friendly(e)); }
   ui.routeBusy = false; renderPlans();
-  if (made.length) { toast(`Planned ${made.length} visit${made.length === 1 ? '' : 's'} for ${dayName(r.date)} ${fmtLong(r.date)} — briefs are on their way`); for (const pl of made) await requestBrief(pl); }
+  if (made.length) toast(`Planned ${made.length} visit${made.length === 1 ? '' : 's'} for ${dayName(r.date)} ${fmtLong(r.date)} — tap Get brief on any of them for the research`);
 }
 // In-person meetings from the person's Google Calendar → planned visits (the server decides; this asks and shows the result).
 async function syncCalendarPlans(force){
@@ -5559,8 +5559,7 @@ async function aiAddPlan(i){
     if (!date) { m.busy = false; aiCloseFn(); planDialog({account: acc ? acc.account : String(a.client || '').trim(), accountId: acc ? acc.id : '', time: hhmm(a.time) || '', purpose: a.purpose || ''}); return; }
     const r = await callApi({action: 'upsertPlan', row: {accountId: acc ? acc.id : '', account: acc ? acc.account : String(a.client).trim(), date, time: hhmm(a.time) || '', purpose: String(a.purpose || '').trim()}});
     const plan = normPlan(r.row); upsertLocal('plans', plan); m.done = true; renderAi(); renderPlans();
-    ai.msgs.push({role: 'assistant', content: `Planned **${plan.account}** for ${dayName(plan.date)} ${fmtLong(plan.date)}. I’m researching them now — the brief lands in your inbox in a few minutes.`, spoken: true, local: true}); renderAi();
-    requestBrief(plan);
+    ai.msgs.push({role: 'assistant', content: `Planned **${plan.account}** for ${dayName(plan.date)} ${fmtLong(plan.date)}. Tap **Get brief** on Plan visits when you want me to research them.`, spoken: true, local: true}); renderAi();
   } catch(e) { toast(friendly(e)); } finally { m.busy = false; }
 }
 async function aiAddOpportunity(i){
