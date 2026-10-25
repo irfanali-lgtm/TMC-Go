@@ -2389,8 +2389,8 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-25 09:30 · production';
-const NEEDS_BACKEND = 53;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
+const BUILD = '2026-10-25 10:30 · production';
+const NEEDS_BACKEND = 56;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -5433,7 +5433,7 @@ async function requestBrief(plan, refresh){
 function renderPlans(){ if (ui.tab === 'plan') renderPlanPage(); }
 function planRowHtml(p, past){
   const busy = ui.briefBusy || {};
-  const chip = busy[p.id] ? '<span class="st due">Go is researching…</span>' : p.briefAt ? '<span class="st ok">Brief ready ✓</span>' : p.lastError ? `<span class="st miss" title="${esc(p.lastError)}">${esc(/used up|allowance|quota/i.test(p.lastError) ? 'Free research used up — try later' : /daily limit/.test(p.lastError) ? 'Daily limit — try tomorrow' : /No email/.test(p.lastError) ? 'Brief ready — no email on your profile' : 'Brief failed — try again')}</span>` : '';
+  const chip = busy[p.id] ? '<span class="st due">Go is researching…</span>' : p.briefAt ? '<span class="st ok">Brief ready ✓</span>' : p.lastError ? `<span class="st miss" title="${esc(p.lastError)}">${esc(/free plan/i.test(p.lastError) ? 'Web research not in the free plan' : /used up|allowance|quota/i.test(p.lastError) ? 'Free research used up — try later' : /daily limit/.test(p.lastError) ? 'Daily limit — try tomorrow' : /No email/.test(p.lastError) ? 'Brief ready — no email on your profile' : 'Brief failed — try again')}</span>` : '';
   const logged = past && data.visits.some(v => v.ae === ui.me && v.date === p.date && splitAccts(v.accounts).some(a => canon(a) === canon(p.account)));
   return `<li class="planrow"><span class="pldate"><b>${p.time ? esc(p.time) : 'Any time'}</b>${p.purpose ? `<small>${esc(p.purpose)}</small>` : ''}</span>
     <span class="plmain"><button type="button" class="cname" data-client="${esc(p.account)}">${esc(p.account)}</button>${p.source === 'calendar' ? `<small class="plcal" title="${esc(p.note || '')}">📅 From your calendar${/couldn’t check/.test(p.note || '') ? ' · check it’s in person' : ''}</small>` : p.note ? `<small class="hint">${esc(p.note)}</small>` : ''}</span>
