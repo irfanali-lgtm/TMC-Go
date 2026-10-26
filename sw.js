@@ -2,7 +2,7 @@
 // Pages are fetched from the network first (so updates arrive straight away) and fall back to the last copy;
 // opening the app gives the network 3 seconds, then the last copy opens and the fresh one is kept for next time.
 // Data calls to Google are never cached.
-const CACHE = 'tmcgo-v186';
+const CACHE = 'tmcgo-v189';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 const PAGE_WAIT = 3000;
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });

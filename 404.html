@@ -2489,8 +2489,8 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-26 15:04 · production';
-const NEEDS_BACKEND = 62;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
+const BUILD = '2026-10-26 19:46 · production';
+const NEEDS_BACKEND = 65;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -2629,14 +2629,26 @@ const bigrams = s => { const w = toks(s).join(' '); const out = new Set(); for (
 function dice(a, b){ const A=bigrams(a), B=bigrams(b); if(!A.size||!B.size) return 0; let n=0; for (const x of A) if (B.has(x)) n++; return 2*n/(A.size+B.size); }
 function tokenScore(q, name){ const qt=toks(q), nt=toks(name); if(!qt.length||!nt.length) return 0; const hit = qt.filter(x => nt.some(y => y===x || (x.length>=3 && y.startsWith(x)) || (y.length>=3 && x.startsWith(y)))).length; return hit/qt.length * (hit===nt.length ? 1 : 0.95); }
 function acronyms(name){ const all = norm(name).split(' ').filter(Boolean); return new Set([toks(name).map(w=>w[0]).join(''), all.map(w=>w[0]).join('')]); }
+// What scoreName needs of a name — norm, canon, tokens, bigrams, acronyms, "(PRL)" — worked out once per name, not once per
+// comparison: matching a typed name against every account reuses each account's own [perf 26 Oct]. A pure function of the text,
+// emptied when the accounts or aliases change (accIdx) so it never grows without bound.
+const _feat = new Map();
+function featOf(x){
+  const k = typeof x === 'string' ? x : null; let f = k === null ? undefined : _feat.get(k); if (f) return f;
+  const t = toks(x), par = /\(([^)]+)\)/.exec(String(x));
+  f = {n: norm(x), c: canon(x), t, tj: t.join(' '), b: bigrams(x), a: acronyms(x), par: par ? norm(par[1]) : null};
+  if (k !== null) { if (_feat.size > 20000) _feat.clear(); _feat.set(k, f); } return f;
+}
 function scoreName(q, name){
-  const nq = norm(q), nn = norm(name); if (!nq) return 0;
+  const Q = featOf(q), N = featOf(name), nq = Q.n, nn = N.n; if (!nq) return 0;
   if (nq === nn) return 1;
-  if (canon(q) === canon(name)) return 0.97;   // same company, legal suffix differs
-  let s = Math.max(dice(q, name), tokenScore(q, name));
-  if (nn.includes(nq) || toks(name).join(' ').includes(toks(q).join(' '))) s = Math.max(s, 0.85);
-  const flat = nq.replace(/ /g,''); if (/^[a-z&]{2,6}$/.test(flat)) { const ac = acronyms(name); if (ac.has(flat)) s = Math.max(s, 0.9); else if (flat.length>=3 && [...ac].some(x => x.startsWith(flat))) s = Math.max(s, 0.8); } // "ffc", "nbc", "ogdcl"
-  const par = /\(([^)]+)\)/.exec(String(name)); if (par && norm(par[1]) === nq) s = 1; // "(PRL)" in the account name
+  if (Q.c === N.c) return 0.97;   // same company, legal suffix differs
+  const A = Q.b, B = N.b; let d = 0; if (A.size && B.size) { let n = 0; for (const x of A) if (B.has(x)) n++; d = 2*n/(A.size+B.size); }   // = dice(q, name)
+  const qt = Q.t, nt = N.t; let ts = 0; if (qt.length && nt.length) { const hit = qt.filter(x => nt.some(y => y===x || (x.length>=3 && y.startsWith(x)) || (y.length>=3 && x.startsWith(y)))).length; ts = hit/qt.length * (hit===nt.length ? 1 : 0.95); }   // = tokenScore(q, name)
+  let s = Math.max(d, ts);
+  if (nn.includes(nq) || N.tj.includes(Q.tj)) s = Math.max(s, 0.85);
+  const flat = nq.replace(/ /g,''); if (/^[a-z&]{2,6}$/.test(flat)) { const ac = N.a; if (ac.has(flat)) s = Math.max(s, 0.9); else if (flat.length>=3 && [...ac].some(x => x.startsWith(flat))) s = Math.max(s, 0.8); } // "ffc", "nbc", "ogdcl"
+  if (N.par !== null && N.par === nq) s = 1; // "(PRL)" in the account name
   return s;
 }
 function aliasFor(q, ae){ const nq = norm(q); const hit = data.aliases.find(x => norm(x.alias)===nq && (!x.ae || x.ae===ae)) || data.aliases.find(x => norm(x.alias)===nq); return hit ? hit.account : null; }
@@ -2742,6 +2754,8 @@ function friendly(err){
   if (/\bBUSY:/.test(m) || /lock timeout|another process was holding the lock/i.test(m)) return 'The sheet was busy saving for someone else. Please try again in a moment.';   // the server's own BUSY: code only — "Gemini is busy" is Go's message
   if (/^SIGNIN/.test(m)) return 'Please sign in.';
   if (/CONFLICT/.test(m)) return 'This day was changed on another device a moment ago. The latest version is now shown — please make your change again.';
+  if (/^(?:Error:\s*)?GONE:/.test(m)) return m.replace(/^(?:Error:\s*)?GONE:\s*/, '');   // removed/deleted on another device: the server's own plain words
+  if (/\bGONE\b/.test(m)) return 'That day was removed on another device.';
   if (/WEAKPIN/.test(m)) return 'The admin PIN is still the default or too simple. An admin must set a stronger one (at least 6 digits) in the sheet’s Settings tab first.';
   if (/photo could not be saved|photo is too large/i.test(m)) return m.replace(/^Error:\s*/,'');
   if (/ADMIN_PROOF/.test(m)) return 'As an admin, please confirm with the admin PIN — or sign out and sign in with “Email me a code”.';
@@ -2756,6 +2770,7 @@ function friendly(err){
   if (/^(?:Error:\s*)?(?:Go (?:couldn’t|couldn't|could not|is not approved|is busy)|Go(?:’|')s answer|Gemini (?:is busy|refused)|The Gemini (?:key|model)|Google no longer offers|The assistant is not set up|A manager still needs)/.test(m)) return m.replace(/^Error:\s*/, '');   // Go's own messages are already plain words
   if (/quota|rate ?limit|429/i.test(m)) return 'Google is busy right now. Wait a minute and try again.';
   if (/not found|could not find|could not locate|could not build the route|office address|no office/i.test(m)) return m.replace(/^Error:\s*/,'');
+  if (/tab twice|row 1 must hold the column headings|heading in row 1/.test(m)) return m.replace(/^Error:\s*/, '');   // a row copied in the sheet / a broken heading row: the sheet's own words say what happens next
   if (/too long|can’t contain|does not look right|doesn’t look right|needs a purpose|already a day logged|WhatsApp|test WhatsApp|dated in the future|sign-in codes were sent today|test email was sent|Enter |Choose |Add at least|needs a date|Type the purpose|already in the team|name missing|No AEs|Go is not approved|Gemini key|Gemini model|Gemini is busy|Go could not answer|A manager still needs/i.test(m)) return m;
   return 'Something went wrong and the change was not saved. Please try again.';
 }
@@ -2773,11 +2788,12 @@ async function parseApi(resp){
 }
 async function callApi(body, attempt){
   attempt = attempt || 0;
+  const w = !attempt && !API_READS[body.action]; if (w) ui.wBusy = (ui.wBusy || 0) + 1;   // a save on its way (writesQuiet)
   try { return await callApiOnce(body); }
   catch (e) {
     if (attempt < 3 && /busy saving for someone else/i.test(e.message)) { await new Promise(r => setTimeout(r, 1200 * (attempt + 1) + Math.random() * 600)); return callApi(body, attempt + 1); }
     throw e;
-  }
+  } finally { if (w) { ui.wBusy--; ui.writeAt = Date.now(); ui.writes = (ui.writes || 0) + 1; } }   // a load that was on its way meanwhile is older than this write
 }
 // A weak "connected but nothing gets through" signal must not leave a save hanging for minutes: after API_WAIT the request
 // is given up (a visit save then keeps the draft and the "send later" mark, as offline). Slow on-demand jobs wait longer.
@@ -2895,9 +2911,12 @@ function applyData(res){
 }
 // One data load at a time: a refresh asked for while one is on its way runs once after it — never two in parallel, and never an
 // answer that started before a save made on this device (it would put the saved day back the way it was)
+// After saves made here, the load asked again waits until they have stopped (no save on its way, none for 1.5 s): an import or a
+// batch of fixes is followed by one fresh load, not one per saved row.
+const writesQuiet = () => new Promise(res => { const tick = () => { const left = 1500 - (Date.now() - (ui.writeAt || 0)); if ((ui.wBusy || 0) > 0 || left > 0) setTimeout(tick, Math.max(250, left)); else res(); }; tick(); });
 async function load(first){
   if (!first && ui.loadP) { ui.loadAgain = true; return ui.loadP; }
-  const p = (async () => { await loadNow(first); while (ui.loadAgain) { ui.loadAgain = false; await loadNow(false); } })();
+  const p = (async () => { await loadNow(first); while (ui.loadAgain) { ui.loadAgain = false; await writesQuiet(); await loadNow(false); } })();
   ui.loadP = p; try { return await p; } finally { if (ui.loadP === p) ui.loadP = null; }
 }
 async function loadNow(first){
@@ -2921,7 +2940,9 @@ async function loadNow(first){
       if (!getTok()) { loadingWatch(false); ui.loading = false; return signInScreen(); }
       const tok0 = getTok(), w0 = ui.writes || 0, res = await callApi({action:'all'});
       if (getTok() !== tok0 || document.body.classList.contains('signed-out')) return;   // signed out (or someone else signed in) meanwhile
-      if (!first && (ui.writes || 0) !== w0) { ui.loadAgain = true; return; }   // something was saved here meanwhile: this answer is older — ask again
+      if ((ui.writes || 0) !== w0 && (!first || ui.fromCache)) {   // something was saved here meanwhile: this answer is older — ask again once the saves stop
+        ui.loadAgain = true; if (!first) return;
+        ui.loading = false; loadingWatch(false); setTimeout(() => { sendOutbox().catch(() => {}); }, 0); return; }   // opened from the saved copy and a visit saved before the first answer: the screen keeps it
       saveCache(res); if (res.reminders) ui.remHealth = res.reminders;
       ui.backendV = Number((/backend v(\d+)/.exec(String(res.backend || '')) || [])[1] || 0);   // older servers don't say → 0
       ui.session = res.session || null;
@@ -2964,7 +2985,7 @@ function isoDay(v){
   const t = s.replace(/\s+/g, ' ').replace(/[ T]\d{1,2}[:.]\d{2}(?:[:.]\d{2})? ?(?:am|pm)?$/i, ''), yr = x => x.length === 2 ? 2000 + +x : +x;
   if ((m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/.exec(t))) { let d = +m[1], mo = +m[2]; if (mo > 12 && d <= 12) [d, mo] = [mo, d]; return `${yr(m[3])}-${pad(mo)}-${pad(d)}`; }
   if ((m = /^(\d{1,2})(?:st|nd|rd|th)?[\s-]([A-Za-z]{3,})\.?[\s,-]*(\d{2,4})$/.exec(t))) { const mi = MONTHS.findIndex(x => m[2].toLowerCase().startsWith(x.toLowerCase())); if (mi >= 0) return `${yr(m[3])}-${pad(mi+1)}-${pad(+m[1])}`; }
-  if ((m = /^([A-Za-z]{3,})\.?[\s-](\d{1,2})(?:st|nd|rd|th)?,?[\s-]*(\d{2,4})$/.exec(t))) { const mi = MONTHS.findIndex(x => m[1].toLowerCase().startsWith(x.toLowerCase())); if (mi >= 0) return `${yr(m[3])}-${pad(mi+1)}-${pad(+m[2])}`; }
+  if ((m = /^([A-Za-z]{3,})\.?[\s-](\d{1,2})(?:st|nd|rd|th)?(?:,\s*|[\s-]+)(\d{2,4})$/.exec(t))) { const mi = MONTHS.findIndex(x => m[1].toLowerCase().startsWith(x.toLowerCase())); if (mi >= 0) return `${yr(m[3])}-${pad(mi+1)}-${pad(+m[2])}`; }
   return s.slice(0, 10);
 }
 const numOf = v => { if (typeof v === 'number') return isFinite(v) ? v : 0; const n = parseFloat(String(v ?? '').replace(/,/g, '').replace(/[^\d.\-]/g, '')); return isFinite(n) ? n : 0; };
@@ -3054,23 +3075,25 @@ function accIdx(){
   const A = data.accounts, L = data.aliases || [];
   if (_accIdx && _accIdx.src === A && _accIdx.len === A.length && _accIdx.asrc === L && _accIdx.alen === L.length) return _accIdx;
   const sig = JSON.stringify(A.map(x => [x.id, x.ae, x.account, x.tier, x.netNew, x.addedOn, x.city])) + '§' + JSON.stringify(L.map(x => [x.alias, x.account, x.ae]));
-  if (sig !== _accSig) { _resolveCache.clear(); _accSig = sig; }
-  const byAeNorm = new Map(), byNorm = new Map(), byAe = new Map(), byId = new Map();
-  A.forEach(x => { byId.set(x.id, x); const k = norm(x.account); if (!byNorm.has(k)) byNorm.set(k, x); const ak = x.ae + '|' + k; if (!byAeNorm.has(ak)) byAeNorm.set(ak, x); if (!byAe.has(x.ae)) byAe.set(x.ae, []); byAe.get(x.ae).push(x); });
-  return (_accIdx = {src: A, len: A.length, asrc: L, alen: L.length, byAeNorm, byNorm, byAe, byId});
+  if (sig !== _accSig) { _resolveCache.clear(); _feat.clear(); _accSig = sig; }
+  const byAeNorm = new Map(), byNorm = new Map(), byAe = new Map(), byId = new Map(), byCanon = new Map();
+  A.forEach(x => { byId.set(x.id, x); const ck = canon(x.account); if (!byCanon.has(ck)) byCanon.set(ck, []); byCanon.get(ck).push(x); const k = norm(x.account); if (!byNorm.has(k)) byNorm.set(k, x); const ak = x.ae + '|' + k; if (!byAeNorm.has(ak)) byAeNorm.set(ak, x); if (!byAe.has(x.ae)) byAe.set(x.ae, []); byAe.get(x.ae).push(x); });
+  return (_accIdx = {src: A, len: A.length, asrc: L, alen: L.length, byAeNorm, byNorm, byAe, byId, byCanon});
 }
 // the account a typed client name means: the person's own list first, then anyone's — the form's rule (0.85), never a loose guess
 function pickAccount(ae, name){ return resolveAccount(ae, name) || resolveAccount('', name); }
 function resolveAccount(ae, name){
-  const ix = accIdx(), nn = norm(name), key = (ae||'') + '|' + nn;
-  if (_resolveCache.has(key)) { const id = _resolveCache.get(key); return id === null ? null : (ix.byId.get(id) || null); }
+  const ix = accIdx(), raw = typeof name === 'string' ? 'r\u0001' + (ae||'') + '\u0001' + name : '';   // the name as typed: found again without normalising it [perf 26 Oct]
+  if (raw && _resolveCache.has(raw)) { const id = _resolveCache.get(raw); return id === null ? null : (ix.byId.get(id) || null); }
+  const nn = norm(name), key = (ae||'') + '|' + nn;
+  if (_resolveCache.has(key)) { const id = _resolveCache.get(key); if (raw) _resolveCache.set(raw, id); return id === null ? null : (ix.byId.get(id) || null); }
   let hit = ae ? ix.byAeNorm.get(ae + '|' + nn) : ix.byNorm.get(nn);
   if (!hit && typeof aliasFor === 'function') { const al = aliasFor(name, ae); if (al) { const na = norm(al); hit = ae ? ix.byAeNorm.get(ae + '|' + na) : ix.byNorm.get(na); } }
   // the same company (any legal suffix) on someone else's list beats a close-sounding name in this person's list —
   // "Engro Corporation" (Kashif's) is not Dawar's "Engro Polymer"
-  const elsewhere = !hit && ae && data.accounts.some(x => x.ae !== ae && canon(x.account) === canon(name)) && !(ix.byAe.get(ae) || []).some(x => canon(x.account) === canon(name));
+  const same = !hit && ae ? (ix.byCanon.get(canon(name)) || []) : [], elsewhere = !hit && ae && same.some(x => x.ae !== ae) && !same.some(x => x.ae === ae);   // the company on another list, not on theirs (by its canon key)
   if (!hit && !elsewhere && nn.length >= 4) { const pool = ae ? (ix.byAe.get(ae) || []) : data.accounts; let best=null, bs=0; pool.forEach(x => { const s = scoreName(name, x.account); if (s > bs) { bs = s; best = x; } }); if (bs >= 0.85) hit = best; }
-  _resolveCache.set(key, hit ? hit.id : null); return hit || null;
+  _resolveCache.set(key, hit ? hit.id : null); if (raw) _resolveCache.set(raw, hit ? hit.id : null); return hit || null;
 }
 function ownerOf(accountName){ const a = resolveAccount('', accountName); return a ? a.ae : ''; }
 function accountRow(ae, name){ return resolveAccount(ae, name); }
@@ -3080,7 +3103,7 @@ function accountRow(ae, name){ return resolveAccount(ae, name); }
  *   C: at least 1 visit every calendar quarter
  * For a selected date range, every calendar month (A) / quarter (B, C) that overlaps it is one requirement per account.
  * Qualifying visit = a visit by the account's own AE, dated today or earlier, to that account (any spelling/alias);
- * the same account twice on the same day counts once. An account added part-way through a period starts counting
+ * every visit counts — the same account twice on one day is two visits [owner 26 Oct]. An account added part-way through a period starts counting
  * from the next full period. The account's current category is used for every period. */
 const COVER = {A:{per:'month', need:2, rule:'2 visits every month'}, B:{per:'month', need:1, rule:'1 visit every month'}, C:{per:'quarter', need:1, rule:'1 visit every quarter — a third of the C accounts a month'}};   // owner's rule from 22 Oct 2026 (Sales_Accounts_Assignment_List)
 const isoD = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -3106,13 +3129,15 @@ const accountSince = a => a.addedOn || '';
 // For one AE: their own book's accounts (normalised) → distinct dates on which THEY visited them.
 function visitDatesFor(ae){
   const key = 'v|' + ae; if (_covIndex.has(key)) return _covIndex.get(key);
-  const idx = new Map(), today = todayIso();
+  const idx = new Map(), n = new Map(), today = todayIso();
   data.visits.forEach(v => {
     if (v.ae !== ae || !v.date || v.date > today) return;
-    splitAccts(v.accounts).forEach(n => { const r = accountRow(ae, n); const k = canon(r ? r.account : n); if (!idx.has(k)) idx.set(k, new Set()); idx.get(k).add(v.date); });
+    splitAccts(v.accounts).forEach(c => { const r = accountRow(ae, c); const k = canon(r ? r.account : c); if (!idx.has(k)) { idx.set(k, new Set()); n.set(k, new Map()); } idx.get(k).add(v.date); n.get(k).set(v.date, (n.get(k).get(v.date) || 0) + 1); });
   });
-  _covIndex.set(key, idx); return idx;
+  _covIndex.set(key, idx); _covIndex.set('n|' + ae, n); return idx;
 }
+// For one AE: company → day → number of visits that day. The same client twice on a day is two visits [owner 26 Oct].
+function visitCountsFor(ae){ visitDatesFor(ae); return _covIndex.get('n|' + ae); }
 // Tracking starts with the first visit logged by anyone: months/quarters that ended before it have no data to judge.
 function trackingStart(){ if (!_covIndex.has('#start')) { let m = ''; data.visits.forEach(v => { if (v.date && splitAccts(v.accounts).length && (!m || v.date < m)) m = v.date; }); _covIndex.set('#start', m); } return _covIndex.get('#start'); }
 function hasFixedBook(ae){ const key = 'fb|' + ae; if (!_covIndex.has(key)) _covIndex.set(key, data.accounts.some(a => a.ae === ae && TIERS.includes(a.tier) && a.dormant !== 'Y')); return _covIndex.get(key); }
@@ -3134,16 +3159,16 @@ function cMonthFor(book, idx, from, end, cutoff, started){
 const r1 = x => Math.round(x * 10) / 10;
 // cutoff (optional): count only visits up to that date — used to compare "the same days" of an earlier period
 function coverageFor(ae, from, to, cutoff){
-  const today = todayIso(), end = to > today ? today : to, idx = visitDatesFor(ae), started = trackingStart();
+  const today = todayIso(), end = to > today ? today : to, idx = visitDatesFor(ae), nIdx = visitCountsFor(ae), started = trackingStart();
   const book = assignedFor(ae, '9999-12-31', a => TIERS.includes(a.tier) && a.dormant !== 'Y');   // dormant accounts are never due — dropped before choosing a company's row, as the backend does
   const tiers = {}; TIERS.forEach(tr => tiers[tr] = {due:0, met:0, needed:0, done:0, accounts:0, pct:null});
   const accts = [], cm = cMonthFor(book, idx, from, end, cutoff, started);
   book.forEach(a => {
-    const rule = COVER[a.tier], dates = idx.get(canon(a.account)) || new Set();
+    const rule = COVER[a.tier], dates = idx.get(canon(a.account)) || new Set(), perDay = nIdx.get(canon(a.account)) || new Map();
     const since = accountSince(a);
     const wins = (end < from ? [] : periodsBetween(rule.per, from, end)).filter(   // a range that starts after today judges nothing yet
 w => (!since || since <= w.start) && (!started || w.end >= started)).map(w => {
-      let got = 0; dates.forEach(d => { if (d >= w.start && d <= w.end && d <= today && (!cutoff || d <= cutoff)) got++; });
+      let got = 0; dates.forEach(d => { if (d >= w.start && d <= w.end && d <= today && (!cutoff || d <= cutoff)) got += perDay.get(d) || 1; });   // every visit counts, two on one day = 2
       return {...w, need: rule.need, got, met: got >= rule.need, open: w.end >= today};
     });
     if (!wins.length) return;                      // new account: counts from its first full period
@@ -3336,7 +3361,7 @@ function dayEntry(ae, date){ return data.visits.filter(v => v.ae===ae && v.date=
 function dayDetails(v){
   const acc = splitAccts(v.accounts);
   try { const d = JSON.parse(v.details||''); if (Array.isArray(d) && d.length) {
-    const list = d.map(x => ({client:String(x.client||x.c||''), purpose:String(x.purpose||x.p||''), lat: x.lat!==undefined && x.lat!=='' ? Number(x.lat) : undefined, lng: x.lng!==undefined && x.lng!=='' ? Number(x.lng) : undefined, addr: x.addr||''})).filter(x=>x.client);
+    const list = d.map(x => ({client:String(x.client||x.c||''), purpose:String(x.purpose||x.p||''), lat: x.lat!==undefined && x.lat!=='' ? Number(x.lat) : undefined, lng: x.lng!==undefined && x.lng!=='' ? Number(x.lng) : undefined, addr: x.addr||'', ...(x.vid ? {vid: String(x.vid)} : {})})).filter(x=>x.client);
     const key = l => l.map(c => canon(c)).sort().join('|');
     if (!acc.length || key(list.map(x => x.client.trim())) === key(acc)) return list;
     const pool = list.slice();
@@ -3384,18 +3409,31 @@ const editLanded = (v, e) => { const day = dayDetails(v).filter(d => d.client), 
   return day.length === lines.length && lines.every((l, i) => canon(day[i].client) === canon(l.client) && ps(day[i].purpose) === ps(l.purpose)
       && (!l.loc || (day[i].lat !== undefined && day[i].lng !== undefined && same(day[i].lat, l.loc.lat) && same(day[i].lng, l.loc.lng))))
     && (km === undefined || km === '' || Number(km) === Number(v.km)); };
+// The sheet's answers that refuse a queued edit for good (it is then dropped, the message says why); every other answer keeps it
+const OUT_REFUSED = /CONFLICT|NOTYOU|ALREADY:|already a day logged|needs a purpose|date does not look right|dated in the future|no longer there/i;
+// An edit of a day that was removed on another device (the sheet no longer has it, or answers GONE): never thrown away silently —
+// its visits come back in the form as new visits (and the draft), and the person is told once
+function editGone(id, packed){
+  setOutEdit(id, null); const lines = unpackLines(packed || []).filter(l => l.client); if (!lines.length) return;
+  if (!form || form.editId) { form = blankForm(); restoreDraft(); }
+  form = {ae: ui.me, editId: null, lines: form.lines.filter(l => l.client).concat(lines), results: null, kmByDate: {}}; saveDraft();
+  ui.tab = 'log'; render(); toast('That day was removed on another device — your changes are back in the form; save them again if they’re still right.');
+}
 // Saves that failed offline go out once the sheet answers again: on 'online', and when the app is opened (it may have been closed meanwhile).
 async function sendOutbox(){
   if (!ui.me || ui.demo || ui.saving || ui.outboxBusy || !data.aes.length || document.body.classList.contains('signed-out')) return;
-  const edits = outEdits(); let mark = null; try { mark = localStorage.getItem('vi.outbox.'+ui.me); } catch(e){}
+  let edits = outEdits(); let mark = null; try { mark = localStorage.getItem('vi.outbox.'+ui.me); } catch(e){}
   if (!Object.keys(edits).length && !mark) return;
   if (form && form.editId && !edits[form.editId]) return;   // busy editing another day: next time
   ui.outboxBusy = true;
   try {
+    // a queued edit is checked against the sheet's own copy: a data load on its way (back online) is waited for, so an edit that
+    // already went through (a save that timed out but landed) is recognised instead of being sent again into a "changed elsewhere"
+    if (Object.keys(edits).length && ui.loadP) { try { await ui.loadP; } catch(e){} edits = outEdits(); if ((form && form.editId && !edits[form.editId]) || document.body.classList.contains('signed-out')) return; }
     ui.staleFu = null; let told = false; const tell = () => { if (!told) { told = true; toast('Back online — sending your saved visits…'); } };
     for (const id of Object.keys(edits)) {
       const day = data.visits.find(v => v.id === id);
-      if (!day) { if (ui.lastSync) setOutEdit(id, null); continue; }   // the day was removed meanwhile (only the sheet's own data says so — the saved copy may be old)
+      if (!day) { if (ui.lastSync && !(form && form.editId && form.editId !== id)) editGone(id, edits[id].lines); continue; }   // the day was removed meanwhile (only the sheet's own data says so — the saved copy may be old): its visits go back in the form
       if (editLanded(day, edits[id])) { setOutEdit(id, null); continue; }   // already in the sheet: nothing to send, nothing to say
       if (!(form && form.editId === id)) { saveDraft(); const e = edits[id]; form = {ae: ui.me, editId: id, baseTs: e.baseTs || '', lines: unpackLines(e.lines || []), results: null, kmByDate: e.km || {}}; }
       tell(); ui.tab = 'log'; render(); await saveVisit({resend: true});
@@ -3616,7 +3654,7 @@ function renderLogPage(){
     b.disabled = true; b.textContent = 'Saving…';
     await useLocationForLine(l, {lat:p.lat, lng:p.lng, address:p.address||''}); renderLog();
   });
-  $$('input[data-ld]').forEach(i => onDate(i, v => { if (!v || v > todayIso()) { toast('Pick today or an earlier day'); renderLog(); return; } form.lines.find(x=>x.key===i.dataset.ld).date = v; saveDraft(); renderLog(); }));
+  $$('input[data-ld]').forEach(i => onDate(i, (v, quiet) => { if (!v || v > todayIso()) { toast('Pick today or an earlier day'); redraw(renderLog, quiet); return; } form.lines.find(x=>x.key===i.dataset.ld).date = v; saveDraft(); redraw(renderLog, quiet); }));
   $$('input[data-km]').forEach(i => i.oninput = e => { form.kmByDate = form.kmByDate || {}; form.kmByDate[i.dataset.km] = e.target.value; });
   $$('select[data-lp]').forEach(s => s.onchange = e => { const l = form.lines.find(x=>x.key===s.dataset.lp); const v = e.target.value;
     if (v && l.prefilled) l.purposes = [];   // the purpose filled in from the last visit is replaced by the one picked — not added to it
@@ -3632,7 +3670,7 @@ function renderLogPage(){
   $$('button[data-lfux]').forEach(b => b.onclick = () => { fl(b.dataset.lfux).fu = null; renderLog(); });
   $$('input[data-lfut]').forEach(i => i.oninput = () => { const l = fl(i.dataset.lfut); l.fu.task = i.value; if (l.fu.err) { l.fu.err = false; i.classList.remove('bad'); } saveDraft(); });
   $$('button[data-lfuq]').forEach(b => b.onclick = () => { fl(b.dataset.lfuq).fu.date = b.dataset.d; renderLog(); });
-  $$('input[data-lfud]').forEach(i => onDate(i, v => { fl(i.dataset.lfud).fu.date = v; renderLog(); }));
+  $$('input[data-lfud]').forEach(i => onDate(i, (v, quiet) => { fl(i.dataset.lfud).fu.date = v; saveDraft(); redraw(renderLog, quiet); }));
   $$('input[data-lfum]').forEach(i => i.onchange = () => { fl(i.dataset.lfum).fu.time = hhmm(i.value) || DEFAULT_TIME; saveDraft(); });
   $$('input[data-lfur]').forEach(i => i.onchange = () => { fl(i.dataset.lfur).fu.remind = i.checked; saveDraft(); });
   $$('button[data-prm]').forEach(b => b.onclick = () => { const l = form.lines.find(x=>x.key===b.dataset.prm); l.purposes = (l.purposes||[]).filter((_, i) => i !== +b.dataset.pi); l.prefilled = false; renderLog(); });
@@ -3716,10 +3754,25 @@ function dayPill(editing){
 const okYear = v => { const y = +String(v || '').slice(0, 4); return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) && y >= 2020 && y <= +todayIso().slice(0, 4) + 1; };
 function onDate(inp, apply){
   if (!inp) return; let keyAt = 0, done = inp.value;
-  const go = () => { const v = inp.value; if (v === done) return; if (v && !okYear(v)) { if (document.activeElement !== inp) inp.value = done; return; } done = v; apply(v); };
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); keyAt = 0; go(); } else keyAt = Date.now(); });
-  inp.addEventListener('change', () => { if (Date.now() - keyAt > 1500) go(); });   // (while typing, document.activeElement isn't reliable: Firefox/Chrome report the box as left between its fields)
-  inp.addEventListener('blur', go);
+  const go = quiet => { const v = inp.value; if (v === done) return; if (v && !okYear(v)) { if (document.activeElement !== inp) inp.value = done; return; } done = v; apply(v, quiet); };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); keyAt = 0; go(false); } else keyAt = Date.now(); });
+  inp.addEventListener('change', () => { if (Date.now() - keyAt > 1500) go(false); });   // (while typing, document.activeElement isn't reliable: Firefox/Chrome report the box as left between its fields)
+  inp.addEventListener('blur', () => go(true));   // quiet: the value is taken at once, the page is redrawn after the click that left the box (redraw)
+}
+// Leaving a typed date box by clicking (e.g. "Save visits") blurs it on mousedown: redrawing then would replace the button under the
+// pointer and the click would never land. So after a blur the redraw waits until the click is done — and while the person is in
+// another date box, until that one is left (its own blur redraws).
+let ptrDown = false;
+document.addEventListener('pointerdown', () => { ptrDown = true; }, true);
+['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, () => { ptrDown = false; }, true));
+function redraw(fn, quiet){
+  if (!quiet) return fn();
+  const run = () => { if (document.body.classList.contains('signed-out')) return; const a = document.activeElement;
+    if (a && a.isConnected && a.matches && a.matches('input[type=date]')) { a.addEventListener('blur', () => redraw(fn, true), {once: true}); return; }
+    fn(); };
+  if (!ptrDown) return void setTimeout(run, 0);   // a tap (the click follows in the same task) or Tab
+  let went = false; const after = () => { if (went) return; went = true; setTimeout(run, 0); };
+  document.addEventListener('pointerup', after, {once: true, capture: true}); document.addEventListener('pointercancel', after, {once: true, capture: true}); setTimeout(after, 2000);
 }
 // Opens the browser's own calendar for a date field. Chrome/Edge/Firefox/Safari 16+ support showPicker(); older browsers
 // get the field focused and clicked, which opens the native picker on phones.
@@ -3794,8 +3847,8 @@ function dupNote(l){
   const k = dayKey(l.client), others = form.lines.filter(x => x!==l && x.date===l.date && x.client && dayKey(x.client)===k).length;
   const ex = !form.editId ? dayEntry(ui.me, l.date) : null;
   const already = ex ? dayDetails(ex).filter(d => dayKey(d.client)===k).length : 0;
-  if (others) return 'Also on another line for this date — it will be saved once.';
-  if (already) return `Already logged for ${fmtDate(l.date)} — it won’t be added twice.`;
+  if (others) return 'Also on another line for this date — saved as another visit.';
+  if (already) return `Already logged once on ${fmtDate(l.date)} — this adds another visit.`;
   return '';
 }
 // Set an account's exact spot: GPS now, a pasted Google Maps link, or an address Google looks up.
@@ -3897,7 +3950,7 @@ function chipCls(ae, n){ const c = catFor(ae, n); return c==='—' ? 'O' : (c===
 function chipTag(ae, n){ return ' ' + catBadge(ae, n); }
 
 function attachPicker(inp, menu, ae, accts, onPick){
-  let active = 0, opts = [], strongTop = false;
+  let active = 0, opts = [], strongTop = false, bT = 0;
   const build = () => {
     const raw = inp.value.trim(); opts = [];
     let html = '';
@@ -3920,13 +3973,16 @@ function attachPicker(inp, menu, ae, accts, onPick){
   const pick = (v, isNew) => {
     v = String(v || '').trim().replace(/\s+/g, ' ').replace(/;/g, ',').slice(0, 120);   // ';' separates a day's clients in the sheet
     if (!v) return;
-    const typed = inp.value.trim();
+    const typed = inp.value.trim(); clearTimeout(bT); bT = 0;
     accts.push(v); inp.value=''; menu.classList.remove('open');
     if (onPick) onPick({typed, isNew});
   };
-  inp.oninput = build; inp.onfocus = build;
+  // typing: the list follows 0.1 s after the last key (not one full search per key); Enter and the arrows always use the newest text
+  const flush = () => { if (bT) { clearTimeout(bT); bT = 0; build(); } };
+  inp.oninput = () => { clearTimeout(bT); bT = setTimeout(() => { bT = 0; build(); }, 100); }; inp.onfocus = build;
   inp.onblur = () => setTimeout(()=>menu.classList.remove('open'), 120);
   inp.onkeydown = e => {
+    if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp') flush();
     const n = $$('.opt', menu).length;
     if (e.key==='ArrowDown'){ active=Math.min(n-1,active+1); paint(); e.preventDefault(); }
     else if (e.key==='ArrowUp'){ active=Math.max(0,active-1); paint(); e.preventDefault(); }
@@ -4056,18 +4112,20 @@ async function saveVisitNow(opts){
   const auto = autoKmOn();
   // group by date
   const coKey = dayKey;
-  const once = list => { const seen = new Set(); return list.filter(d => { const k = coKey(d.client); if (seen.has(k)) return false; seen.add(k); return true; }); };
-  const byDate = {}; lines.forEach(l => { const loc = lineLoc(l); (byDate[l.date] = byDate[l.date] || []).push({client: lineClient(l), purpose: linePurpose(l), lat: loc ? loc.lat : undefined, lng: loc ? loc.lng : undefined, addr: loc ? (loc.address||'') : ''}); });
+  // the same client twice on a day is two visits [owner 26 Oct]; each line carries its own visit id (its key), so a save
+  // sent again never adds a line twice — once() drops only a repeated visit id
+  const once = list => { const seen = new Set(); return list.filter(d => { if (!d.vid) return true; if (seen.has(d.vid)) return false; seen.add(d.vid); return true; }); };
+  const byDate = {}; lines.forEach(l => { const loc = lineLoc(l); (byDate[l.date] = byDate[l.date] || []).push({client: lineClient(l), purpose: linePurpose(l), lat: loc ? loc.lat : undefined, lng: loc ? loc.lng : undefined, addr: loc ? (loc.address||'') : '', vid: l.key}); });
   Object.keys(byDate).forEach(d => { byDate[d] = once(byDate[d]); });
   const dates = Object.keys(byDate).sort();
   lockForm(true);
-  f.results = []; let newAny = false, failed = 0, okDays = 0, totalKm = 0;
+  f.results = []; let newAny = false, failed = 0, okDays = 0, totalKm = 0, gone = null;
   for (const date of dates) {
     ui.routeBusy = dates.length>1 ? fmtDate(date) : true; renderRouteBox();
     try {
       const ex = f.editId ? data.visits.find(v=>v.id===f.editId) : dayEntry(ui.me, date);
       const details = once((f.editId ? [] : (ex ? dayDetails(ex) : [])).concat(byDate[date]));
-      const added = f.editId ? details.length : details.length - (ex ? once(dayDetails(ex)).length : 0);
+      const added = f.editId ? details.length : details.length - (ex ? dayDetails(ex).length : 0);
       const accounts = details.map(d=>d.client);
       const newAccts = [...new Set(accounts.filter(n => !accountRow(ui.me, n) && !ownerOf(n)).map(n=>n.trim()))];
       for (const n of newAccts) { const a = await callApi({action:'upsertAccount', row:{id:null, ae:ui.me, account:n, tier:'', city, netNew:'Y', addedOn:date, notes:'Added from visit log'}}); upsertLocal('accounts', normAccounts([a.row])[0]); newAny = true; }
@@ -4076,10 +4134,10 @@ async function saveVisitNow(opts){
       const purpose = [...new Set(details.flatMap(d => splitPurposes(d.purpose)))].join('; ');
       const manualKm = (f.kmByDate||{})[date], keptKm = ex && ex.km !== '' && ex.kmMode !== 'pending' ? ex.km : '';   // a pending day has no km to keep
       const row = {id: ex ? ex.id : null, date, ae: ui.me, city: (ex && ex.city) || city, note: (ex && ex.note) || '', accounts: accounts.join('; '), count: accounts.length, km: auto ? 0 : (manualKm !== undefined && manualKm !== '' ? Number(manualKm) : keptKm), purpose, details: JSON.stringify(details), loggedBy: ui.me, ts: new Date().toISOString(), route: auto ? '' : (ex && ex.route) || '', kmMode: auto ? 'auto' : (manualKm === undefined || manualKm === '') && keptKm === '' && ex && ex.kmMode === 'pending' ? 'pending' : 'manual'};
-      const exKeys = new Set(ex && !f.editId ? dayDetails(ex).map(d => coKey(d.client)) : []);   // already on the day (any spelling): the server must not add it again
+      const exKeys = new Set(ex && !f.editId ? dayDetails(ex).map(d => d.vid).filter(Boolean) : []);   // lines already on the day (a save sent again): the server must not add them twice
       const res = await callApi(f.editId
         ? {action:'upsertVisit', row, autoKm: auto, mode:'replace', baseTs: f.baseTs || (ex && ex.ts) || ''}
-        : {action:'upsertVisit', row, autoKm: auto, mode:'append', add: byDate[date].filter(d => !exKeys.has(coKey(d.client))).map(d => ({client: d.client, purpose: d.purpose, cat: catFor(ui.me, d.client), lat: d.lat, lng: d.lng, addr: d.addr}))});
+        : {action:'upsertVisit', row, autoKm: auto, mode:'append', add: byDate[date].filter(d => !exKeys.has(d.vid)).map(d => ({client: d.client, purpose: d.purpose, cat: catFor(ui.me, d.client), lat: d.lat, lng: d.lng, addr: d.addr, vid: d.vid}))});
       upsertLocal('visits', normVisits([res.row])[0]);
       okDays++; if (res.route) totalKm += res.route.totalKm;
       f.results.push({date, count: accounts.length, added: Math.max(0, added), route: res.route || null, pending: res.pending || null});
@@ -4092,15 +4150,17 @@ async function saveVisitNow(opts){
           upsertLocal('followups', normFollowup(fr.row)); if (fr.reminders) ui.remHealth = fr.reminders; rres.fuOk++; if (fr.warning) rres.fuWarn = fr.warning; }
         catch (e) { rres.fuFail.push(`${lineClient(l)}: ${friendly(e)}`); (f.fuRetry = f.fuRetry || []).push({accountId: acc.id, task: l.fu.task.trim(), dueDate: l.fu.date || '', dueTime: l.fu.date ? (l.fu.time || DEFAULT_TIME) : '', remind: l.fu.date && l.fu.remind !== false ? 'Y' : 'N'}); }
       }
-    } catch(e) { failed++; f.results.push({date, error: friendly(e)}); if (/CONFLICT/.test(e.message || '') || /changed on another device/.test(friendly(e))) ui.needReload = true;
+    } catch(e) { failed++; f.results.push({date, error: friendly(e)}); if (/CONFLICT/.test(e.message || '') || /changed on another device/.test(friendly(e)) || /^GONE:/.test(e.server || '')) ui.needReload = true;
       if (navigator.onLine === false || e.timeout) { try { if (f.editId) setOutEdit(f.editId, {baseTs: f.baseTs || '', km: f.kmByDate || {}, lines: packLines(f.lines)}); else keepItem('vi.outbox.'+ui.me, '1');   // an edit is kept too, and sent when back online
           f.results[f.results.length-1].queued = f.editId ? !!outEdits()[f.editId] : !!localStorage.getItem('vi.outbox.'+ui.me); } catch(x){} }   // kept on this phone: not shown as failed
-      else if (f.editId && outEdits()[f.editId] && e.server && !/^SIGNIN|BUSY:|lock timeout|another process was holding the lock|timed out/i.test(e.server)) setOutEdit(f.editId, null); }   // the sheet answered and refused it (e.g. changed elsewhere, a day already logged on that date): the message above says so once, it isn't resent — a weak signal, a busy sheet or a timeout keeps it for the next try
+      else if (f.editId && e.server && /\bGONE\b/.test(e.server)) gone = {id: f.editId, lines: packLines(f.lines)};   // the day was removed on another device
+      else if (f.editId && outEdits()[f.editId] && e.server && OUT_REFUSED.test(e.server)) setOutEdit(f.editId, null); }   // the sheet refused it for good (e.g. changed elsewhere, a day already logged on that date): the message above says so once, it isn't resent — anything else (a weak signal, a busy sheet, a Google hiccup, a row copied in the sheet) keeps it for the next try
   }
   ui.routeBusy = false;
   if (ui.needReload) {   // changed on another device: reload, and open the day again as it is now, so the message is true
     ui.needReload = false; const reopen = f.editId, kept = f.results; try { await load(false); } catch(x){}
-    if (reopen && data.visits.some(v => v.id === reopen)) { editVisit(reopen); form.results = kept; renderLog(); return; }
+    if (reopen && !gone && data.visits.some(v => v.id === reopen)) { editVisit(reopen); form.results = kept; renderLog(); return; }
+    if (reopen && form === f) { f.editId = null; f.baseTs = ''; }   // the day was removed on another device: the lines stay in the form as new visits (nothing was saved) [multi-device]
   }
   if (auto && newAny) { try { const d = (await callApi({action:'all'})).data; if (d && d.accounts) data.accounts = normAccounts(d.accounts); } catch(e){} }
   const nVisits = f.results.filter(r => !r.error).reduce((t, r) => t + (r.added != null ? r.added : r.count), 0);
@@ -4122,10 +4182,11 @@ async function saveVisitNow(opts){
   }
   if (failed) f.results = results;
   renderLog();
+  if (gone) { if (form === f) { setOutEdit(gone.id, null); toast('That day was removed on another device — your changes are back in the form; save them again if they’re still right.'); } else editGone(gone.id, gone.lines); }   // one message; the lines stay in the form once, as new visits
 }
 
-function upsertLocal(tab, row){ ui.writes = (ui.writes || 0) + 1; const i = data[tab].findIndex(r=>r.id===row.id); if(i<0) data[tab].push(row); else data[tab][i]=row; if (tab==='accounts' || tab==='aliases') resetMatchCache(); _covIndex.clear(); }   // coverage is re-worked from the new data
-function removeLocal(tab, id){ ui.writes = (ui.writes || 0) + 1; const i = data[tab].findIndex(r=>r.id===id); if(i>=0) data[tab].splice(i,1); if (tab==='accounts' || tab==='aliases') resetMatchCache(); _covIndex.clear(); }
+function upsertLocal(tab, row){ ui.writes = (ui.writes || 0) + 1; ui.writeAt = Date.now(); const i = data[tab].findIndex(r=>r.id===row.id); if(i<0) data[tab].push(row); else data[tab][i]=row; if (tab==='accounts' || tab==='aliases') resetMatchCache(); _covIndex.clear(); }   // coverage is re-worked from the new data
+function removeLocal(tab, id){ ui.writes = (ui.writes || 0) + 1; ui.writeAt = Date.now(); const i = data[tab].findIndex(r=>r.id===id); if(i>=0) data[tab].splice(i,1); if (tab==='accounts' || tab==='aliases') resetMatchCache(); _covIndex.clear(); }
 
 function renderMyMonth(){
   const el = $('#myMonth'); if(!el) return;
@@ -4335,9 +4396,9 @@ function editVisit(id){
 async function deleteVisit(id){
   const v = data.visits.find(x=>x.id===id); if(!v) return;
   if (!(await confirmModal(`Remove ${fmtDate(v.date)}?`, `${v.count} visit${v.count===1?'':'s'} will be removed from the sheet. You can undo for a few seconds afterwards.`))) { ui.pendingDelete = null; render(); return; }
-  try { await callApi({action:'deleteVisit', id}); removeLocal('visits', id); form = null; render();
-    toast(`${fmtDate(v.date)} removed`, 'Undo', async () => { const r = await callApi({action:'upsertVisit', row: v.kmMode === 'pending' ? {...v, km: ''} : v, mode:'append'}); upsertLocal('visits', normVisits([r.row])[0]); form=null; render(); });   // a km-pending day comes back without km (in memory it reads 0)
-  } catch(e){ toast(e.message); }
+  try { await callApi({action:'deleteVisit', id, baseTs: v.ts || ''}); removeLocal('visits', id); form = null; render();   // the version shown: visits added on another device meanwhile are never removed unseen
+    toast(`${fmtDate(v.date)} removed`, 'Undo', async () => { const r = await callApi({action:'upsertVisit', row: v.kmMode === 'pending' ? {...v, km: ''} : v, mode:'append', undo: true}); upsertLocal('visits', normVisits([r.row])[0]); form=null; render(); });   // undo:true → the sheet puts back its own copy of the day; a km-pending day comes back without km (in memory it reads 0)
+  } catch(e){ if (/^(?:CONFLICT|GONE):/.test(e.server || '')) { try { await load(false); } catch(x){} } toast(e.message); }
 }
 
 /* ---------- Dashboard ---------- */
@@ -4519,10 +4580,10 @@ function wireTodo(root){
 }
 async function snoozeFollowup(id, date, after){
   const f = data.followups.find(x => x.id === id); if (!f) return;
-  try { const r = await callApi({action:'upsertFollowup', row:{id, accountId: f.accountId, note: f.note, task: f.task, dueDate: date, dueTime: DEFAULT_TIME, remind: f.dueDate && f.remind === 'N' ? 'N' : 'Y'}});
+  try { const r = await callApi({action:'upsertFollowup', row:{id, dueDate: date, dueTime: DEFAULT_TIME, remind: f.dueDate && f.remind === 'N' ? 'N' : 'Y'}});   // only the date: the next step and details stay as the sheet has them (maybe just edited on another device)
     upsertLocal('followups', normFollowup(r.row)); if (r.reminders) ui.remHealth = r.reminders;
     toast(`Snoozed to ${dayName(date)} ${fmtLong(date)} 09:30${!(f.dueDate && f.remind === 'N') ? (sendDay(date) !== date ? ` · reminder on ${dayName(sendDay(date))} ${fmtLong(sendDay(date))} by ${viaLabel(myRemindVia())}` : ` · reminder by ${viaLabel(myRemindVia())} then`) : ''}`); }
-  catch(e) { toast(friendly(e)); }
+  catch(e) { if (/^GONE:/.test(e.server || '')) { removeLocal('followups', id); try { updateNavBadges(); } catch(x){} } toast(friendly(e)); }   // deleted on another device: gone here too
   if (after) after();
 }
 async function toggleFollowup(id, after){
@@ -4554,7 +4615,9 @@ function followupDialog(f, after){
       if (dueDate && changedWhen && (dueDate < today || (dueDate === today && dueTime <= nowHM()))) throw Object.assign(new Error('That time has already passed — pick a later time.'), {friendly:true});
       let r;
       try { r = await callApi({action:'upsertFollowup', row:{id: f.id || null, accountId, note, task, dueDate, dueTime, remind}}); }
-      catch (e) { if (navigator.onLine === false || /offline|Failed to fetch|NetworkError|Load failed/i.test(String(e && e.message || e))) throw Object.assign(new Error('You’re offline — this isn’t saved yet. Keep it open and tap Save again when you have signal.'), {friendly:true}); throw e; }
+      catch (e) { if (navigator.onLine === false || /offline|Failed to fetch|NetworkError|Load failed/i.test(String(e && e.message || e))) throw Object.assign(new Error('You’re offline — this isn’t saved yet. Keep it open and tap Save again when you have signal.'), {friendly:true});
+        if (/^GONE:/.test(e.server || '') && f.id) { removeLocal('followups', f.id); render(); if (after) after(); }   // deleted on another device: never saved as a new one
+        throw e; }
       upsertLocal('followups', normFollowup(r.row)); if (r.reminders) ui.remHealth = r.reminders;
       const paused = remind === 'Y' && r.reminders && !r.reminders.on;
       const savedMsg = (dueDate ? (remind === 'Y' ? `Saved · ${viaLabel(myRemindVia())} reminder on ${dayName(sendDay(dueDate))} ${fmtLong(sendDay(dueDate))} at ${dueTime}` : `Saved · due ${fmtLong(dueDate)} ${dueTime}`) : 'Saved · in your To-do under “No date”') + (r.warning ? ' — ' + r.warning : '');
@@ -4611,10 +4674,11 @@ function accountNoteDialog(id, after){
       ${fus.length ? `<ul class="todos compact">${fus.slice(0, 8).map(x => { const dl = dueLabel(x); return `<li class="todo${x.status==='done'?' done':''}"><button type="button" class="tdone" data-fdone2="${esc(x.id)}" title="${x.status==='done'?'Reopen':'Mark done'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg></button><div class="tbody"><div class="ttask">${esc(x.task)}</div><div class="tmeta"><span class="tdue ${dl.k}">${esc(dl.t)}</span>${x.note ? `<span class="tnote">${esc(x.note.length>60?x.note.slice(0,60)+'…':x.note)}</span>` : ''}</div></div><div class="tact"><button type="button" class="btn sm" data-fedit2="${esc(x.id)}">Edit</button></div></li>`; }).join('')}</ul>` : '<p class="hint" style="margin:0 0 8px">None yet.</p>'}
       <button type="button" class="btn sm" id="anAddFu">+ Add a follow-up</button></div>` : ''}`, async () => {
       const note = $('#anText').value.trim();
+      if (note === cur.trim()) { render(); if (after) after(); return; }   // unchanged here: never write this screen's older copy over a note just saved on another device
       let r;
       try { r = await callApi({action:'setAccountNote', id: a.id, note}); }
       catch (e) { if (navigator.onLine === false || /offline|Failed to fetch|NetworkError|Load failed/i.test(String(e && e.message || e))) { const err = new Error('You’re offline — this note isn’t saved yet. Keep it open and tap Save again when you have signal.'); err.friendly = true; throw err; } throw e; }
-      upsertLocal('accounts', {...a, aeNotes: r.aeNotes || ''});
+      upsertLocal('accounts', {...(data.accounts.find(x => x.id === a.id) || a), aeNotes: r.aeNotes || ''});   // the row as it is now (a refresh may have brought newer fields)
       toast(note ? 'Note saved' : 'Note removed');
       render(); if (after) after();
     }, 'Save note');
@@ -4697,17 +4761,20 @@ function drillTable(title, sub, cols, out, note, kind, scope){
   // out.__dayCol: the day's km on the first line of each day that is shown (after the filter and the search), so the list and its CSV add up
   const shown = () => { const days = new Set(); return rowsOf().map(r => { const x = !tagged ? r : r.slice(0, -1); if (out.__dayCol === undefined || !r.day) return x;
     if (days.has(r.day)) { const y = x.slice(); y[out.__dayCol] = ''; return y; } days.add(r.day); return x; }); };
-  const table = () => { const rs = shown(); return `<div class="tw drl"><table><thead><tr>${cols.map(c => `<th${typeof (out[0]||[])[cols.indexOf(c)] === 'number' ? ' class="num"' : ''}>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rs.slice(0, 600).map(r => `<tr>${r.map((c, i) => cols[i] === 'Cat.' ? `<td><span class="badge ${/^[ABC]$/.test(c)?c:'N'}">${esc(c)}</span></td>` : cols[i] === 'Map' ? `<td>${c}</td>` : (cols[i] === 'Account' || cols[i] === 'Client') && c ? `<td><button type="button" class="cname" data-client="${esc(String(c))}">${esc(String(c))}</button></td>` : cols[i] === 'Note' ? `<td class="wrap">${c && typeof c === 'object' ? c.html : esc(String(c ?? ''))}</td>` : cols[i] === 'Status' ? `<td><span class="st ${/^met/.test(c)?'ok':/^due/.test(c)?'due':'miss'}">${esc(c)}</span></td>` : `<td${typeof c === 'number' ? ' class="num"' : ''}>${esc(String(c))}</td>`).join('')}</tr>`).join('')}</tbody></table>${rs.length > 600 ? `<p class="hint">Showing the first 600 of ${rs.length} — narrow with the search box or download the CSV.</p>` : ''}${rs.length ? '' : '<p class="hint">Nothing matches.</p>'}</div>`; };
+  let lim = 50;   // a phone draws each row as a card: the first 50, then more on request (the CSV always has every row)
+  const table = () => { const rs = shown(), n = Math.min(lim, 600); return `<div class="tw drl"><table><thead><tr>${cols.map(c => `<th${typeof (out[0]||[])[cols.indexOf(c)] === 'number' ? ' class="num"' : ''}>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rs.slice(0, n).map(r => `<tr>${r.map((c, i) => cols[i] === 'Cat.' ? `<td><span class="badge ${/^[ABC]$/.test(c)?c:'N'}">${esc(c)}</span></td>` : cols[i] === 'Map' ? `<td>${c}</td>` : (cols[i] === 'Account' || cols[i] === 'Client') && c ? `<td><button type="button" class="cname" data-client="${esc(String(c))}">${esc(String(c))}</button></td>` : cols[i] === 'Note' ? `<td class="wrap">${c && typeof c === 'object' ? c.html : esc(String(c ?? ''))}</td>` : cols[i] === 'Status' ? `<td><span class="st ${/^met/.test(c)?'ok':/^due/.test(c)?'due':'miss'}">${esc(c)}</span></td>` : `<td${typeof c === 'number' ? ' class="num"' : ''}>${esc(String(c))}</td>`).join('')}</tr>`).join('')}</tbody></table>${rs.length > n && n < 600 ? `<button type="button" class="btn sm" id="drMore">Show more (${rs.length - n} more)</button>` : ''}${rs.length > 600 && n >= 600 ? `<p class="hint">Showing the first 600 of ${rs.length} — narrow with the search box or download the CSV.</p>` : ''}${rs.length ? '' : '<p class="hint">Nothing matches.</p>'}</div>`; };
   const count = () => { const rs = rowsOf(); if (out.__summary && !($('#drQ') && $('#drQ').value) && (!$('#drF') || $('#drF').value === flt)) return out.__summary; if (out.__opts) return `${rs.length} ${out.__unit}${rs.length===1?'':'s'}`; const met = statusCol === -1 ? null : rs.filter(r => r[r.length - 1] === 'met').length; const unit = kind === 'myaccounts' ? 'account' : 'requirement'; return statusCol === -1 ? `${rs.length}` : `${rs.length} ${unit}${rs.length===1?'':'s'}${$('#drF') && $('#drF').value === 'all' ? ` · ${met} met · ${rs.length - met} not met` : ''}`; };
   openModal(title, `<div class="drhead"><span class="hint">${esc(sub)}</span><b id="drN"></b></div>
     <div class="drbar"><input type="search" id="drQ" placeholder="Search…" aria-label="Search this list">${!tagged ? '' : `<select id="drF" aria-label="Show">${(out.__opts || [['all', 'All'], ['unmet', 'Not met'], ['met', 'Met']]).map(([v, l]) => `<option value="${v}"${flt===v?' selected':''}>${l}</option>`).join('')}</select>`}<button type="button" class="btn sm" id="drCsv">⤓ CSV</button></div>
     ${note ? `<p class="hint" style="margin:6px 0 10px">${esc(note)}</p>` : ''}<div id="drT"></div>`, null, 'Close');
   $('#modal .dialog').classList.add('wide');
   const paint = () => { $('#drT').innerHTML = table(); $('#drN').textContent = count(); quietZeros($('#drT')); wireNotes($('#drT'), () => kpiDrill(kind, scope));
+    if ($('#drMore')) $('#drMore').onclick = () => { lim += 100; paint(); };
     $$('#drT [data-client]').forEach(b => b.onclick = () => clientSheet(b.dataset.client, '', () => kpiDrill(kind, scope)));
     const shownCols = cols; $$('#drT tbody tr').forEach(tr => [...tr.children].forEach((td, i) => { if (shownCols[i]) td.dataset.l = shownCols[i]; if (!td.textContent.trim()) td.classList.add('empty-cell'); })); };   // phones: each row becomes a small card with labels
   paint();
-  $('#drQ').oninput = paint; if ($('#drF')) $('#drF').onchange = paint;
+  const drT = $('#drT'); let qT; $('#drQ').oninput = () => { clearTimeout(qT); qT = setTimeout(() => { if (!drT.isConnected) return; lim = 50; paint(); }, 200); };   // one repaint after typing pauses, not one per key
+  if ($('#drF')) $('#drF').onchange = () => { lim = 50; paint(); };
   $('#drCsv').onclick = () => downloadCsv(`tmc-go-${kind}-${ui.range.from}-to-${ui.range.to}`, [cols.filter(c => c !== 'Map'), ...shown().map(r => r.filter((c, i) => cols[i] !== 'Map').map(c => (c && typeof c === 'object') ? c.text : c))]);
 }
 // companies that are in anyone's A/B/C list (one key per company) — cached per redraw
@@ -4913,8 +4980,8 @@ function renderDashPage(){
   $$('[data-psort]', el).forEach(b => b.onclick = () => { ui.covSort = b.dataset.psort; renderDash(); });
   $$('[data-aerow]', el).forEach(tr => tr.onkeydown = e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === tr) { e.preventDefault(); tr.click(); } });
   $$('[data-aerow]', el).forEach(tr => tr.onclick = e => { if (e.target.closest('button,a')) return; const n = tr.dataset.aerow; if (ui.aeSel.has(n) && ui.aeSel.size===1) ui.aeSel.clear(); else { ui.aeSel.clear(); ui.aeSel.add(n); } renderDash(); const d = $('#v-dash .card:last-child'); if (d && ui.aeSel.size) d.scrollIntoView({behavior:'smooth', block:'start'}); });
-  onDate($('#dFrom'), f => { if (!f) return; setRange('custom', f, f > ui.range.to ? f : ui.range.to); renderDash(); });
-  onDate($('#dTo'), tt => { if (!tt) return; setRange('custom', tt < ui.range.from ? tt : ui.range.from, tt); renderDash(); });
+  onDate($('#dFrom'), (f, quiet) => { if (!f) return; setRange('custom', f, f > ui.range.to ? f : ui.range.to); redraw(renderDash, quiet); });
+  onDate($('#dTo'), (tt, quiet) => { if (!tt) return; setRange('custom', tt < ui.range.from ? tt : ui.range.from, tt); redraw(renderDash, quiet); });
   $('#dCity').onchange = e => { ui.city = e.target.value; const ok = new Set(aesInCity().map(a=>a.name)); [...ui.aeSel].forEach(n => { if (!ok.has(n)) ui.aeSel.delete(n); }); renderDash(); };
   if ($('#dCheck')) $('#dCheck').onclick = dataCheckDialog;
   if ($('#dRefresh')) $('#dRefresh').onclick = () => { $('#dRefresh').disabled = true; load(false); };
@@ -4969,7 +5036,7 @@ function buildReport(){
   const ws2 = XLSX.utils.aoa_to_sheet(vis); ws2['!cols'] = [{wch: 20}, {wch: 11}, {wch: 5}, {wch: 10}, {wch: 34}, {wch: 9}, {wch: 26}, {wch: 8}, {wch: 9}, {wch: 10}, {wch: 60}];
   const ws3 = XLSX.utils.aoa_to_sheet([['TMC Go visit report'], [], ['Period', `${r0.from} to ${r0.to} (${label})`], ['Scope', scope], ['Made', new Date().toLocaleString()], [],
     ['Rules', 'A: at least 2 visits every calendar month · B: at least 1 visit every calendar month · C: at least 1 visit every calendar quarter'],
-    ['Met', 'Distinct visit days to the account in the period (the same account twice on one day counts once), by the account’s own AE'],
+    ['Met', 'Visits to the account in the period (two visits on one day count as two), by the account’s own AE'],
     ['Dormant', 'Dormant accounts stay in the list but are never due'], ['Measured', 'Anyone with at least one A/B/C account that is not dormant'],
     ['Net new', 'Visited companies that are in nobody’s Categories list'], ['Kilometres', 'Road distance by Google’s recommended route: 2 × (office → each client), per day']]);
   ws3['!cols'] = [{wch: 12}, {wch: 110}];
@@ -5112,7 +5179,12 @@ function mgrEditDay(id){
       const details = lines.map(x => { const r = resolveAccount(v.ae, x.client) || resolveAccount('', x.client), client = r ? r.account : x.client, was = old.find(o => canon(o.client) === canon(client) && o.lat !== undefined && !isNaN(o.lat));
         return {client, purpose: x.purpose, cat: catFor(v.ae, client), ...(was ? {lat: was.lat, lng: was.lng, addr: was.addr || ''} : {})}; });
       const row = {...v, date, accounts: details.map(d=>d.client).join('; '), count: details.length, purpose: [...new Set(details.map(d=>d.purpose).filter(Boolean))].join('; '), details: JSON.stringify(details), note: $('#mgNote').value.trim(), km: autoKmOn() ? 0 : v.km, route: '', kmMode: autoKmOn() ? 'auto' : (v.kmMode||'manual'), ts: new Date().toISOString(), loggedBy: 'manager'};
-      const res = await callApi({action:'upsertVisit', row, autoKm: autoKmOn(), adminPin:getAdminPin(), mode:'replace', baseTs: v.ts || ''});
+      let res;
+      try { res = await callApi({action:'upsertVisit', row, autoKm: autoKmOn(), adminPin:getAdminPin(), mode:'replace', baseTs: v.ts || ''}); }
+      catch (e) { if (!/^(?:CONFLICT|GONE):/.test(e.server || '')) throw e;   // changed or removed on another device: show the day as it is now [multi-device]
+        try { await load(false); } catch(x){}
+        if (!data.visits.some(x => x.id === id)) { $('#modal').classList.remove('open'); toast(e.message); render(); return; }
+        mgrEditDay(id); $('#mErr').textContent = e.message; return; }
       upsertLocal('visits', normVisits([res.row])[0]); toast(res.route ? `Saved · ${num(res.route.totalKm)} km by road` : 'Saved'); render();
     });
   const wire = () => { $$('#mgLines .mp').forEach(s => s.onchange = () => { const o = s.parentElement.querySelector('.mo'); o.style.display = s.value === '__other' ? '' : 'none'; if (s.value === '__other') o.focus(); }); $$('#mgLines .mx').forEach(b => b.onclick = () => { b.parentElement.remove(); }); };
@@ -5122,7 +5194,8 @@ function mgrEditDay(id){
 async function mgrDeleteDay(id){
   const v = data.visits.find(x=>x.id===id); if (!v) return;
   if (!(await confirmModal(`Delete ${fullName(v.ae)}'s ${fmtDate(v.date)}?`, `${v.count} visit${v.count===1?'':'s'} and the day's kilometres will be removed from the sheet. You can undo for a few seconds.`))) return;
-  try { await callApi({action:'deleteVisit', id, adminPin:getAdminPin()}); removeLocal('visits', id); render(); toast(`${fullName(v.ae)} · ${fmtDate(v.date)} deleted`, 'Undo', async () => { const r = await callApi({action:'upsertVisit', row:v, adminPin:getAdminPin(), mode:'append'}); upsertLocal('visits', normVisits([r.row])[0]); render(); }); } catch(e) { toast(e.message); }
+  try { await callApi({action:'deleteVisit', id, baseTs: v.ts || '', adminPin:getAdminPin()}); removeLocal('visits', id); render(); toast(`${fullName(v.ae)} · ${fmtDate(v.date)} deleted`, 'Undo', async () => { const r = await callApi({action:'upsertVisit', row:v, adminPin:getAdminPin(), mode:'append', undo: true}); upsertLocal('visits', normVisits([r.row])[0]); render(); }); }
+  catch(e) { if (/^(?:CONFLICT|GONE):/.test(e.server || '')) { try { await load(false); } catch(x){} } toast(e.message); }   // changed or removed on another device: the latest is shown
 }
 // The chart library loads after the page (defer): if the charts tab was drawn before it arrived, draw it again now (never before the data is in —
 // an empty dashboard would say "No visits logged" under the loading card).
@@ -5311,8 +5384,10 @@ function contactDialog(acc, after){
       if (!phone && !email && name) errs.ctPhone = 'Add a mobile or an email so the team can reach them.';
       ['ctName', 'ctPhone', 'ctEmail'].forEach(k => { $('#' + k + 'Err').textContent = errs[k] || ''; $('#' + k).classList.toggle('bad', !!errs[k]); });
       if (Object.keys(errs).length) throw new Error('Check the highlighted field.');
-      const r = await callApi({action: 'setAccountContact', id: acc.id, contact: {contactName: name, contactRole: $('#ctRole').value.trim(), contactPhone: phone.replace(/\s+/g, ' '), contactEmail: email}});
-      Object.assign(acc, r.row); toast('Contact saved'); if (after) setTimeout(after, 0); }, 'Save contact');
+      const typed = {contactName: name, contactRole: $('#ctRole').value.trim(), contactPhone: phone.replace(/\s+/g, ' '), contactEmail: email}, contact = {};
+      Object.keys(typed).forEach(k => { if (typed[k] !== String(acc[k] || '').trim()) contact[k] = typed[k]; });   // only what was changed here: a field another device just changed is kept (as profile saves do)
+      if (Object.keys(contact).length) { const r = await callApi({action: 'setAccountContact', id: acc.id, contact}); Object.assign(acc, r.row); }
+      toast('Contact saved'); if (after) setTimeout(after, 0); }, 'Save contact');
   ['ctName', 'ctPhone', 'ctEmail'].forEach(k => $('#' + k).addEventListener('input', () => { $('#' + k + 'Err').textContent = ''; $('#' + k).classList.remove('bad'); }));
   if ($('#ctClear')) $('#ctClear').onclick = async () => { if (!(await confirmModal('Remove this contact?', `${acc.contactName || 'The contact'} will be removed from ${acc.account}.`))) return contactDialog(acc, after);
     try { const r = await callApi({action: 'setAccountContact', id: acc.id, contact: {contactName: '', contactRole: '', contactPhone: '', contactEmail: ''}}); Object.assign(acc, r.row); toast('Contact removed'); if (after) after(); } catch(e) { toast(friendly(e)); } };
@@ -5919,11 +5994,11 @@ function planDoneDialog(p, keep){
 async function logVisitNow(o){
   const city = aeCities(ui.me)[0] || ''; if (!city) throw new Error('Your city is not set — ask an admin to add it in the AEs tab of the sheet.');
   if (o.date > todayIso()) throw new Error('A visit can’t be logged for a future day.');
-  const auto = autoKmOn(), ex = dayEntry(ui.me, o.date), d = {client: o.client, purpose: o.purpose, cat: catFor(ui.me, o.client), lat: o.loc ? o.loc.lat : undefined, lng: o.loc ? o.loc.lng : undefined, addr: o.loc ? (o.loc.address || '') : ''};
+  const auto = autoKmOn(), ex = dayEntry(ui.me, o.date), d = {client: o.client, purpose: o.purpose, cat: catFor(ui.me, o.client), lat: o.loc ? o.loc.lat : undefined, lng: o.loc ? o.loc.lng : undefined, addr: o.loc ? (o.loc.address || '') : '', vid: o.vid || uid('v')};
   if (!accountRow(ui.me, o.client) && !ownerOf(o.client)) { const r0 = await callApi({action: 'upsertAccount', row: {id: null, ae: ui.me, account: o.client, tier: '', city, netNew: 'Y', addedOn: o.date, notes: 'Added from a planned visit'}}); upsertLocal('accounts', normAccounts([r0.row])[0]); d.cat = catFor(ui.me, o.client); }
   const details = (ex ? dayDetails(ex) : []).concat([d]), accounts = details.map(x => x.client), purpose = [...new Set(details.flatMap(x => splitPurposes(x.purpose)))].join('; ');
   const row = {id: ex ? ex.id : null, date: o.date, ae: ui.me, city: (ex && ex.city) || city, note: (ex && ex.note) || '', accounts: accounts.join('; '), count: accounts.length, km: auto ? 0 : (ex && ex.km !== '' && ex.kmMode !== 'pending' ? ex.km : ''), purpose, details: JSON.stringify(details), loggedBy: ui.me, ts: new Date().toISOString(), route: auto ? '' : (ex && ex.route) || '', kmMode: auto ? 'auto' : ex && ex.kmMode === 'pending' ? 'pending' : 'manual'};
-  const res = await callApi({action: 'upsertVisit', row, autoKm: auto, mode: 'append', add: [{client: d.client, purpose: d.purpose, cat: d.cat, lat: d.lat, lng: d.lng, addr: d.addr}]});
+  const res = await callApi({action: 'upsertVisit', row, autoKm: auto, mode: 'append', add: [{client: d.client, purpose: d.purpose, cat: d.cat, lat: d.lat, lng: d.lng, addr: d.addr, vid: d.vid}]});
   upsertLocal('visits', normVisits([res.row])[0]); try { milestoneCheck(); } catch(e){}
   return res;
 }
@@ -6518,7 +6593,6 @@ async function dataCheckDialog(){
       </tbody></table></div>
       <h4>Things that change the numbers</h4>
       ${issue(a.splitDays.length, 'Days split into more than one row (office kilometres counted twice)', a.splitDays.slice(0,8).map(l => `${fmtLong(l[0].date)} · ${esc(l[0].ae)}: ${l.length} rows`).join('<br>'), 'merge')}
-      ${issue(a.repeats.reduce((s,x)=>s+x.extra,0), 'Same client logged twice on the same day', a.repeats.slice(0,8).map(x => `${fmtLong(x.v.date)} · ${esc(x.v.ae)}`).join('<br>') + (a.repeats.length > 8 ? '<br>…' : ''), 'repeats')}
       ${issue(a.miscount.length, 'Days whose visit count doesn’t match the clients listed', a.miscount.slice(0,8).map(v => `${fmtLong(v.date)} · ${esc(v.ae)}: says ${v.storedCount ?? v.count}, lists ${splitAccts(v.accounts).length}`).join('<br>'), 'recount')}
       ${issue(a.bookDup.length, 'Accounts listed twice in someone’s book', a.bookDup.slice(0,10).map(l => `${esc(l[0].ae)}: ${esc(l[0].account)} ×${l.length}`).join('<br>') + '<br><span class="hint">The dashboard now counts each once. To tidy the sheet, delete the extra row in the <b>Categories</b> tab.</span>', '')}
       ${issue(a.kmCheck.length, 'Days with kilometres to check (pending, over 300 km, a client placed only at the city centre, or worked out the old way along the route — Fix recalculates them as 2 × office → each client)', a.kmCheck.slice(0,8).map(v => `${fmtLong(v.date)} · ${esc(v.ae)}: ${v.kmMode === 'pending' ? 'pending' : num(v.km) + ' km'}${v.kmMode === 'auto' && dayDetails(v).some(d => areaPin(d.lat, d.lng)) ? ' · ' + esc(dayDetails(v).filter(d => areaPin(d.lat, d.lng)).map(d => d.client).join(', ')) + ' placed at the city centre' : ''}`).join('<br>'), 'km')}
@@ -6539,7 +6613,7 @@ async function dataCheckDialog(){
         <li><b>Visits</b> — every client listed on a day, for the people and dates selected.</li>
         <li><b>Visit days</b> — days with at least one visit, counted per person (two people on the same date = 2). <b>Dates</b> — different calendar dates.</li>
         <li><b>Accounts visited</b> — different accounts each person visited (spellings and aliases of the same account count once).</li>
-        <li><b>Coverage</b> — each account must meet its rule in every calendar period: <b>A</b> 2 visits every month, <b>B</b> 1 visit every month, <b>C</b> 1 visit every quarter — in a month, the target is the C accounts not yet visited this quarter ÷ the months left, rounded up to whole visits (15 C → 5; none visited → 8; none again → 15), each C account counted once. Dormant accounts are not counted. Each account × period is one requirement; coverage = requirements met ÷ requirements due. Categories are per person: an account’s category for someone is the one on their own row of the Categories tab (blank = no category for them, even if a colleague has the same company as A). Each person’s coverage counts only their own visits, dated today or earlier, to accounts in their own book (any spelling or alias); the same account twice on one day counts once. When two people visit together, each logs it — it counts for whoever has the account in their book. The team total adds up everyone’s requirements. Accounts added part-way through a period count from the next full period. Months and quarters that ended before the first visit logged in the app aren’t judged (there is no data for them). People marked “no fixed book” and admins without visits are left out.</li>
+        <li><b>Coverage</b> — each account must meet its rule in every calendar period: <b>A</b> 2 visits every month, <b>B</b> 1 visit every month, <b>C</b> 1 visit every quarter — in a month, the target is the C accounts not yet visited this quarter ÷ the months left, rounded up to whole visits (15 C → 5; none visited → 8; none again → 15), each C account counted once. Dormant accounts are not counted. Each account × period is one requirement; coverage = requirements met ÷ requirements due. Categories are per person: an account’s category for someone is the one on their own row of the Categories tab (blank = no category for them, even if a colleague has the same company as A). Each person’s coverage counts only their own visits, dated today or earlier, to accounts in their own book (any spelling or alias); the same account twice on one day is two visits (kilometres count that trip once). When two people visit together, each logs it — it counts for whoever has the account in their book. The team total adds up everyone’s requirements. Accounts added part-way through a period count from the next full period. Months and quarters that ended before the first visit logged in the app aren’t judged (there is no data for them). People marked “no fixed book” and admins without visits are left out.</li>
         <li><b>Net new</b> — companies that are in nobody’s Categories list (new to TMC), visited in the period.</li>
         <li><b>Kilometres</b> — the day totals saved with each day (Google Maps or entered by hand); <b>per visit</b> = km ÷ visits.</li>
       </ul></details>
