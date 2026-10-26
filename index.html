@@ -2041,6 +2041,56 @@ body .btn:active:not(:disabled){transform:translateY(1px)}
 body a.btn,body a.btn:hover,body a.btn:focus-visible{text-decoration:none!important}
 body a.btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 @media (prefers-reduced-motion:reduce){ body .btn{transition:none} body .btn:active:not(:disabled){transform:none} }
+/* ── Sign-in lamp: a dark room until the string is pulled ── */
+.sr-only{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.lamproom{position:relative;overflow:hidden;isolation:isolate;display:flex;align-items:flex-start;justify-content:center;gap:clamp(18px,5vw,72px);width:min(1000px,100%);margin:0 auto!important;min-height:min(660px,calc(100dvh - 120px));padding:0 clamp(16px,4vw,48px) 36px!important;border-radius:28px;background:#0A0F2C;--pull:0px}
+.room-light{position:absolute;inset:0;z-index:-1;opacity:0;background:radial-gradient(60% 75% at 24% 24%,#FFF4D6 0%,#FBF1E2 30%,#EEF1F8 72%,#E8ECF6 100%);transition:opacity .6s ease}
+.lamproom.lit .room-light{opacity:1} .lamproom.lit{background:#EEF1F8} html.dark .lamproom.lit{background:#0E1430}
+.si-ghost{flex:none;width:min(440px,100%)}
+.lamp{position:relative;flex:none;width:160px;display:flex;flex-direction:column;align-items:center}
+.lamp-svg{width:160px;height:170px;display:block;overflow:visible;transform-origin:80px 0}
+.lamp-cord{stroke:#4B5275;stroke-width:2.5}
+.lamp-cap{fill:#2A3157}
+.lamp-shade{fill:#3F6B22;transition:fill .4s ease}
+.lamp-shine{fill:none;stroke:#fff;stroke-opacity:.12;stroke-width:4;stroke-linecap:round}
+.lamp-rim{fill:#2C4F17}
+.lamp-bulb{fill:#3A3F5C;transition:fill .3s ease,filter .3s ease}
+.lamproom.lit .lamp-shade{fill:#8DC63F} .lamproom.lit .lamp-rim{fill:#699B3A} .lamproom.lit .lamp-cord{stroke:#8A90A8} .lamproom.lit .lamp-cap{fill:#141B4D}
+.lamproom.lit .lamp-bulb{fill:#FFF3C4;filter:drop-shadow(0 0 10px #FFD978) drop-shadow(0 0 26px rgba(255,205,90,.75))}
+.lamp-cone{position:absolute;top:140px;left:50%;width:min(560px,80vw);height:560px;transform:translateX(-50%);pointer-events:none;z-index:-1;opacity:0;clip-path:polygon(43% 0,57% 0,100% 100%,0 100%);background:linear-gradient(180deg,rgba(255,226,150,.55),rgba(255,226,150,.12) 55%,rgba(255,226,150,0));transition:opacity .6s ease}
+.lamproom.lit .lamp-cone{opacity:1}
+.pull{position:absolute;left:118px;top:126px;display:flex;flex-direction:column;align-items:center}
+.pull-line{width:2px;height:calc(84px + var(--pull));background:linear-gradient(#C9CEE0,#9AA1B9);transition:height .45s cubic-bezier(.3,1.7,.5,1)}
+.lamproom.dragging .pull-line{transition:none}
+.pull-bead{position:relative;width:20px;height:20px;margin-top:-1px;border-radius:50%;border:0;padding:0;background:radial-gradient(circle at 35% 30%,#F3F5FA,#A8AEC4 70%);box-shadow:0 2px 6px rgba(0,0,0,.35);cursor:grab;touch-action:none}
+.pull-bead::after{content:'';position:absolute;inset:-16px;border-radius:50%}   /* a bigger target for fingers */
+.lamproom:not(.lit) .pull-bead{animation:beadHint 2.4s ease-in-out infinite}
+.lamproom.dragging .pull-bead{cursor:grabbing}
+.pull-bead:focus-visible{outline:3px solid #8DC63F;outline-offset:4px}
+.lamp-hint{position:absolute;left:150px;top:196px;width:150px;margin:0;color:#C7CCE0;font-size:13px;line-height:1.35;display:flex;flex-direction:column}
+.lamp-hint b{color:#fff;font-size:15px}
+.lamp-hint::before{content:'';position:absolute;left:-26px;top:9px;width:18px;height:2px;background:#8DC63F;border-radius:2px}
+.lamproom .si-card{position:relative;margin-top:clamp(48px,10vh,110px)}
+.lamproom.turning-on .si-card{animation:cardIn .55s .15s cubic-bezier(.2,.8,.2,1) both}
+.lamproom.turning-on .room-light,.lamproom.turning-on .lamp-cone{animation:lightIn .7s ease both}
+.lamproom.flick .lamp-bulb{animation:bulbFlick .38s steps(1) both}
+.lamp.swing .lamp-svg{animation:lampSwing .9s ease-out}
+@keyframes beadHint{0%,70%,100%{transform:translateY(0)}80%{transform:translateY(7px)}90%{transform:translateY(-2px)}}
+@keyframes cardIn{from{opacity:0;transform:translateX(-18px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes lightIn{0%{opacity:0}20%{opacity:.7}32%{opacity:.2}55%{opacity:1}100%{opacity:1}}
+@keyframes bulbFlick{0%{fill:#FFF3C4}25%{fill:#3A3F5C}50%{fill:#FFF3C4}75%{fill:#5A5F7C}100%{fill:#FFF3C4}}
+@keyframes lampSwing{0%{transform:rotate(0)}25%{transform:rotate(3deg)}55%{transform:rotate(-2deg)}80%{transform:rotate(1deg)}100%{transform:rotate(0)}}
+html.dark .room-light{background:radial-gradient(60% 75% at 24% 24%,rgba(255,214,140,.30) 0%,rgba(255,214,140,.10) 35%,#0E1430 75%)}
+@media (max-width:700px){
+  .lamproom{flex-direction:column;align-items:center;justify-content:flex-start;gap:0;border-radius:22px;padding:0 14px 24px!important;min-height:calc(100dvh - 110px)}
+  .lamp-hint{left:auto;right:auto;top:auto;position:relative;width:auto;margin:118px 0 0;text-align:center;align-items:center}
+  .lamp-hint::before{display:none}
+  .si-ghost{display:none}
+  .lamproom .si-card{margin-top:96px}
+  .lamp-cone{top:130px}
+}
+@media (prefers-reduced-motion:reduce){.lamproom *,.lamproom{animation:none!important;transition:none!important}}
+
 /* Plan visits page */
 .planpage{max-width:900px}
 .planhero{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px!important}
@@ -2356,6 +2406,10 @@ html.dark body .drow:hover,html.dark body .mstat:hover,html.dark body .covhero:h
 html.dark .covhero + .pace{border-top:1px dashed #4F442C!important}
 html.dark .kcsum{border:1px solid var(--edge,#353A46)!important;background:#141A29!important}
 html.dark .tplan{border-top:1px dashed #2E2853!important}
+html.dark .room-light{background:radial-gradient(60% 75% at 24% 24%,#352B10 0%,#2F2414 30%,#191D28 72%,#191E29 100%)!important}
+html.dark .lamproom.lit{background:#191D28!important}
+html.dark .pull-line{background:linear-gradient(#22252E,#9AA1B9)!important}
+html.dark .pull-bead{background:radial-gradient(circle at 35% 30%,#181C27,#A8AEC4 70%)!important}
 html.dark .pday.on .pdots i{background:#121829!important}
 @media (max-width:760px){html.dark .tabbar button.on{color:#888FD2!important}html.dark .tabbar button.on svg{background:#0E1431!important}html.dark .route .tl li::before{background:#121829!important}html.dark .logactions{background:linear-gradient(to top,#171A24 70%,rgba(255,255,255,0))!important}}
 @media (max-width:560px){html.dark #drT tbody tr{border:1px solid var(--edge,#353A46)!important}}
@@ -2489,7 +2543,7 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-26 19:46 · production';
+const BUILD = '2026-10-26 21:00 · production';
 const NEEDS_BACKEND = 65;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
@@ -3483,6 +3537,58 @@ function addAeDialog(){
 }
 // ---- Sign in: tap your name, enter your PIN; the device stays signed in until you sign out ----
 let signin = { roster: [], step: 'pick', who: null, sentTo: '', busy: false, q: '' };
+/* Sign-in lamp (owner, 26 Oct): the sign-in screen starts as a dark room with a hanging lamp. Pulling its string (drag it down,
+   tap it, or Enter/Space on the keyboard) switches the light on and the sign-in card appears in the light beside it. The light
+   stays on while this screen is open; the next sign-in starts dark again. Reduced motion: no swing or flicker. */
+const LAMP_SVG = `<svg class="lamp-svg" viewBox="0 0 160 170" aria-hidden="true">
+  <line x1="80" y1="0" x2="80" y2="60" class="lamp-cord"/>
+  <rect x="71" y="54" width="18" height="13" rx="3.5" class="lamp-cap"/>
+  <path d="M80 64 C50 66 30 92 20 128 L140 128 C130 92 110 66 80 64 Z" class="lamp-shade"/>
+  <path d="M80 70 C60 72 46 90 38 112" class="lamp-shine"/>
+  <rect x="17" y="125" width="126" height="7" rx="3.5" class="lamp-rim"/>
+  <circle cx="80" cy="135" r="13" class="lamp-bulb"/>
+</svg>`;
+function lampRoom(card){
+  const lit = !!signin.lit, fresh = !!signin.justLit; signin.justLit = false;
+  return `<div class="signin lamproom${lit ? ' lit' : ''}${fresh ? ' turning-on' : ''}">
+    <div class="room-light" aria-hidden="true"></div>
+    <div class="lamp"><div class="lamp-cone" aria-hidden="true"></div>${LAMP_SVG}
+      <div class="pull"><span class="pull-line" aria-hidden="true"></span><button type="button" class="pull-bead" id="lampPull" aria-pressed="${lit}" aria-label="${lit ? 'The light is on' : 'Pull the string to switch on the light and sign in'}"></button></div>
+      ${lit ? '' : '<p class="lamp-hint" aria-hidden="true"><b>Pull the string</b><span>to switch the light on</span></p>'}</div>
+    ${lit ? card : `<h1 class="sr-only">Sign in to TMC Go</h1><div class="si-ghost" aria-hidden="true"></div>`}</div>`;   // the ghost keeps the lamp where it will be once the card is there
+}
+function lampOn(){
+  if (signin.lit || signin.turning) return;
+  const room = $('.lamproom'), still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  signin.turning = true; if (room) room.classList.add('flick');
+  setTimeout(() => { signin.turning = false; signin.lit = true; signin.justLit = true; const m = signin.msg; signin.msg = ''; drawSignIn(m);
+    const touch = window.matchMedia && matchMedia('(pointer:coarse)').matches, f = $('#siPin') || $('#siCode') || (!touch && $('#siQ'));
+    if (f) setTimeout(() => { try { f.focus({preventScroll: true}); } catch(e){} }, still ? 0 : 450); }, still ? 0 : 380);
+}
+function wireLamp(root){
+  if (root.dataset.lampWired) return; root.dataset.lampWired = '1';
+  let drag = null;
+  const room = () => root.querySelector('.lamproom');
+  root.addEventListener('pointerdown', e => {
+    const b = e.target.closest && e.target.closest('#lampPull'); if (!b) return;
+    e.preventDefault();
+    if (signin.lit) { const l = root.querySelector('.lamp'); if (l) { l.classList.remove('swing'); void l.offsetWidth; l.classList.add('swing'); } return; }
+    drag = { y: e.clientY, d: 0, moved: 0 }; try { b.setPointerCapture(e.pointerId); } catch(err){}
+    const r = room(); if (r) r.classList.add('dragging');
+  });
+  root.addEventListener('pointermove', e => {
+    if (!drag) return; const dy = e.clientY - drag.y; drag.moved = Math.max(drag.moved, Math.abs(dy));
+    drag.d = Math.max(0, Math.min(70, Math.abs(dy)));   // pulled down (or up) — either way it gives
+    const r = room(); if (r) r.style.setProperty('--pull', drag.d + 'px');
+  });
+  const end = () => {
+    if (!drag) return; const d = drag; drag = null;
+    const r = room(); if (r) { r.classList.remove('dragging'); r.style.setProperty('--pull', '0px'); }
+    if (d.d >= 22 || d.moved < 8) lampOn();   // a real pull, or a simple tap
+  };
+  root.addEventListener('pointerup', end); root.addEventListener('pointercancel', () => { drag = null; const r = room(); if (r) { r.classList.remove('dragging'); r.style.setProperty('--pull', '0px'); } });
+  root.addEventListener('click', e => { if (e.detail === 0 && e.target.closest && e.target.closest('#lampPull')) lampOn(); });   // keyboard: Enter / Space
+}
 async function signInScreen(msg){
   ['log','dash'].forEach(x => { const s = $('#v-'+x); if (s) s.style.display = x === 'log' ? '' : 'none'; });
   $('#loading').style.display = 'none'; const sk = $('#skeleton'); if (sk) sk.remove(); hideBanner();
@@ -3493,8 +3599,10 @@ async function signInScreen(msg){
 }
 function drawSignIn(msg){
   const el = $('#v-log'), s = signin, who = s.who;
+  wireLamp(el);
+  if (!s.lit) { if (msg) s.msg = msg; el.innerHTML = lampRoom(''); return; }   // dark room first; the card comes with the light
   
-  const card = inner => `<div class="signin"><div class="si-card"><span class="blogo silogo" role="img" aria-label="TMC go"><svg class="bmark" viewBox="105 30 240 378" aria-hidden="true"><polygon points="158,35 190,35 166,262 113,262" fill="#B5B5B5"/><polygon points="113,262 166,262 190,402 158,402" fill="#6E6E6E"/><polygon points="205,35 245,35 259,262 191,262" fill="#8DC63F"/><polygon points="191,262 259,262 245,402 205,402" fill="#699B3A"/><polygon points="292,35 260,35 284,262 337,262" fill="#B5B5B5"/><polygon points="337,262 284,262 260,402 292,402" fill="#6E6E6E"/></svg><span class="bgo">go<i class="bdot"></i></span></span><div class="si-eyebrow">Sign in to TMC Go</div>${msg?`<div class="banner err" style="margin-bottom:12px">${esc(msg)}</div>`:''}${inner}</div></div>`;
+  const card = inner => lampRoom(`<div class="si-card"><span class="blogo silogo" role="img" aria-label="TMC go"><svg class="bmark" viewBox="105 30 240 378" aria-hidden="true"><polygon points="158,35 190,35 166,262 113,262" fill="#B5B5B5"/><polygon points="113,262 166,262 190,402 158,402" fill="#6E6E6E"/><polygon points="205,35 245,35 259,262 191,262" fill="#8DC63F"/><polygon points="191,262 259,262 245,402 205,402" fill="#699B3A"/><polygon points="292,35 260,35 284,262 337,262" fill="#B5B5B5"/><polygon points="337,262 284,262 260,402 292,402" fill="#6E6E6E"/></svg><span class="bgo">go<i class="bdot"></i></span></span><div class="si-eyebrow">Sign in to TMC Go</div>${msg?`<div class="banner err" style="margin-bottom:12px">${esc(msg)}</div>`:''}${inner}</div>`);
   if (s.step === 'pick') {
     const list = s.roster.filter(a => !s.q || norm(a.name).includes(norm(s.q)));
     el.innerHTML = card(`<h2>Who are you?</h2><p class="hint">Sign in once on this device — it remembers you.</p>
