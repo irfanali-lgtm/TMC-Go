@@ -1652,6 +1652,9 @@ body table.perft td.pnotec>span.pnotewrap,body table.perft td.pnotec .pnotebtn{d
 body .logcard .head.hello{align-items:center;gap:12px}
 body .logcard .head.hello h2{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:0}
 body .logcard .head.hello .hint{margin-top:2px}
+body .hellocard .head.hello{align-items:center;gap:12px;border-bottom:0} body .hellocard .head.hello h2{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:0} body .hellocard .head.hello .hint{margin-top:2px}
+body .routecard{position:relative} body .routecard .head{padding-right:56px!important} body .routecard>.cardx{top:50%;top:calc(var(--rchead,64px) / 2 - 14px);right:14px}
+body .hellocard{padding:0!important;overflow:hidden} body .hellocard>.head.hello{margin:0!important;border-bottom:0!important;min-height:0}
 .htools{display:flex;gap:6px;flex:none}
 .hbtn{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:58px;padding:7px 6px;border:0;border-radius:12px;background:transparent;color:var(--n-600);font:inherit;font-size:11.5px;font-weight:650;cursor:pointer}
 .hbtn .i{width:20px;height:20px;padding:8px;box-sizing:content-box;border-radius:50%;background:var(--n-50);color:var(--b-700);transition:background .15s,color .15s}
@@ -2543,8 +2546,8 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-26 21:00 · production';
-const NEEDS_BACKEND = 65;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
+const BUILD = '2026-10-28 10:00 · production';
+const NEEDS_BACKEND = 66;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
 setTimeout(() => {
@@ -2728,7 +2731,7 @@ const OFFICES = {"Lahore": "Floor No. 10, Zone B, DHA Business Hub, D.H.A. Comme
 const data = { aes:[], accounts:[], visits:[], opportunities:[], aliases:[], followups:[], settings:{autoKm:'Y', offices:Object.fromEntries(Object.keys(OFFICES).map(c=>[c,{address:OFFICES[c], latlng:''}]))} };
 const ui = {
   todoOpen: true, dashSec: (() => { try { return ['overview','team','charts','map'].includes(localStorage.getItem('vi.dashSec')) ? localStorage.getItem('vi.dashSec') : 'overview'; } catch(e) { return 'overview'; } })(),
-  tab: ({'#dashboard':'dash', '#log':'log', '#todo':'todo', '#menu':'menu', '#plan':'plan'})[location.hash] || (['log','dash','todo','menu','plan'].includes(localStorage.getItem('vi.tab')) ? localStorage.getItem('vi.tab') : 'log'),   // a link to #dashboard / #log wins
+  tab: ({'#dashboard':'dash', '#log':'log', '#todo':'todo', '#menu':'menu', '#plan':'plan'})[location.hash] || (['log','dash','todo','menu','plan'].includes(localStorage.getItem('vi.tab')) ? localStorage.getItem('vi.tab') : 'plan'),   // a link to #dashboard / #log wins; new devices open on the first tab, Plan visits
   month: '', city: '', me: localStorage.getItem('vi.me') || '',
   editId: null, demo: false, loading: true, error: '',
   acctFilter: {ae:'', tier:'', status:'', q:''}, dailyFilter:{ae:'', q:''}, oppFilter:{ae:'', q:''},
@@ -2817,6 +2820,7 @@ function friendly(err){
   if (/NOTYOU/.test(m)) return 'You can only change your own visits.';
   if (/MANAGER_ONLY/.test(m)) return 'Only admins can do that.';
   if (/NOPIN/.test(m)) return 'That PIN isn’t right. Your starting PIN is 1234.';
+  if (/Someone else on the team already uses that email|Choose your own PIN first|email doesn’t look right/.test(m)) return m.replace(/^Error:\s*/, '');   // your own email in Edit profile (28 Oct): the server's plain words
   if (/No email on file|code was sent less than|not right or has expired|Too many tries|not on the team list|wait 15 minutes|PIN isn’t right|4–8 digits|6–8 digits/i.test(m)) return m.replace(/^Error:\s*/,'');
   if (/admin pin/i.test(m)) return 'Wrong admin PIN.';
   if (/wrong pin|pin required/i.test(m)) return 'The backend is on an older version. Ask an admin to paste the latest Code.gs into Apps Script and deploy a new version.';
@@ -3705,7 +3709,7 @@ function renderLogPage(){
   const purposes = purposeList();
   el.innerHTML = `${!editing && !prepOn() ? todayCard() : ''}
   <div class="card logcard">
-    <div class="head hello"><div class="who">${avatar(ui.me, 44)}<div><h2>${esc(greeting())}, <em class="goname">${esc(shortName(ui.me).split(' ')[0])}</em> ${greetEmoji()}</h2><div class="hint">${esc(['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][pkNow().getDay()])}, ${esc(fmtLong(todayIso()))}${esc([aeByName(ui.me)?.title, city].filter(Boolean).map(x => ' · ' + x).join(''))}${monthPulse()}</div>${editing ? `<span class="sub hellosub">Editing ${fmtDate(editDay ? editDay.date : '')} — change the visits below and save; the day\u2019s kilometres are recalculated.</span>` : ''}</div></div>
+    <div class="head hello"><div class="who">${avatar(ui.me, 44)}<div>${prepOn() ? `<h2>Log your visits</h2>` : `<h2>${esc(greeting())}, <em class="goname">${esc(shortName(ui.me).split(' ')[0])}</em> ${greetEmoji()}</h2>`}<div class="hint">${dayLine(city)}${monthPulse()}</div>${editing ? `<span class="sub hellosub">Editing ${fmtDate(editDay ? editDay.date : '')} — change the visits below and save; the day\u2019s kilometres are recalculated.</span>` : ''}</div></div>
       <span class="spacer"></span>${editing ? '<button class="btn sm" id="fCancel">Cancel</button>' : `<div class="htools"><button type="button" class="hbtn" id="fMyAccounts" title="My accounts — everyone on your list, with your notes" aria-label="My accounts"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h12a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2z"/><path d="M8 8h6M8 12h6"/></svg><span>Accounts</span></button></div>`}</div>
     <div class="body">
       ${!editing ? weekStrip() : ''}
@@ -3941,6 +3945,11 @@ async function installApp(){
 }
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost') && !hasGs()) { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); }); }
 function greeting(){ const h = pkNow().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; }
+// "Wednesday, 28 Oct 2026 · Sales Executive · Lahore" — under the greeting (Plan visits) or the Log visits heading
+function dayLine(city){ return esc(['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][pkNow().getDay()]) + ', ' + esc(fmtLong(todayIso())) + esc([aeByName(ui.me)?.title, city].filter(Boolean).map(x => ' · ' + x).join('')); }
+// The greeting at the top of Plan visits (owner 28 Oct: "good morning should be on the first page, Plan visits, not on Log visits")
+function helloCard(){ const city = aeCities(ui.me)[0] || '';
+  return `<div class="card hellocard"><div class="head hello"><div class="who">${avatar(ui.me, 44)}<div><h2>${esc(greeting())}, <em class="goname">${esc(shortName(ui.me).split(' ')[0])}</em> ${greetEmoji()}</h2><div class="hint">${dayLine(city)}${monthPulse()}</div></div></div></div></div>`; }
 function monthPulse(){
   if (!ui.me) return '';
   const today = todayIso(), ym = today.slice(0,7), d = +today.slice(8);
@@ -5427,7 +5436,7 @@ async function automationsSheet(){
     async () => { const o = {}; $$('#mBody [data-au]').forEach(i => o[i.dataset.au] = i.checked); await saveProfile(me, {autoPrefs: JSON.stringify(o)}); }, 'Save');
   try { const r = await callApi({action: 'myAutomations'}); const el = $('#auCal'); if (!el) return;
     el.innerHTML = r.calendar === 'ok' ? '<span class="st ok">Calendar connected</span> <span class="hint">TMC Go can read your Google Calendar.</span>'
-      : r.calendar === 'no-email' ? '<span class="st miss">No email on your profile</span> <span class="hint">Ask an admin to add your company email — the calendar features need it.</span>'
+      : r.calendar === 'no-email' ? '<span class="st miss">No email on your profile</span> <span class="hint">Add your work email in Menu → Edit profile — the calendar features need it.</span>'
       : `<span class="st due">Calendar not shared yet</span><span class="hint">In Google Calendar → Settings → your calendar → <b>Share with specific people</b> → add <b>${esc(r.shareWith || 'the TMC Go account')}</b> with “See all event details”. Or ask your Google Workspace admin to share calendars inside the company.</span>`;
   } catch(e) { const el = $('#auCal'); if (el) el.innerHTML = '<span class="hint">Couldn’t check your calendar just now — the backend may need updating.</span>'; }
 }
@@ -5619,7 +5628,7 @@ function remindersSheet(pick){
   openModal('Reminders', `<p class="hint" style="margin-bottom:12px">When a follow-up’s time comes, TMC Go reminds you — Monday to Friday, Pakistan time.</p>
     <div class="segpick" role="radiogroup" aria-label="Send my reminders by">${[['email','Email'],['whatsapp','WhatsApp'],['both','Both']].map(([k,l]) => `<button type="button" role="radio" aria-checked="${v===k}" class="${v===k?'on':''}" data-via="${k}">${l}</button>`).join('')}</div>
     <div class="mlist rlist">
-      <div class="mrow">${ico('mail')}<span class="mtx"><b>Email</b><small>${me.email ? esc(me.email) : 'No email yet — an admin adds it'}</small></span>${me.email ? '<button type="button" class="btn sm" id="rTestMail">Test</button>' : ''}</div>
+      <div class="mrow">${ico('mail')}<span class="mtx"><b>Email</b><small>${me.email ? esc(me.email) : 'No email yet — add it in your profile'}</small></span>${me.email ? '<button type="button" class="btn sm" id="rTestMail">Test</button>' : '<button type="button" class="btn sm" id="rAddMail">Add email</button>'}</div>
       <div class="mrow">${ico('wa')}<span class="mtx"><b>WhatsApp</b><small>${!waOn() ? 'Not switched on yet — your admin connects it' : n ? '+' + n : 'Add your mobile number in Edit profile'}</small></span>${waOn() ? (n ? '<button type="button" class="btn sm" id="rTestWa">Test</button>' : '<button type="button" class="btn sm" id="rAddNum">Add number</button>') : ''}</div>
     </div>
     <p class="fuhint" id="rWarn"></p>
@@ -5629,7 +5638,8 @@ function remindersSheet(pick){
   $$('#mBody [data-via]').forEach(b => b.onclick = () => { v = b.dataset.via; $$('#mBody [data-via]').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); }); warn(); });
   if ($('#rTestMail')) $('#rTestMail').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { await callApi({action:'testReminderEmail'}); toast('Test email sent — check your inbox'); } catch(err) { toast(friendly(err)); } b.disabled = false; };
   if ($('#rTestWa')) $('#rTestWa').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { const r = await callApi({action:'testReminderWhatsApp'}); toast(`Test WhatsApp sent to ${r.to || 'your phone'}`); } catch(err) { toast(friendly(err)); } b.disabled = false; };
-  if ($('#rAddNum')) $('#rAddNum').onclick = () => { const keep = v; profileSheet(() => remindersSheet(keep)); };   // the channel picked here (not saved yet) is still picked when Reminders comes back
+  if ($('#rAddNum')) $('#rAddNum').onclick = () => { const keep = v; profileSheet(() => remindersSheet(keep)); };
+  if ($('#rAddMail')) $('#rAddMail').onclick = () => { const keep = v; profileSheet(() => remindersSheet(keep)); };   // same way back to Reminders   // the channel picked here (not saved yet) is still picked when Reminders comes back
   if ($('#rWrap')) $('#rWrap').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { const r = await callApi({action:'testWeeklyWrap'}); toast(`This week’s wrap-up is on its way — check ${viaPlace(r.via)}`); } catch(err) { toast(friendly(err)); } b.disabled = false; };
   if ($('#rFocus')) $('#rFocus').onclick = async e => { const b = e.currentTarget; b.disabled = true; try { const r = await callApi({action:'testWeeklyFocus'}); toast(`Your Monday focus is on its way — check ${viaPlace(r.via)}`); } catch(err) { toast(friendly(err)); } b.disabled = false; };
   warn();
@@ -5652,7 +5662,7 @@ function profileSheet(after){
       </div></div>
       <div class="f c6"><label for="pTitle">Title</label><input id="pTitle" value="${esc(me.title||'')}" maxlength="60" placeholder="Account Executive"></div>
       <div class="f c6"><label for="pPhone">Mobile <small class="lopt">for WhatsApp reminders</small></label><input id="pPhone" type="tel" inputmode="tel" maxlength="30" value="${esc(me.phone||'')}" placeholder="0300 1234567"></div>
-      <div class="f c12"><label for="pEmail">Email <small class="lopt">sign-in codes and reminders</small></label>${ui.demo || isMgr() ? `<input id="pEmail" type="email" value="${esc(me.email||'')}" placeholder="name@tmcltd.com">` : `<div class="hint" style="padding:10px 0">${me.email ? esc(me.email) : 'Not set'} · an admin can change it</div><input id="pEmail" type="hidden" value="${esc(me.email||'')}">`}</div>
+      <div class="f c12"><label for="pEmail">Email <small class="lopt">sign-in codes and reminders</small></label><input id="pEmail" type="email" inputmode="email" autocomplete="email" maxlength="120" value="${esc(me.email||'')}" placeholder="name@tmcltd.com">${!me.email ? '<span class="hint">Add your work email to get reminders, the weekly emails and sign-in codes.</span>' : ''}</div>
     </div>`, async () => {
       const ph = $('#pPhone').value.trim(); if (ph && !waNum(ph)) throw new Error('That mobile number does not look right — e.g. 0300 1234567.');
       const title = $('#pTitle').value.trim(); if (/[<>]/.test(title)) throw new Error('The title can’t contain < or > — please take them out.'); if (title.length > 60) throw new Error('Keep the title to 60 characters.');   // the server's rule; nothing is cut quietly
@@ -5998,7 +6008,7 @@ function renderPlanPage(){
   let cov = null, due = []; try { cov = coverageFor(ui.me, t0.slice(0, 8) + '01', t0); (cov.accts || []).forEach(x => { const k = canon(x.a.account); if ((planCount.get(k) || 0) >= Math.max(1, x.still || 0)) planned.add(k); }); due = (cov.accts || []).filter(x => !x.cur.met && ['A', 'B'].includes(x.tier) && !planned.has(canon(x.a.account))).sort((x, y) => x.tier.localeCompare(y.tier) || x.a.account.localeCompare(y.a.account)); } catch(e){}
   const late = pkNow().getHours() >= 15; let nx = late ? addDays(t0, 1) : t0; while ([0, 6].includes(new Date(nx + 'T00:00:00').getDay())) nx = addDays(nx, 1);
   const nextMonth = nx.slice(0, 7) !== t0.slice(0, 7);
-  let route = null; if (!nextMonth) try { route = planSuggestion(new Set([...planCount.keys()])); } catch(e){}   // Go's route skips anything planned this month; "Still needs you" keeps an A until both visits are planned
+  let route = null; if (!nextMonth && !hiddenToday('route')) try { route = planSuggestion(new Set([...planCount.keys()])); } catch(e){}   // × on the card hides it for the rest of the day   // Go's route skips anything planned this month; "Still needs you" keeps an A until both visits are planned
   const whenTxt = nx === t0 ? 'today' : nx === tmr ? 'tomorrow' : DAYS_LONG[new Date(nx + 'T00:00:00').getDay()];
   ui.routeStops = route ? {date: nx, stops: route.stops.map(y => ({account: y.x.a.account, id: y.x.a.id}))} : null;
   if (route) { const inRoute = new Set(route.stops.map(y => canon(y.x.a.account))); due = due.filter(x => !inRoute.has(canon(x.a.account))); }   // no account twice on the page
@@ -6020,6 +6030,7 @@ function renderPlanPage(){
   const lastOf = a => { const ds = [...(visitDatesFor(ui.me).get(canon(a)) || [])].filter(d => d <= t0).sort(); return ds[ds.length - 1] || ''; };
   const dueCol = (tier, title) => { const xs = due.filter(x => x.tier === tier); return xs.length ? `<div class="pldue"><h4 class="plday"><span class="badge ${tier}">${tier}</span> ${esc(title)} · ${xs.length}</h4><div class="plsugg">${xs.slice(0, ui.planDueAll ? 99 : 8).map(x => { const l = lastOf(x.a.account); return `<button type="button" class="chipq plchip" data-plsug="${esc(x.a.account)}" data-plid="${esc(x.a.id)}"><span>${esc(x.a.account)}</span><small>${l ? 'last ' + esc(fmtDate(l)) : 'never visited'}</small></button>`; }).join('')}${xs.length > 8 && !ui.planDueAll ? `<button type="button" class="plmore" data-plmore>+${xs.length - 8} more</button>` : ''}</div></div>` : ''; };
   el.innerHTML = `<div class="pagecol planpage">
+    ${helloCard()}
     ${todayCard(true)}
     <div class="card planhero"><div class="plhero-top"><div><div class="eyebrow">Plan visits</div><h2>Plan your <em class="goname">week</em></h2><p class="hint">${list.length ? `${list.length} visit${list.length === 1 ? '' : 's'} planned${briefs ? ` · ${briefs} brief${briefs === 1 ? '' : 's'} ready` : ''}` : 'Pick a day, plan who you’re seeing, and tap Get brief for Go’s homework on the company.'}</p></div><button type="button" class="btn primary" id="plAdd">+ Plan a visit</button></div>
       ${meter}
@@ -6028,7 +6039,7 @@ function renderPlanPage(){
     <div class="card plancard agenda"><div class="head"><h2>${sel ? esc(dayLabel(sel)) : 'Coming up'}</h2><span class="hint">${shown.length ? `${shown.length} visit${shown.length === 1 ? '' : 's'} planned` : ''}</span>${sel ? `<button type="button" class="linkbtn" data-plday="">Show all days</button>` : ''}</div><div class="body">
       ${shown.length ? days.map(d => `${sel ? '' : `<h4 class="plday">${esc(dayLabel(d))}</h4>`}<ul class="planlist">${shown.filter(p => p.date === d).map(p => planRowHtml(p, false)).join('')}</ul>`).join('') : emptyDay}
     </div></div>
-    ${route ? `<div class="card plancard routecard"><div class="head"><h2>Go’s route for ${esc(whenTxt)}</h2><span class="hint">${route.stops.length === 1 ? 'your most urgent still-due account' : route.stops.length + ' still-due accounts close together'}${route.left > route.stops.length ? ` · ${route.left} due in all` : ''}</span></div><div class="body">
+    ${route ? `<div class="card plancard routecard"><button type="button" class="cardx" data-hide="route" aria-label="Hide Go’s route for today" title="Hide for today">×</button><div class="head"><h2>Go’s route for ${esc(whenTxt)}</h2><span class="hint">${route.stops.length === 1 ? 'your most urgent still-due account' : route.stops.length + ' still-due accounts close together'}${route.left > route.stops.length ? ` · ${route.left} due in all` : ''}</span></div><div class="body">
       <ol class="rtline"><li class="rtoff"><span class="rtdot" aria-hidden="true"></span><span>Your office</span></li>${route.stops.map((y, i) => `<li class="planc"><span class="rtname"><span class="seq sm">${i + 1}</span><button type="button" class="cname" data-client="${esc(y.x.a.account)}">${esc(y.x.a.account)}</button><span class="badge ${y.x.tier}">${y.x.tier}</span></span><small>${y.last ? 'last ' + esc(fmtDate(y.last)) : 'not visited yet'}${y.km ? ' · ' + y.km.toFixed(1) + ' km from the first stop' : ''}</small></li>`).join('')}</ol>
       <div class="rtact"><button type="button" class="btn primary" id="plRoute">Plan ${route.stops.length === 1 ? 'this visit' : 'these ' + route.stops.length + ' visits'} for ${esc(whenTxt)}</button><a class="btn" href="${esc(route.url)}" target="_blank" rel="noopener">Route in Google Maps</a></div>
       </div></div>` : ''}
