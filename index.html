@@ -2044,6 +2044,28 @@ body .btn:active:not(:disabled){transform:translateY(1px)}
 body a.btn,body a.btn:hover,body a.btn:focus-visible{text-decoration:none!important}
 body a.btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 @media (prefers-reduced-motion:reduce){ body .btn{transition:none} body .btn:active:not(:disabled){transform:none} }
+
+/* Plan visits: as wide as Log visits and Dashboard (owner 28 Oct: "plan visit page is smaller than the other two") — planning
+   (week + agenda) on the left, the day's helpers (Your day, Go's route, still needs you, did these happen) on the right.
+   Narrower screens: one column in the old order (the wrappers step aside with display:contents). */
+.plx-cols,.plx-main,.plx-side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.pl-today:empty{display:none}
+@media (max-width:1099px){
+  .plx-cols,.plx-main,.plx-side,.pl-today{display:contents}
+  .planpage>.hellocard,.planpage .hellocard{order:0} .planpage .pl-today>*{order:1} .planpage .pl-today>.reopenbar{order:1} .planpage .planhero{order:2} .planpage .agenda{order:3}
+  .planpage .routecard,.planpage .plx-side>.reopenbar{order:4} .planpage .duecard{order:5} .planpage .pastcard{order:6}
+}
+@media (min-width:1100px){
+  #v-plan .planpage{max-width:none}
+  .plx-cols{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(360px,1fr);gap:20px;align-items:start}
+  .plx-side .routecard .rtline{flex-wrap:wrap}
+}
+/* the bar a closed card leaves behind */
+.reopenbar{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;padding:8px 16px;border:1px dashed var(--edge-2,#C3CADB);border-radius:14px;background:transparent;color:var(--n-500);font:inherit;font-size:13.5px;cursor:pointer;text-align:left}
+.reopenbar:hover{border-style:solid;border-color:var(--b-200);background:var(--b-50);color:var(--n-700)}
+.reopenbar .rb-a{font-weight:700;color:var(--b-600);white-space:nowrap}
+.reopenbar .rb-a::before{content:'↺ '}
+.reopenbar:focus-visible{outline:3px solid var(--b-200);outline-offset:2px}
 /* ── Sign-in lamp: a dark room until the string is pulled ── */
 .sr-only{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .lamproom{position:relative;overflow:hidden;isolation:isolate;display:flex;align-items:flex-start;justify-content:center;gap:clamp(18px,5vw,72px);width:min(1000px,100%);margin:0 auto!important;min-height:min(660px,calc(100dvh - 120px));padding:0 clamp(16px,4vw,48px) 36px!important;border-radius:28px;background:#0A0F2C;--pull:0px}
@@ -2409,6 +2431,7 @@ html.dark body .drow:hover,html.dark body .mstat:hover,html.dark body .covhero:h
 html.dark .covhero + .pace{border-top:1px dashed #4F442C!important}
 html.dark .kcsum{border:1px solid var(--edge,#353A46)!important;background:#141A29!important}
 html.dark .tplan{border-top:1px dashed #2E2853!important}
+html.dark .reopenbar{border:1px dashed var(--edge-2,#363A45)!important}
 html.dark .room-light{background:radial-gradient(60% 75% at 24% 24%,#352B10 0%,#2F2414 30%,#191D28 72%,#191E29 100%)!important}
 html.dark .lamproom.lit{background:#191D28!important}
 html.dark .pull-line{background:linear-gradient(#22252E,#9AA1B9)!important}
@@ -2546,7 +2569,7 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-28 10:00 · production';
+const BUILD = '2026-10-28 14:00 · production';
 const NEEDS_BACKEND = 66;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
@@ -4335,7 +4358,7 @@ function renderMyMonth(){
       }).join('') || `<tr><td colspan="6" class="empty"><svg class="eart" viewBox="0 0 120 80" aria-hidden="true"><rect x="14" y="16" width="92" height="52" rx="12" fill="#E0E7FF"/><rect x="60" y="16" width="46" height="52" rx="12" fill="#EDE4FE" opacity=".8"/><path d="M30 56l14-14 10 10 18-20 18 18" fill="none" stroke="#6366F1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="92" cy="22" r="8" fill="#FDE68A"/></svg><b>Nothing logged yet for ${monthLabel(ui.month)}</b>Save your first visit above.</td></tr>`}
     </tbody></table></div>`;
   wireRowActions(el); countUpNumbers(el);
-  $$('[data-hide]', el).forEach(b => b.onclick = () => { hideToday(b.dataset.hide); renderLog(); toast('Hidden for today'); });
+  wireReopen(el, renderLog);
   if (curOpen && s.measured) {
     if (s.tiers.A.assigned && s.tiers.A.visited === s.tiers.A.assigned) celebrate(`vi.cel.${ui.me}.${ui.month}.A`, `All A accounts met for ${MONTHS_LONG[+ui.month.slice(5) - 1]}`, 'Every A account has its 2 visits this month. Nicely done.');
     else if (s.overall.assigned && s.overall.visited === s.overall.assigned) celebrate(`vi.cel.${ui.me}.${ui.month}.all`, 'Everything on track', `Every account due this period is met.`);
@@ -4455,17 +4478,17 @@ function paceFacts(s){
   return {need, left, parts, cMore, perDay: need && left ? Math.ceil(need / left) : 0, due: s.overall.assigned};
 }
 function paceHtml(s, curOpen){
-      if (!curOpen || hiddenToday('pace')) return ''; const f = paceFacts(s); if (!f) return '';
-      return `<div class="pace${f.need ? '' : ' done'}"><span class="pace-ic" aria-hidden="true">${f.need ? '⏱' : '✓'}</span><span><b>${f.need ? `${f.left} working day${f.left === 1 ? '' : 's'} left` : f.due ? 'Everything due this month is done' : 'Nothing due yet this month'}</b>${f.parts.length ? ' · ' + esc(f.parts.join(' · ')) : ''}${f.perDay ? ` — <b>about ${f.perDay} visit${f.perDay === 1 ? '' : 's'} a day</b> keeps you on track` : ''}</span><button type="button" class="cardx" data-hide="pace" aria-label="Hide this for today" title="Hide for today">×</button></div>`;
+      if (!curOpen) return ''; if (hiddenToday('pace')) return reopenBar('pace', 'This month’s pace'); const f = paceFacts(s); if (!f) return '';
+      return `<div class="pace${f.need ? '' : ' done'}"><span class="pace-ic" aria-hidden="true">${f.need ? '⏱' : '✓'}</span><span><b>${f.need ? `${f.left} working day${f.left === 1 ? '' : 's'} left` : f.due ? 'Everything due this month is done' : 'Nothing due yet this month'}</b>${f.parts.length ? ' · ' + esc(f.parts.join(' · ')) : ''}${f.perDay ? ` — <b>about ${f.perDay} visit${f.perDay === 1 ? '' : 's'} a day</b> keeps you on track` : ''}</span><button type="button" class="cardx" data-hide="pace" aria-label="Hide this — you can show it again" title="Hide (tap Show to bring it back)">×</button></div>`;
     }
 function wireTodayCard(el){
-  if ($('#gbX')) $('#gbX').onclick = () => { hideToday('today'); $('#goBrief').remove(); toast('Hidden for today'); };
+  if ($('#gbX')) $('#gbX').onclick = () => { hideToday('today'); render(); toast('Hidden — tap “Show” to bring it back'); };
   if ($('#gbTodo')) $('#gbTodo').onclick = () => goTab('todo');
   if ($('#gbPlan')) $('#gbPlan').onclick = () => { aiOpen(); const i = $('#aiIn'); if (i && aiReady()) { i.value = 'Plan my day — which of my accounts should I visit today, and in what order?'; autoGrow(i); i.focus(); } };
   $$('#goBrief .cname[data-client]', el).forEach(b => b.onclick = () => clientSheet(b.dataset.client));
 }
 function todayCard(onPlan){
-  if (!ui.me || hiddenToday('today')) return '';
+  if (!ui.me) return ''; if (hiddenToday('today')) return reopenBar('today', 'Your day');
   const today = todayIso(), late = pkNow().getHours() >= 15;
   const fo = myFollowups().filter(f => f.status !== 'done'), fToday = fo.filter(f => f.dueDate === today).length, fLate = fo.filter(f => f.dueDate && f.dueDate < today).length;
   const items = [];
@@ -4491,7 +4514,7 @@ function todayCard(onPlan){
   return `<section class="gobrief" id="goBrief" aria-label="Your day">
     <span class="gbic" aria-hidden="true">✦</span>
     <div class="gbmain"><b class="gbt">Your day</b>${items.length ? `<ul>${items.map(([k, h]) => `<li class="gb-${k}">${h}</li>`).join('')}</ul>` : ''}${plan}</div>
-    <div class="gbact">${fToday || fLate ? '<button type="button" class="btn sm" id="gbTodo">Open To-do</button>' : ''}<button type="button" class="btn sm" id="gbPlan">Plan my day with Go</button><button type="button" class="gbx" id="gbX" aria-label="Hide for today" title="Hide for today">×</button></div>
+    <div class="gbact">${fToday || fLate ? '<button type="button" class="btn sm" id="gbTodo">Open To-do</button>' : ''}<button type="button" class="btn sm" id="gbPlan">Plan my day with Go</button><button type="button" class="gbx" id="gbX" aria-label="Hide Your day — you can show it again" title="Hide (tap Show to bring it back)">×</button></div>
   </section>`;
 }
 function wireRowActions(el){
@@ -5550,6 +5573,13 @@ function planSuggestion(skip){
 // small cards a person can close for the rest of the day (per person, this device)
 const hiddenToday = k => { try { return localStorage.getItem(`vi.hide.${k}.${ui.me}`) === todayIso(); } catch(e){ return false; } };
 const hideToday = k => { try { localStorage.setItem(`vi.hide.${k}.${ui.me}`, todayIso()); } catch(e){} };
+const showAgain = k => { try { localStorage.removeItem(`vi.hide.${k}.${ui.me}`); } catch(e){} };
+// a card closed with × leaves this bar in its place — tap to bring it back, any time (it also comes back by itself the next day)
+const reopenBar = (k, label) => `<button type="button" class="reopenbar" data-unhide="${k}" aria-label="Show ${esc(label)} again"><span class="rb-l">${esc(label)}</span><span class="rb-a">Show</span></button>`;
+function wireReopen(el, redraw){
+  $$('[data-unhide]', el).forEach(b => b.onclick = () => { showAgain(b.dataset.unhide); redraw(); });
+  $$('[data-hide]', el).forEach(b => b.onclick = () => { hideToday(b.dataset.hide); redraw(); toast('Hidden — tap “Show” to bring it back'); });
+}
 const MI = {   // menu icons (stroke)
   car:'<path d="M5 17h14M6 17l1.5-5h9L18 17M5 17v2M19 17v2"/><circle cx="8" cy="14.5" r=".8"/><circle cx="16" cy="14.5" r=".8"/><path d="M8 12l1.5-4h5L16 12"/>',
   auto:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
@@ -6008,7 +6038,8 @@ function renderPlanPage(){
   let cov = null, due = []; try { cov = coverageFor(ui.me, t0.slice(0, 8) + '01', t0); (cov.accts || []).forEach(x => { const k = canon(x.a.account); if ((planCount.get(k) || 0) >= Math.max(1, x.still || 0)) planned.add(k); }); due = (cov.accts || []).filter(x => !x.cur.met && ['A', 'B'].includes(x.tier) && !planned.has(canon(x.a.account))).sort((x, y) => x.tier.localeCompare(y.tier) || x.a.account.localeCompare(y.a.account)); } catch(e){}
   const late = pkNow().getHours() >= 15; let nx = late ? addDays(t0, 1) : t0; while ([0, 6].includes(new Date(nx + 'T00:00:00').getDay())) nx = addDays(nx, 1);
   const nextMonth = nx.slice(0, 7) !== t0.slice(0, 7);
-  let route = null; if (!nextMonth && !hiddenToday('route')) try { route = planSuggestion(new Set([...planCount.keys()])); } catch(e){}   // × on the card hides it for the rest of the day   // Go's route skips anything planned this month; "Still needs you" keeps an A until both visits are planned
+  let route = null; if (!nextMonth) try { route = planSuggestion(new Set([...planCount.keys()])); } catch(e){}
+  const routeHidden = !!route && hiddenToday('route'); if (routeHidden) route = null;   // × collapses it to a Show bar (below)   // × on the card hides it for the rest of the day   // Go's route skips anything planned this month; "Still needs you" keeps an A until both visits are planned
   const whenTxt = nx === t0 ? 'today' : nx === tmr ? 'tomorrow' : DAYS_LONG[new Date(nx + 'T00:00:00').getDay()];
   ui.routeStops = route ? {date: nx, stops: route.stops.map(y => ({account: y.x.a.account, id: y.x.a.id}))} : null;
   if (route) { const inRoute = new Set(route.stops.map(y => canon(y.x.a.account))); due = due.filter(x => !inRoute.has(canon(x.a.account))); }   // no account twice on the page
@@ -6031,7 +6062,7 @@ function renderPlanPage(){
   const dueCol = (tier, title) => { const xs = due.filter(x => x.tier === tier); return xs.length ? `<div class="pldue"><h4 class="plday"><span class="badge ${tier}">${tier}</span> ${esc(title)} · ${xs.length}</h4><div class="plsugg">${xs.slice(0, ui.planDueAll ? 99 : 8).map(x => { const l = lastOf(x.a.account); return `<button type="button" class="chipq plchip" data-plsug="${esc(x.a.account)}" data-plid="${esc(x.a.id)}"><span>${esc(x.a.account)}</span><small>${l ? 'last ' + esc(fmtDate(l)) : 'never visited'}</small></button>`; }).join('')}${xs.length > 8 && !ui.planDueAll ? `<button type="button" class="plmore" data-plmore>+${xs.length - 8} more</button>` : ''}</div></div>` : ''; };
   el.innerHTML = `<div class="pagecol planpage">
     ${helloCard()}
-    ${todayCard(true)}
+    <div class="plx-cols"><div class="plx-main">
     <div class="card planhero"><div class="plhero-top"><div><div class="eyebrow">Plan visits</div><h2>Plan your <em class="goname">week</em></h2><p class="hint">${list.length ? `${list.length} visit${list.length === 1 ? '' : 's'} planned${briefs ? ` · ${briefs} brief${briefs === 1 ? '' : 's'} ready` : ''}` : 'Pick a day, plan who you’re seeing, and tap Get brief for Go’s homework on the company.'}</p></div><button type="button" class="btn primary" id="plAdd">+ Plan a visit</button></div>
       ${meter}
       <div class="pdays" role="group" aria-label="Pick a day"><button type="button" class="pday all${sel ? '' : ' on'}" data-plday="" aria-pressed="${!sel}"><small>All</small><b>${list.length}</b><span class="pdots"></span></button>${strip.map(tile).join('')}</div>
@@ -6039,18 +6070,22 @@ function renderPlanPage(){
     <div class="card plancard agenda"><div class="head"><h2>${sel ? esc(dayLabel(sel)) : 'Coming up'}</h2><span class="hint">${shown.length ? `${shown.length} visit${shown.length === 1 ? '' : 's'} planned` : ''}</span>${sel ? `<button type="button" class="linkbtn" data-plday="">Show all days</button>` : ''}</div><div class="body">
       ${shown.length ? days.map(d => `${sel ? '' : `<h4 class="plday">${esc(dayLabel(d))}</h4>`}<ul class="planlist">${shown.filter(p => p.date === d).map(p => planRowHtml(p, false)).join('')}</ul>`).join('') : emptyDay}
     </div></div>
-    ${route ? `<div class="card plancard routecard"><button type="button" class="cardx" data-hide="route" aria-label="Hide Go’s route for today" title="Hide for today">×</button><div class="head"><h2>Go’s route for ${esc(whenTxt)}</h2><span class="hint">${route.stops.length === 1 ? 'your most urgent still-due account' : route.stops.length + ' still-due accounts close together'}${route.left > route.stops.length ? ` · ${route.left} due in all` : ''}</span></div><div class="body">
+    </div><div class="plx-side">
+    <div class="pl-today">${todayCard(true)}</div>
+    ${routeHidden ? reopenBar('route', 'Go’s route for ' + whenTxt) : ''}
+    ${route ? `<div class="card plancard routecard"><button type="button" class="cardx" data-hide="route" aria-label="Hide Go’s route — you can show it again" title="Hide (tap Show to bring it back)">×</button><div class="head"><h2>Go’s route for ${esc(whenTxt)}</h2><span class="hint">${route.stops.length === 1 ? 'your most urgent still-due account' : route.stops.length + ' still-due accounts close together'}${route.left > route.stops.length ? ` · ${route.left} due in all` : ''}</span></div><div class="body">
       <ol class="rtline"><li class="rtoff"><span class="rtdot" aria-hidden="true"></span><span>Your office</span></li>${route.stops.map((y, i) => `<li class="planc"><span class="rtname"><span class="seq sm">${i + 1}</span><button type="button" class="cname" data-client="${esc(y.x.a.account)}">${esc(y.x.a.account)}</button><span class="badge ${y.x.tier}">${y.x.tier}</span></span><small>${y.last ? 'last ' + esc(fmtDate(y.last)) : 'not visited yet'}${y.km ? ' · ' + y.km.toFixed(1) + ' km from the first stop' : ''}</small></li>`).join('')}</ol>
       <div class="rtact"><button type="button" class="btn primary" id="plRoute">Plan ${route.stops.length === 1 ? 'this visit' : 'these ' + route.stops.length + ' visits'} for ${esc(whenTxt)}</button><a class="btn" href="${esc(route.url)}" target="_blank" rel="noopener">Route in Google Maps</a></div>
       </div></div>` : ''}
     ${due.length ? `<div class="card plancard duecard"><div class="head"><h2>Still needs you this month</h2><span class="hint">not planned yet · tap one to plan it for ${esc(/^(Today|Tomorrow)$/.test(dayLabel(defDay)) ? dayLabel(defDay).toLowerCase() : dayLabel(defDay))}</span></div><div class="body plduegrid">${dueCol('A', 'Two visits a month')}${dueCol('B', 'One visit a month')}</div></div>` : ''}
-    ${past.length ? `<div class="card plancard"><div class="head"><h2>Did these happen?</h2><span class="hint">last week’s plans — log the ones you visited</span></div><div class="body">${[...new Set(past.map(p => p.date))].map(d => `<h4 class="plday">${esc(dayName(d) + ' ' + fmtLong(d).replace(/ \d{4}$/, ''))}</h4><ul class="planlist">${past.filter(p => p.date === d).map(p => planRowHtml(p, true)).join('')}</ul>`).join('')}</div></div>` : ''}
+    ${past.length ? `<div class="card plancard pastcard"><div class="head"><h2>Did these happen?</h2><span class="hint">last week’s plans — log the ones you visited</span></div><div class="body">${[...new Set(past.map(p => p.date))].map(d => `<h4 class="plday">${esc(dayName(d) + ' ' + fmtLong(d).replace(/ \d{4}$/, ''))}</h4><ul class="planlist">${past.filter(p => p.date === d).map(p => planRowHtml(p, true)).join('')}</ul>`).join('')}</div></div>` : ''}
+  </div></div>
   </div>`;
   $('#plAdd').onclick = () => planDialog(sel ? {date: sel} : {}); paintCalLine(); wireTodayCard(el);
   $$('[data-plday]', el).forEach(b => b.onclick = () => { ui.planDay = b.dataset.plday; renderPlanPage(); });
   $$('[data-plmore]', el).forEach(b => b.onclick = () => { ui.planDueAll = true; renderPlanPage(); });
   $$('[data-pladdday]', el).forEach(b => b.onclick = () => planDialog({date: b.dataset.pladdday}));
-  $$('[data-hide]', el).forEach(b => b.onclick = () => { hideToday(b.dataset.hide); renderPlanPage(); toast('Hidden for today'); });
+  wireReopen(el, renderPlanPage);
   const pr = $('#plRoute'); if (pr) pr.onclick = () => planRoute(pr);
   $$('[data-plsug]', el).forEach(b => b.onclick = () => planDialog({account: b.dataset.plsug, accountId: b.dataset.plid, date: defDay}));
   $$('[data-plbrief]', el).forEach(b => b.onclick = () => { const p = data.plans.find(x => x.id === b.dataset.plbrief); if (p) briefSheet({account: p.account, plan: p}); });
