@@ -2050,16 +2050,11 @@ body a.btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width
    Narrower screens: one column in the old order (the wrappers step aside with display:contents). */
 .plx-cols,.plx-main,.plx-side{display:flex;flex-direction:column;gap:16px;min-width:0}
 .pl-today:empty{display:none}
-@media (max-width:1099px){
-  .plx-cols,.plx-main,.plx-side,.pl-today{display:contents}
-  .planpage>.hellocard,.planpage .hellocard{order:0} .planpage .pl-today>*{order:1} .planpage .pl-today>.reopenbar{order:1} .planpage .planhero{order:2} .planpage .agenda{order:3}
-  .planpage .routecard,.planpage .plx-side>.reopenbar{order:4} .planpage .duecard{order:5} .planpage .pastcard{order:6}
-}
-@media (min-width:1100px){
-  #v-plan .planpage{max-width:none}
-  .plx-cols{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(360px,1fr);gap:20px;align-items:start}
-  .plx-side .routecard .rtline{flex-wrap:wrap}
-}
+/* owner 28 Oct (later): "don't make two columns, just one please" — one column on every screen, still the full page width */
+.plx-cols,.plx-main,.plx-side,.pl-today{display:contents}
+.planpage>.hellocard,.planpage .hellocard{order:0} .planpage .pl-today>*{order:1} .planpage .pl-today>.reopenbar{order:1} .planpage .planhero{order:2} .planpage .agenda{order:3}
+.planpage .routecard,.planpage .plx-side>.reopenbar{order:4} .planpage .duecard{order:5} .planpage .pastcard{order:6}
+#v-plan .planpage{max-width:none}
 /* the bar a closed card leaves behind */
 .reopenbar{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;padding:8px 16px;border:1px dashed var(--edge-2,#C3CADB);border-radius:14px;background:transparent;color:var(--n-500);font:inherit;font-size:13.5px;cursor:pointer;text-align:left}
 .reopenbar:hover{border-style:solid;border-color:var(--b-200);background:var(--b-50);color:var(--n-700)}
@@ -2569,7 +2564,7 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-28 14:00 · production';
+const BUILD = '2026-10-28 15:00 · production';
 const NEEDS_BACKEND = 66;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
