@@ -2564,7 +2564,7 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-28 15:00 · production';
+const BUILD = '2026-10-28 17:00 · production';
 const NEEDS_BACKEND = 66;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
@@ -3728,7 +3728,7 @@ function renderLogPage(){
   el.innerHTML = `${!editing && !prepOn() ? todayCard() : ''}
   <div class="card logcard">
     <div class="head hello"><div class="who">${avatar(ui.me, 44)}<div>${prepOn() ? `<h2>Log your visits</h2>` : `<h2>${esc(greeting())}, <em class="goname">${esc(shortName(ui.me).split(' ')[0])}</em> ${greetEmoji()}</h2>`}<div class="hint">${dayLine(city)}${monthPulse()}</div>${editing ? `<span class="sub hellosub">Editing ${fmtDate(editDay ? editDay.date : '')} — change the visits below and save; the day\u2019s kilometres are recalculated.</span>` : ''}</div></div>
-      <span class="spacer"></span>${editing ? '<button class="btn sm" id="fCancel">Cancel</button>' : `<div class="htools"><button type="button" class="hbtn" id="fMyAccounts" title="My accounts — everyone on your list, with your notes" aria-label="My accounts"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h12a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2z"/><path d="M8 8h6M8 12h6"/></svg><span>Accounts</span></button></div>`}</div>
+      <span class="spacer"></span>${editing ? '<button class="btn sm" id="fCancel">Cancel</button>' : `<div class="htools"><button type="button" class="btn primary sm" id="fQuickLog">+ Log a visit</button><button type="button" class="hbtn" id="fMyAccounts" title="My accounts — everyone on your list, with your notes" aria-label="My accounts"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h12a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2z"/><path d="M8 8h6M8 12h6"/></svg><span>Accounts</span></button></div>`}</div>
     <div class="body">
       ${!editing ? weekStrip() : ''}
       ${!mixedDates() ? dayPill(editing) : ''}
@@ -3810,6 +3810,7 @@ function renderLogPage(){
   if ($('#goDash')) $('#goDash').onclick = () => { ui.tab = 'dash'; localStorage.setItem('vi.tab','dash'); countUpArmed = true; render(); };
   if ($('#fImport')) $('#fImport').onclick = importDialog;
   if ($('#fMyAccounts')) $('#fMyAccounts').onclick = () => kpiDrill('myaccounts', 'month');
+  if ($('#fQuickLog')) $('#fQuickLog').onclick = () => logVisitDialog({date: form && !form.editId && form.lines[0] && form.lines[0].date <= todayIso() ? form.lines[0].date : todayIso()});
 
   wireNotes($('#v-log'), () => renderLog());
   $('#fAdd').onclick = () => { form.lines.push(newLine(formDate())); renderLog(); const l = form.lines[form.lines.length-1]; const i = $('#lin-'+l.key); if (i) i.focus(); };
@@ -6104,7 +6105,7 @@ function planLogged(p){ if (p.date > todayIso()) return false; const pa = p.acco
   return data.visits.some(v => v.ae === ui.me && v.date === p.date && dayDetails(v).some(d => canon(d.client) === canon(p.account) || (pa && (pickAccount(ui.me, d.client) || {}).id === pa.id))); }
 function planDoneDialog(p, keep){
   const st = keep || {line: {client: p.account, quiet: true}, purposes: splitPurposes(p.purpose || lastPurposeFor(p.account) || ''), gps: null, gpsMsg: '', pick: ''};
-  const a = accountRow(ui.me, p.account), spot = located(a) ? {lat: +a.lat, lng: +a.lng, address: a.located || a.address || 'Saved location'} : (companySpots().get(canon(p.account)) ? Object.assign({address: 'Where it was last visited'}, companySpots().get(canon(p.account))) : null);
+  const a = accountRow(ui.me, p.account), spot = located(a) ? {lat: +a.lat, lng: +a.lng, address: (String(a.located || '').length > 3 ? a.located : '') || a.address || 'Saved location'} : (companySpots().get(canon(p.account)) ? Object.assign({address: 'Where it was last visited'}, companySpots().get(canon(p.account))) : null);
   const near = st.gps && spot ? distKm(st.gps.lat, st.gps.lng, spot.lat, spot.lng) : null;
   if (!st.pick) st.pick = st.line.loc ? 'picked' : near != null && near <= 0.3 ? 'saved' : st.gps ? 'here' : spot ? 'saved' : 'none';
   const opts = [st.line.loc ? ['picked', '📍 ' + (st.line.loc.address || 'The place you picked'), 'chosen with Change location', st.line.loc] : null,
@@ -6137,6 +6138,86 @@ function planDoneDialog(p, keep){
   if (!st.gps && !st.gpsAsked && p.date === todayIso() && 'geolocation' in navigator && !inFrame) { st.gpsAsked = true;   // where you are now says nothing about a visit on an earlier day
     navigator.geolocation.getCurrentPosition(pos => { st.gps = {lat: pos.coords.latitude, lng: pos.coords.longitude, acc: Math.round(pos.coords.accuracy)}; if (st.pick !== 'picked' && !st.chosen) st.pick = ''; if ($('#pdGps') && $('#mTitle').textContent === `Log this visit — ${p.account}`) planDoneDialog(p, st); },
       err => { st.gpsMsg = err.code === 1 ? 'Location is blocked in this browser — pick the place below or use Change location.' : 'Couldn’t get your location — pick the place below or use Change location.'; const g = $('#pdGps'); if (g) g.textContent = st.gpsMsg; },
+      {enableHighAccuracy: true, timeout: 12000, maximumAge: 60000}); }
+}
+// "+ Log a visit" on Log visits (owner 28 Oct: "a button similar to Plan a visit … which pulls up log visit details"): one visit in a
+// window — client, day, purpose, where you were — saved exactly as the form saves it (logVisitNow: appended to that day; a new
+// client becomes net new; km on the server). Same name rule as the form: exact / alias / close spelling is taken; a near-miss asks
+// "Did you mean …?" once (Save again keeps it as typed). Several purposes or a follow-up → "Open it in the Log visits form".
+// The window is drawn once; typing never redraws it (a redraw while Save is being clicked would leave the click on an old button) —
+// only the part under the fields (#lvDyn: where you were, "already logged") is repainted in place.
+function lvState(st){   // what the fields say right now → the client, its places and the choices to offer
+  const t0 = todayIso(), typed = ($('#lvClient') ? $('#lvClient').value : st.client).replace(/\s+/g, ' ').trim(), date = ($('#lvDate') ? $('#lvDate').value : st.date) || st.date;
+  const acc = typed ? pickAccount(ui.me, typed) : null, name = acc ? acc.account : typed;
+  if (canon(st.line.client || '') !== canon(name)) { st.line = {client: name, quiet: true}; st.pick = ''; st.chosen = false; }   // a different client: its own places
+  const a = name ? accountRow(ui.me, name) : null, cs = name ? companySpots().get(canon(name)) : null;
+  const spot = !name ? null : located(a) ? {lat: +a.lat, lng: +a.lng, address: (String(a.located || '').length > 3 ? a.located : '') || a.address || 'Saved location'} : cs ? Object.assign({address: 'Where it was last visited'}, cs) : null;
+  const gps = date === t0 ? st.gps : null, near = gps && spot ? distKm(gps.lat, gps.lng, spot.lat, spot.lng) : null;   // where you are now only means something for today
+  if (!st.pick || (st.pick === 'here' && !gps) || (st.pick === 'saved' && !spot) || (st.pick === 'picked' && !st.line.loc)) st.pick = st.line.loc ? 'picked' : near != null && near <= 0.3 ? 'saved' : gps ? 'here' : spot ? 'saved' : 'none';
+  const opts = !name ? [] : [st.line.loc ? ['picked', '📍 ' + (st.line.loc.address || 'The place you picked'), 'chosen with Change location', st.line.loc] : null,
+    spot ? ['saved', `🏢 ${name}${a && located(a) ? ' — saved location' : ''}`, (spot.address || '') + (near != null ? ` · you’re ${near < 1 ? Math.round(near * 1000) + ' m' : near.toFixed(1) + ' km'} from it` : ''), spot] : null,
+    gps ? ['here', '📡 Where I am now', `±${gps.acc} m${near != null && near <= 0.3 ? ' — you’re at the client' : ''}`, gps] : null,
+    ['none', '🔎 Work it out from the client’s name', 'Google finds the place, as on Log visits', null]].filter(Boolean);
+  const ex = name && /^\d{4}-\d{2}-\d{2}$/.test(date) ? dayEntry(ui.me, date) : null, already = !!ex && splitAccts(ex.accounts).some(c => canon(c) === canon(name));
+  return {typed, acc, name, date, gps, opts, already};
+}
+function logVisitDialog(pre, keep){
+  pre = pre || {}; const t0 = todayIso();
+  const st = keep || {client: pre.client || '', date: pre.date && pre.date <= t0 ? pre.date : t0, purpose: '', other: '', gps: null, gpsMsg: '', pick: '', askedTyped: '', line: {client: '', quiet: true}};
+  const names = [...new Set(data.accounts.slice().sort((x, y) => (y.ae === ui.me) - (x.ae === ui.me) || x.account.localeCompare(y.account)).map(x => x.account))];
+  const pList = purposeList(), isOther = st.purpose === '__other';
+  openModal('Log a visit', `<p class="hint" style="margin:0 0 12px">One visit, straight into Log visits — kilometres are worked out as usual.</p>
+    <div class="form">
+      <div class="f c12"><label for="lvClient">Client</label><input id="lvClient" list="lvNames" autocomplete="off" maxlength="120" value="${esc(st.client)}" placeholder="Company name"><datalist id="lvNames">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist><span id="lvNote"></span></div>
+      <div class="f c6"><label for="lvDate">Day</label><input id="lvDate" type="date" max="${t0}" value="${esc(st.date)}"></div>
+      <div class="f c6"><label for="lvPurpose">Purpose</label><select id="lvPurpose"><option value="">Choose…</option>${pList.map(x => `<option${x === st.purpose ? ' selected' : ''}>${esc(x)}</option>`).join('')}<option value="__other"${isOther ? ' selected' : ''}>Other — type it</option></select></div>
+      <div class="f c12" id="lvOtherWrap"${isOther ? '' : ' hidden'}><label for="lvOther">Other purpose</label><input id="lvOther" maxlength="120" value="${esc(st.other)}" placeholder="What the visit was about"></div>
+      <div class="f c12" id="lvDyn"></div>
+    </div>
+    <p class="hint" style="margin:10px 0 0">Several purposes or a follow-up? <button type="button" class="linkbtn" id="lvForm">Open it in the Log visits form</button></p>`, async () => {
+      const t = $('#lvClient').value.replace(/\s+/g, ' ').replace(/;/g, ',').trim().slice(0, 120), date = $('#lvDate').value;
+      if (!t) throw new Error('Type the client you visited.');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > todayIso()) throw new Error('Pick today or an earlier day.');
+      let purpose = $('#lvPurpose').value; if (purpose === '__other') purpose = $('#lvOther').value.replace(/\s+/g, ' ').replace(/;/g, ',').trim().slice(0, 120);
+      if (!purpose) throw new Error($('#lvPurpose').value === '__other' ? 'Type the purpose of the visit.' : 'Pick the purpose of the visit.');
+      const hit = pickAccount(ui.me, t), close = hit ? null : matchAccounts(t, ui.me)[0];
+      if (close && close.s >= 0.3 && st.askedTyped !== t) { st.askedTyped = t; throw new Error(`Did you mean ${close.a.account}? Pick it from the list — or tap Save again to log “${t}” as typed.`); }
+      const client = hit ? hit.account : t, now = lvState(st);   // the places offered belong to the client in the box now
+      const pick = (($('input[name=lvloc]:checked') || {}).value) || st.pick, o = canon(client) === canon(now.name) ? ((now.opts.find(x => x[0] === pick) || [])[3] || null) : null;
+      const here = pick === 'here' && date === todayIso() && !!now.gps;
+      const loc = o && (pick !== 'here' || here) ? {lat: +o.lat, lng: +o.lng, address: here ? `Pinned on site (±${now.gps.acc} m)` : (o.address || '')} : null;
+      let r;
+      try { if (loc && here) await useLocationForLine(Object.assign(st.line, {client}), loc);   // the first place ever chosen for your own account becomes its pin, as on Log visits
+            r = await logVisitNow({date, client, purpose, loc}); }
+      catch(e) { throw new Error(friendly(e)); }
+      render(); toast(`Logged ✓ ${client} · ${dayName(date)} ${fmtLong(date)}${r.route && r.route.totalKm ? ` · ${num(r.route.totalKm)} km for the day` : r.pending ? ' · km pending — fix the place later' : ''}`);
+      try { navigator.vibrate && navigator.vibrate(12); } catch(e){}
+    }, 'Log visit');
+  const myTitle = $('#mTitle').textContent;
+  const keepTyped = () => { st.client = $('#lvClient').value; st.date = $('#lvDate').value || st.date; st.purpose = $('#lvPurpose').value; st.other = $('#lvOther').value; };
+  const paint = () => {   // the part under the fields only — never the fields or the buttons
+    if (!$('#lvDyn') || $('#mTitle').textContent !== myTitle) return;
+    const v = lvState(st), mapL = o => o ? ` <a href="https://www.google.com/maps/search/?api=1&query=${o.lat},${o.lng}" target="_blank" rel="noopener" class="hint">map ↗</a>` : '';
+    $('#lvNote').innerHTML = `${v.acc && canon(v.acc.account) !== canon(v.typed) ? `<span class="hint">→ ${esc(v.acc.account)}</span>` : ''}${v.already ? `<span class="hint warn">Already logged once on ${esc(fmtDate(v.date))} — this adds another visit.</span>` : ''}`;
+    $('#lvDyn').innerHTML = v.name ? `<label>Where were you? <span class="lopt">confirm or change</span></label>
+      <div class="cands pdlocs">${v.opts.map(([k, t, sub, o]) => `<label class="cand${st.pick === k ? ' on' : ''}"><input type="radio" name="lvloc" value="${k}"${st.pick === k ? ' checked' : ''}><span><b>${esc(t)}</b><br><span class="hint">${esc(sub)}</span></span>${mapL(o)}</label>`).join('')}</div>
+      <div class="pdlocact"><span class="hint" id="lvGps">${esc(v.date !== todayIso() ? '' : st.gpsMsg || (st.gps ? '' : 'geolocation' in navigator && !inFrame ? 'Getting your location…' : ''))}</span><button type="button" class="btn sm" id="lvChange">Change location</button></div>` : '';
+    $$('input[name=lvloc]').forEach(r => r.onchange = () => { st.pick = r.value; st.chosen = true; $$('.pdlocs .cand').forEach(c => c.classList.toggle('on', !!c.querySelector('input:checked'))); });
+    if ($('#lvChange')) $('#lvChange').onclick = () => { keepTyped(); locationDialog(st.line.client, null, st.line, {afterLine: () => { st.pick = st.line.loc ? 'picked' : ''; logVisitDialog(pre, st); }}); };
+  };
+  $('#lvClient').onchange = () => paint();   // the "Did you mean" question is tied to the exact text (st.askedTyped), so a new text is asked about again by itself
+  $('#lvClient').oninput = () => { st.client = $('#lvClient').value; };
+  $('#lvDate').onchange = () => { if ($('#lvDate').value > todayIso()) $('#lvDate').value = todayIso(); st.date = $('#lvDate').value || st.date; paint(); };
+  $('#lvPurpose').onchange = () => { st.purpose = $('#lvPurpose').value; const o = st.purpose === '__other'; $('#lvOtherWrap').hidden = !o; if (o) $('#lvOther').focus(); };
+  $('#lvOther').oninput = () => { st.other = $('#lvOther').value; };
+  $('#lvForm').onclick = () => { keepTyped(); const t = st.client.replace(/\s+/g, ' ').trim(), hit = t ? pickAccount(ui.me, t) : null;
+    $('#modal').classList.remove('open'); if (!t) { goTab('log'); return; }
+    if (addClientToForm(hit ? hit.account : t, st.date)) toast(`${hit ? hit.account : t} added to ${dayName(st.date)} ${fmtLong(st.date)} — pick the purpose and save`); };
+  if (!st.purpose && st.client) { const lp = splitPurposes(lastPurposeFor(st.client) || '')[0]; if (lp && pList.includes(lp)) { st.purpose = lp; $('#lvPurpose').value = lp; } }
+  paint();
+  if (!st.gps && !st.gpsAsked && 'geolocation' in navigator && !inFrame) { st.gpsAsked = true;
+    navigator.geolocation.getCurrentPosition(pos => { st.gps = {lat: pos.coords.latitude, lng: pos.coords.longitude, acc: Math.round(pos.coords.accuracy)}; if (st.pick !== 'picked' && !st.chosen) st.pick = ''; paint(); },
+      err => { st.gpsMsg = err.code === 1 ? 'Location is blocked in this browser — pick the place below or use Change location.' : 'Couldn’t get your location — pick the place below or use Change location.'; const g = $('#lvGps'); if (g) g.textContent = st.gpsMsg; },
       {enableHighAccuracy: true, timeout: 12000, maximumAge: 60000}); }
 }
 // One client added to a day, exactly as Log visits saves it (append to the day; new client → net-new row; km on the server).
