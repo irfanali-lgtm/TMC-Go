@@ -16,9 +16,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- fonts and the chart library never hold up the page on a weak signal: the fonts swap in, the charts draw when ready -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Geist+Mono:wght@500..600&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@800&text=go&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@800&text=go&display=swap" rel="stylesheet"></noscript>
+<noscript><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Geist+Mono:wght@500..600&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@800&text=go&display=swap" rel="stylesheet"></noscript>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js" onload="if (typeof chartsReady === 'function') chartsReady()"></script>
 <style>
@@ -2220,6 +2220,52 @@ html body .btn.primary.pldone,html body .btn.primary.pldone:hover{background:lin
   .pldate b{font-size:15px}
   .rtline{flex-direction:column;gap:10px} .rtline li{padding:0;max-width:none} .rtline li:not(:last-child)::after{right:auto;left:8px;top:22px;width:2px;height:10px}
 }
+
+/* ═══ Design layer (2 Nov) — owner: "make the UI/UX better … move things, restructure, change fonts". One modern family:
+   Geist for everything (text, headings, figures), Geist Mono only for tiny labels, Instrument Serif italic only for the green
+   accent words (the name in the greeting, "week"). Edit here — it sits on top of every layer above. ═══ */
+:root{--font:'Geist',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;--serif:'Geist',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;--mono:'Geist Mono',ui-monospace,Consolas,monospace;--accent:'Instrument Serif',Georgia,serif}
+html body{font-feature-settings:'ss01' 0;letter-spacing:-.005em}
+html body main h2,html body .aiwel h3,html body .card .head h2,html body .head.hello h2,html body .dayshead h2,html body .tdtitle h2,html body .gbt,html body h3#mTitle,html body #askTitle,html body .mhero h2{font-weight:650!important;letter-spacing:-.025em!important}
+html body .head.hello h2,html body .planhero h2,html body .dayshead h2{letter-spacing:-.035em!important}
+html body em.goname{font-family:var(--accent)!important;font-style:italic;font-weight:400!important;font-size:1.14em;letter-spacing:0;line-height:1}
+html body .kpi .v,html body .gauge .rv,html body .mring .rv,html body .mstat b,html body .mstat .v,html body .dr-km b,html body .dr-date b,html body .tdate b,html body .pday b,html body .plmeter-t b,html body .pldate b{font-weight:650!important;letter-spacing:-.04em!important}
+html body .planrow .cname,html body .tdtask,html body .hlt b,html body .plempty b{font-weight:600!important;letter-spacing:-.015em!important}
+html body .kpi .l,html body .plday,html body .hlt small,html body .gl,html body .eyebrow,html body .si-eyebrow,html body .wd .dn,html body .dr-date span,html body .pday small{letter-spacing:.07em!important}
+/* Plan visits: the greeting and Your day are one card */
+.hellocard .hellobody{padding:0 20px 16px}
+.hellocard .hellobody .gobrief{margin:0!important;border:0!important;border-top:1px solid var(--edge)!important;border-radius:0!important;background:none!important;box-shadow:none!important;padding:14px 0 0!important}
+.hellocard .hellobody>.reopenbar{min-height:38px;margin-top:2px}
+@media (max-width:760px){ .hellocard .hellobody{padding:0 14px 14px} }
+/* the week planner's day tiles share the full width on laptops */
+@media (min-width:900px){ .pdays{display:grid;grid-template-columns:58px repeat(10,minmax(0,1fr));overflow:visible} .pdays .pday{width:auto} }
+/* Log visits header: "+ Log a visit" and Accounts are a matching pair of buttons; on phones they get their own row */
+body .logcard .htools{align-items:center;gap:8px}
+body .logcard .htools .hbtn{flex-direction:row;gap:6px;min-width:0;height:34px;padding:0 12px 0 8px;border:1px solid var(--edge-2,#C3CADB);border-radius:12px;background:var(--n-0);color:var(--n-800);font-size:13px;font-weight:600}
+body .logcard .htools .hbtn .i{width:16px;height:16px;padding:0;background:none;border-radius:0}
+body .logcard .htools .hbtn:hover{border-color:var(--b-500);background:var(--b-50)}
+body .logcard .htools #fQuickLog{height:34px}
+@media (max-width:760px){
+  body .logcard .head.hello{flex-wrap:wrap!important;row-gap:12px}
+  body .logcard .head.hello .spacer{display:none}
+  body .logcard .head.hello .htools{width:100%;flex:1 1 100%!important}
+  body .logcard .htools #fQuickLog{flex:1;height:44px;font-size:15px}
+  body .logcard .htools .hbtn{height:44px;padding:0 14px 0 10px}
+}
+/* Menu: the admin's note is a full-width strip under the profile, not a small box */
+.mpage>.mnote{max-width:none!important;width:auto;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;font-size:13.5px;border-radius:16px!important}
+.mpage>.mnote div{margin-top:0}
+/* Plan rows on phones: the time sits above the client (a coloured dot keeps the status), so names and buttons get the width */
+@media (max-width:760px){
+  .planrow{grid-template-columns:minmax(0,1fr)!important;row-gap:6px!important;padding:12px 14px!important}
+  .planrow .plrail{display:none!important}
+  .planrow .pldate,.planrow .plmain,.planrow .plstat,.planrow .plbtns{grid-column:1!important}
+  .planrow .pldate{grid-row:1!important;flex-direction:row;align-items:center;gap:7px}
+  .planrow .pldate::before{content:'';flex:none;width:8px;height:8px;border-radius:50%;background:var(--b-500)}
+  .planrow.t-ok .pldate::before{background:var(--leaf-2)} .planrow.t-cal .pldate::before{background:#0EA5E9} .planrow.t-due .pldate::before{background:#D97706}
+  html body .planrow .pldate b{font-size:13px!important;letter-spacing:0!important}
+  .planrow .plmain{grid-row:2!important} .planrow .plstat{grid-row:3!important} .planrow .plbtns{grid-row:4!important}
+}
 </style>
 <style id="darkcss">
 /* DARK-AUTO:START (generated by tools/darkcss.py — do not edit by hand) */
@@ -2432,6 +2478,7 @@ html.dark .lamproom.lit{background:#191D28!important}
 html.dark .pull-line{background:linear-gradient(#22252E,#9AA1B9)!important}
 html.dark .pull-bead{background:radial-gradient(circle at 35% 30%,#181C27,#A8AEC4 70%)!important}
 html.dark .pday.on .pdots i{background:#121829!important}
+html.dark body .logcard .htools .hbtn{border:1px solid var(--edge-2,#363A45)!important}
 @media (max-width:760px){html.dark .tabbar button.on{color:#888FD2!important}html.dark .tabbar button.on svg{background:#0E1431!important}html.dark .route .tl li::before{background:#121829!important}html.dark .logactions{background:linear-gradient(to top,#171A24 70%,rgba(255,255,255,0))!important}}
 @media (max-width:560px){html.dark #drT tbody tr{border:1px solid var(--edge,#353A46)!important}}
 /* DARK-AUTO:END */
@@ -2564,7 +2611,7 @@ html.dark .brand .blogo,html.dark .silogo{background:linear-gradient(180deg,#FFF
 
 <script id="seed" type="application/json">{"aes": [], "accounts": [], "visits": [], "opportunities": [], "aliases": []}</script>
 <script>
-const BUILD = '2026-10-28 17:00 · production';
+const BUILD = '2026-11-02 12:00 · production';
 const NEEDS_BACKEND = 66;   // km = 2 × office → each client needs backend v38+; all of today's fixes v39
 // If the page was pasted/uploaded incompletely, the script below never runs — this watchdog says so instead of spinning forever.
 window.__booted = false;
@@ -3966,9 +4013,10 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 function greeting(){ const h = pkNow().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; }
 // "Wednesday, 28 Oct 2026 · Sales Executive · Lahore" — under the greeting (Plan visits) or the Log visits heading
 function dayLine(city){ return esc(['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][pkNow().getDay()]) + ', ' + esc(fmtLong(todayIso())) + esc([aeByName(ui.me)?.title, city].filter(Boolean).map(x => ' · ' + x).join('')); }
-// The greeting at the top of Plan visits (owner 28 Oct: "good morning should be on the first page, Plan visits, not on Log visits")
-function helloCard(){ const city = aeCities(ui.me)[0] || '';
-  return `<div class="card hellocard"><div class="head hello"><div class="who">${avatar(ui.me, 44)}<div><h2>${esc(greeting())}, <em class="goname">${esc(shortName(ui.me).split(' ')[0])}</em> ${greetEmoji()}</h2><div class="hint">${dayLine(city)}${monthPulse()}</div></div></div></div></div>`; }
+// The greeting at the top of Plan visits (owner 28 Oct: "good morning should be on the first page, Plan visits, not on Log visits");
+// since 2 Nov it also holds Your day (inner) — one card instead of two.
+function helloCard(inner){ const city = aeCities(ui.me)[0] || '';
+  return `<div class="card hellocard"><div class="head hello"><div class="who">${avatar(ui.me, 44)}<div><h2>${esc(greeting())}, <em class="goname">${esc(shortName(ui.me).split(' ')[0])}</em> ${greetEmoji()}</h2><div class="hint">${dayLine(city)}${monthPulse()}</div></div></div></div>${inner ? `<div class="hellobody">${inner}</div>` : ''}</div>`; }
 function monthPulse(){
   if (!ui.me) return '';
   const today = todayIso(), ym = today.slice(0,7), d = +today.slice(8);
@@ -5345,7 +5393,7 @@ function drawCharts(rows, total, mv, x){
   const DL = window.ChartDataLabels; if (DL && !Chart.registry.plugins.get('datalabels')) Chart.register(DL);
   const C = isDark() ? {navy:'#8C98FF', blue:'#6B78F5', blueL:'#3A4797', green:'#3CCB8F', greenL:'#1F6A4D', amber:'#F2B44B', amberL:'#6B5220', purple:'#6B78F5', red:'#FF7B72', grey:'#2A3450', ink:'#E6EAF5', muted:'#98A1BA', line:'#222A40'}
                     : {navy:'#1C2566', blue:'#4352DB', blueL:'#A8B1F4', green:'#11845F', greenL:'#8ED7B5', amber:'#D69211', amberL:'#F3D38A', purple:'#4352DB', red:'#D2453D', grey:'#E4E7EF', ink:'#0F1629', muted:'#667085', line:'#EEF0F5'};   // design tokens
-  Chart.defaults.font.family = "'Plus Jakarta Sans', system-ui, sans-serif"; Chart.defaults.font.size = 12; Chart.defaults.color = C.muted;
+  Chart.defaults.font.family = "'Geist', system-ui, sans-serif"; Chart.defaults.font.size = 12; Chart.defaults.color = C.muted;
   const grad = (c1, c2, horiz) => ctx => { const {chart} = ctx; const a = chart.chartArea; if (!a) return c1; const g = horiz ? chart.ctx.createLinearGradient(a.left, 0, a.right, 0) : chart.ctx.createLinearGradient(0, a.bottom, 0, a.top); g.addColorStop(0, c1); g.addColorStop(1, c2); return g; };
   const tip = { backgroundColor:'#111827', titleFont:{weight:'600'}, bodyFont:{size:12}, padding:10, cornerRadius:10, displayColors:true, boxPadding:4, usePointStyle:true };
   const legend = (show=true, pos='top') => ({display:show, position:pos, labels:{boxWidth:8, boxHeight:8, usePointStyle:true, pointStyle:'circle', padding:14, color:C.ink, font:{weight:'500'}}});
@@ -5378,7 +5426,7 @@ function drawCharts(rows, total, mv, x){
   // 4 visits by category: donut with centre total
   const catL = ['A','B','C','None','Other AE'], catV = [x.catCount.A, x.catCount.B, x.catCount.C, x.catCount.None, x.catCount['—']], catC = [C.navy, C.blue, C.amber, isDark() ? '#56607F' : '#C9CFDB', isDark() ? '#3A4462' : '#E4E7EF'];   // categories in brand tones; 'no category' stays neutral
   const totalCat = catV.reduce((a,b)=>a+b,0);
-  const centre = {id:'centre', afterDraw(chart){ const {ctx, chartArea:a} = chart; if(!a) return; ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle=C.ink; ctx.font="700 22px 'Instrument Sans', system-ui"; ctx.fillText(String(totalCat), (a.left+a.right)/2, (a.top+a.bottom)/2 - 6); ctx.fillStyle=C.muted; ctx.font="500 11px 'Instrument Sans', system-ui"; ctx.fillText('visits', (a.left+a.right)/2, (a.top+a.bottom)/2 + 12); ctx.restore(); }};
+  const centre = {id:'centre', afterDraw(chart){ const {ctx, chartArea:a} = chart; if(!a) return; ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle=C.ink; ctx.font="700 22px 'Geist', system-ui"; ctx.fillText(String(totalCat), (a.left+a.right)/2, (a.top+a.bottom)/2 - 6); ctx.fillStyle=C.muted; ctx.font="500 11px 'Geist', system-ui"; ctx.fillText('visits', (a.left+a.right)/2, (a.top+a.bottom)/2 + 12); ctx.restore(); }};
   mk('c4', {type:'doughnut', data:{labels:catL, datasets:[{data:catV, backgroundColor:catC, borderWidth:2, borderColor: isDark() ? '#161D33' : '#fff', hoverOffset:6}]}, options:{cutout:'68%', responsive:true, maintainAspectRatio:false, plugins:{legend:legend(true,'right'), tooltip:tip, datalabels:{display:ctx=>ctx.dataset.data[ctx.dataIndex]/Math.max(totalCat,1) >= 0.08, color:'#fff', font:{weight:'700', size:11}, formatter:v => totalCat ? Math.round(v/totalCat*100)+'%' : ''}}}, plugins:[centre]});
 
   // 5 category coverage by AE: grouped horizontal %
@@ -6057,7 +6105,7 @@ function renderPlanPage(){
   const lastOf = a => { const ds = [...(visitDatesFor(ui.me).get(canon(a)) || [])].filter(d => d <= t0).sort(); return ds[ds.length - 1] || ''; };
   const dueCol = (tier, title) => { const xs = due.filter(x => x.tier === tier); return xs.length ? `<div class="pldue"><h4 class="plday"><span class="badge ${tier}">${tier}</span> ${esc(title)} · ${xs.length}</h4><div class="plsugg">${xs.slice(0, ui.planDueAll ? 99 : 8).map(x => { const l = lastOf(x.a.account); return `<button type="button" class="chipq plchip" data-plsug="${esc(x.a.account)}" data-plid="${esc(x.a.id)}"><span>${esc(x.a.account)}</span><small>${l ? 'last ' + esc(fmtDate(l)) : 'never visited'}</small></button>`; }).join('')}${xs.length > 8 && !ui.planDueAll ? `<button type="button" class="plmore" data-plmore>+${xs.length - 8} more</button>` : ''}</div></div>` : ''; };
   el.innerHTML = `<div class="pagecol planpage">
-    ${helloCard()}
+    ${helloCard(todayCard(true))}
     <div class="plx-cols"><div class="plx-main">
     <div class="card planhero"><div class="plhero-top"><div><div class="eyebrow">Plan visits</div><h2>Plan your <em class="goname">week</em></h2><p class="hint">${list.length ? `${list.length} visit${list.length === 1 ? '' : 's'} planned${briefs ? ` · ${briefs} brief${briefs === 1 ? '' : 's'} ready` : ''}` : 'Pick a day, plan who you’re seeing, and tap Get brief for Go’s homework on the company.'}</p></div><button type="button" class="btn primary" id="plAdd">+ Plan a visit</button></div>
       ${meter}
@@ -6067,7 +6115,6 @@ function renderPlanPage(){
       ${shown.length ? days.map(d => `${sel ? '' : `<h4 class="plday">${esc(dayLabel(d))}</h4>`}<ul class="planlist">${shown.filter(p => p.date === d).map(p => planRowHtml(p, false)).join('')}</ul>`).join('') : emptyDay}
     </div></div>
     </div><div class="plx-side">
-    <div class="pl-today">${todayCard(true)}</div>
     ${routeHidden ? reopenBar('route', 'Go’s route for ' + whenTxt) : ''}
     ${route ? `<div class="card plancard routecard"><button type="button" class="cardx" data-hide="route" aria-label="Hide Go’s route — you can show it again" title="Hide (tap Show to bring it back)">×</button><div class="head"><h2>Go’s route for ${esc(whenTxt)}</h2><span class="hint">${route.stops.length === 1 ? 'your most urgent still-due account' : route.stops.length + ' still-due accounts close together'}${route.left > route.stops.length ? ` · ${route.left} due in all` : ''}</span></div><div class="body">
       <ol class="rtline"><li class="rtoff"><span class="rtdot" aria-hidden="true"></span><span>Your office</span></li>${route.stops.map((y, i) => `<li class="planc"><span class="rtname"><span class="seq sm">${i + 1}</span><button type="button" class="cname" data-client="${esc(y.x.a.account)}">${esc(y.x.a.account)}</button><span class="badge ${y.x.tier}">${y.x.tier}</span></span><small>${y.last ? 'last ' + esc(fmtDate(y.last)) : 'not visited yet'}${y.km ? ' · ' + y.km.toFixed(1) + ' km from the first stop' : ''}</small></li>`).join('')}</ol>
